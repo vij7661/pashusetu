@@ -1,0 +1,54 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../shared/money.dart';
+import '../providers.dart';
+
+class SettlementScreen extends ConsumerStatefulWidget {
+  const SettlementScreen({super.key, required this.transactionId});
+  final String transactionId;
+
+  @override
+  ConsumerState<SettlementScreen> createState() => _SettlementScreenState();
+}
+
+class _SettlementScreenState extends ConsumerState<SettlementScreen> {
+  Map<String,dynamic>? result;
+  String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Settlement')),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(children: [
+          if (result != null)
+            Card(
+              child: ListTile(
+                title: const Text('Final transaction amount'),
+                subtitle: Text(
+                  'Gross ${formatPaise(result!['gross_amount_paise'] as int)}\n'
+                  'Adjustment ${formatPaise(result!['adjustment_paise'] as int)}\n'
+                  'Fee ${formatPaise(result!['platform_fee_paise'] as int)}',
+                ),
+                trailing: Text(formatPaise(result!['final_amount_paise'] as int)),
+              ),
+            ),
+          if (error != null) Text(error!, style: const TextStyle(color: Colors.red)),
+          const Spacer(),
+          FilledButton(
+            onPressed: () async {
+              try {
+                final x = await ref.read(transactionRepositoryProvider).settle(widget.transactionId);
+                setState(() => result = x);
+              } catch (e) {
+                setState(() => error = e.toString());
+              }
+            },
+            child: const Text('Load / Complete Settlement'),
+          ),
+        ]),
+      ),
+    );
+  }
+}

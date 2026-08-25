@@ -1,0 +1,4 @@
+App syntax compile: True
+Tests syntax compile: True
+Selected pytest: not run in host runtime; run inside Docker/CI.
+OpenAPI: run make openapi inside project container.

@@ -1,0 +1,101 @@
+from uuid import UUID, uuid4
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.core.errors import AppError
+from app.disputes.models import Dispute, DisputeEvidence, DisputeReweigh
+from app.transaction.models import Transaction
+from app.transaction.service import transition_transaction
+from app.weighment.models import WeighmentSession
+from app.audit.service import append_event
+
+
+def open_dispute(
+    db: Session,
+    tx: Transaction,
+    actor_user_id: UUID,
+    reason: str,
+    disputed_amount_paise: int,
+) -> Dispute:
+    existing = db.scalar(select(Dispute).where(Dispute.transaction_id == tx.id))
+    if existing:
+        return existing
+    if tx.state != "DISPUTED":
+        raise AppError("TRANSACTION_NOT_DISPUTED", "Transaction is not in disputed state.", 409)
+
+    dispute = Dispute(
+        dispute_code=f"DSP-{uuid4().hex[:10].upper()}",
+        transaction_id=tx.id,
+        reason=reason,
+        disputed_amount_paise=disputed_amount_paise,
+        status="OPEN",
+    )
+    db.add(dispute)
+    db.commit()
+    db.refresh(dispute)
+    append_event(
+        db, "TRANSACTION", tx.id, "DISPUTE_OPENED", actor_user_id,
+        payload={"dispute_id": dispute.dispute_code, "reason": reason, "disputed_amount_paise": disputed_amount_paise},
+    )
+    return dispute
+
+
+def add_evidence(db: Session, dispute: Dispute, evidence_type: str, evidence_reference: str) -> DisputeEvidence:
+    row = DisputeEvidence(
+        dispute_id=dispute.id,
+        evidence_type=evidence_type,
+        evidence_reference=evidence_reference,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def attach_reweigh(db: Session, dispute: Dispute, weighment_code: str, stage: str) -> DisputeReweigh:
+    ws = db.scalar(select(WeighmentSession).where(WeighmentSession.weighment_code == weighment_code))
+    if not ws or ws.status != "VERIFIED":
+        raise AppError("VERIFIED_REWEIGH_REQUIRED", "Verified reweigh session required.", 409)
+
+    row = DisputeReweigh(
+        dispute_id=dispute.id,
+        weighment_session_id=ws.id,
+        stage=stage,
+        status="RECORDED",
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def resolve_dispute(
+    db: Session,
+    tx: Transaction,
+    dispute: Dispute,
+    actor_user_id: UUID,
+    final_decision: str,
+    settlement_adjustment_paise: int,
+    resolution_rule: str,
+) -> Dispute:
+    if dispute.status == "RESOLVED":
+        return dispute
+
+    dispute.final_decision = final_decision
+    dispute.settlement_adjustment_paise = settlement_adjustment_paise
+    dispute.resolution_rule = resolution_rule
+    dispute.status = "RESOLVED"
+    db.commit()
+
+    transition_transaction(db, tx, "RESOLVED")
+    append_event(
+        db, "TRANSACTION", tx.id, "DISPUTE_RESOLVED", actor_user_id,
+        payload={
+            "dispute_id": dispute.dispute_code,
+            "settlement_adjustment_paise": settlement_adjustment_paise,
+            "resolution_rule": resolution_rule,
+        },
+    )
+    db.refresh(dispute)
+    return dispute

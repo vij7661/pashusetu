@@ -1,0 +1,43 @@
+name: Backend CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: pashusetu_test
+          POSTGRES_USER: pashusetu
+          POSTGRES_PASSWORD: pashusetu
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pashusetu -d pashusetu_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      APP_ENV: test
+      DATABASE_URL: postgresql+psycopg://pashusetu:pashusetu@localhost:5432/pashusetu_test
+      JWT_SECRET: ci-secret
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: alembic upgrade head
+      - run: pytest -q
+      - run: ruff check app tests
+      - run: python scripts/export_openapi.py
