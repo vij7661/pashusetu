@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/localization/app_strings.dart';
+import '../../core/localization/language_provider.dart';
 import '../providers.dart';
 
 class CreateLivestockScreen extends ConsumerStatefulWidget {
@@ -20,35 +22,38 @@ class _CreateLivestockScreenState extends ConsumerState<CreateLivestockScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final language = ref.watch(languageProvider);
+    String t(String key) => AppStrings.tr(language, key);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Goat / Create Lot')),
+      appBar: AppBar(title: Text(t('add_goat_lot'))),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(children: [
           SegmentedButton<bool>(
-            segments: const [
-              ButtonSegment(value: false, label: Text('Individual Goat')),
-              ButtonSegment(value: true, label: Text('Multiple Goats / Lot')),
+            segments: [
+              ButtonSegment(value: false, label: Text(t('individual_goat'))),
+              ButtonSegment(value: true, label: Text(t('multiple_goats_lot'))),
             ],
             selected: {lot},
             onSelectionChanged: (v) => setState(() => lot = v.first),
           ),
           const SizedBox(height: 16),
-          TextField(controller: breed, decoration: const InputDecoration(labelText: 'Breed')),
+          TextField(controller: breed, decoration: InputDecoration(labelText: t('breed'))),
           const SizedBox(height: 10),
           if (lot)
             TextField(
               controller: quantity,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Quantity'),
+              decoration: InputDecoration(labelText: t('quantity')),
             )
           else
             DropdownButtonFormField<String>(
               initialValue: sex,
-              items: const [
-                DropdownMenuItem(value: 'MALE', child: Text('Male')),
-                DropdownMenuItem(value: 'FEMALE', child: Text('Female')),
-                DropdownMenuItem(value: 'UNKNOWN', child: Text('Unknown')),
+              items: [
+                DropdownMenuItem(value: 'MALE', child: Text(t('male'))),
+                DropdownMenuItem(value: 'FEMALE', child: Text(t('female'))),
+                DropdownMenuItem(value: 'UNKNOWN', child: Text(t('unknown'))),
               ],
               onChanged: (v) => setState(() => sex = v ?? 'MALE'),
             ),
@@ -65,21 +70,21 @@ class _CreateLivestockScreenState extends ConsumerState<CreateLivestockScreen> {
                           quantity: int.parse(quantity.text),
                           breedSummary: breed.text.trim(),
                         );
-                        setState(() => result = 'Created Lot ${x.id}');
+                        setState(() => result = 'Lot ${x.id}');
                       } else {
                         final x = await ref.read(livestockRepositoryProvider).createGoat(
                           breed: breed.text.trim(),
                           sex: sex,
                         );
-                        setState(() => result = 'Created Goat ${x.id}');
+                        setState(() => result = 'Goat ${x.id}');
                       }
                     } catch (e) {
                       setState(() => result = e.toString());
                     } finally {
-                      setState(() => busy = false);
+                      if (mounted) setState(() => busy = false);
                     }
                   },
-            child: Text(lot ? 'Create Lot' : 'Add Individual Goat'),
+            child: Text(lot ? t('create_lot') : t('add_individual_goat')),
           ),
         ]),
       ),

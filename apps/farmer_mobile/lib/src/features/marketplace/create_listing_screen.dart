@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../shared/money.dart';
+import '../../core/localization/app_strings.dart';
+import '../../core/localization/language_provider.dart';
 import '../providers.dart';
 
 class CreateListingScreen extends ConsumerStatefulWidget {
@@ -46,37 +48,39 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final language = ref.watch(languageProvider);
+    String t(String key) => AppStrings.tr(language, key);
     return Scaffold(
-      appBar: AppBar(title: const Text('Price & Listing Rules')),
+      appBar: AppBar(title: Text(t('price_listing_rules'))),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           DropdownButtonFormField<String>(
             initialValue: targetType,
-            items: const [
-              DropdownMenuItem(value: 'GOAT', child: Text('Individual Goat')),
-              DropdownMenuItem(value: 'LOT', child: Text('Lot')),
+            items: [
+              DropdownMenuItem(value: 'GOAT', child: Text(t('individual_goat'))),
+              DropdownMenuItem(value: 'LOT', child: Text(t('multiple_goats_lot'))),
             ],
             onChanged: (v) => setState(() => targetType = v ?? 'LOT'),
           ),
           const SizedBox(height: 10),
-          TextField(controller: targetId, decoration: const InputDecoration(labelText: 'Goat ID / Lot ID')),
+          TextField(controller: targetId, decoration: InputDecoration(labelText: t('goat_id_lot_id'))),
           const SizedBox(height: 10),
           TextField(
             controller: weight,
             enabled: false,
-            decoration: const InputDecoration(
-              labelText: 'Verified weight (demo display)',
-              helperText: 'Production value comes from the verified backend weighment.',
+            decoration: InputDecoration(
+              labelText: t('verified_weight'),
+              helperText: t('review_weighment_note'),
             ),
           ),
           const SizedBox(height: 16),
           Card(
             child: ListTile(
-              title: const Text('Average market price recommendation'),
+              title: Text(t('market_recommendation')),
               subtitle: Text(
                 recommendationPaise == null
-                    ? 'No recommendation available'
+                    ? t('no_recommendation')
                     : '${formatPaise(recommendationPaise!)}/kg',
               ),
               trailing: recommendationPaise == null
@@ -85,7 +89,7 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
                       onPressed: () => setState(
                         () => price.text = (recommendationPaise! / 100).toStringAsFixed(0),
                       ),
-                      child: const Text('Use'),
+                      child: Text(t('use')),
                     ),
             ),
           ),
@@ -93,12 +97,12 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
             controller: price,
             keyboardType: TextInputType.number,
             onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(labelText: 'Your price ₹ / kg'),
+            decoration: InputDecoration(labelText: t('your_price')),
           ),
           const SizedBox(height: 12),
           Card(
             child: ListTile(
-              title: const Text('Estimated listing value'),
+              title: Text(t('estimated_listing_value')),
               subtitle: Text('${weight.text} kg × ₹${price.text}/kg'),
               trailing: Text(
                 formatPaise(totalPaise),
@@ -109,7 +113,7 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
           CheckboxListTile(
             value: acknowledged,
             onChanged: (v) => setState(() => acknowledged = v ?? false),
-            title: const Text('I acknowledge the verified weighment'),
+            title: Text(t('ack_verified_weighment')),
           ),
           if (result != null) Text(result!),
           FilledButton(
@@ -129,7 +133,7 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
                       setState(() => result = e.toString());
                     }
                   },
-            child: const Text('Publish Verified Listing'),
+            child: Text(t('publish_verified_listing')),
           ),
         ],
       ),

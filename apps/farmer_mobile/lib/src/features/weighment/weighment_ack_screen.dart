@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/localization/app_strings.dart';
+import '../../core/localization/language_provider.dart';
 import '../providers.dart';
 
 class WeighmentAckScreen extends ConsumerStatefulWidget {
@@ -17,25 +19,26 @@ class _WeighmentAckScreenState extends ConsumerState<WeighmentAckScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final language = ref.watch(languageProvider);
+    String t(String key) => AppStrings.tr(language, key);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Farmer Acknowledgement')),
+      appBar: AppBar(title: Text(t('farmer_acknowledgement'))),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            const Card(
+            Card(
               child: ListTile(
-                title: Text('Verified weighment'),
-                subtitle: Text(
-                  'Review the operator-created verified weight, Scale ID, centre and evidence before acknowledging.',
-                ),
+                title: Text(t('verified_weighment')),
+                subtitle: Text(t('review_weighment_note')),
               ),
             ),
             CheckboxListTile(
               value: acknowledged,
               onChanged: (v) => setState(() => acknowledged = v ?? false),
-              title: const Text('I acknowledge'),
-              subtitle: const Text('I confirm the verified weighment shown to me.'),
+              title: Text(t('i_acknowledge')),
+              subtitle: Text(t('ack_confirm_note')),
             ),
             if (message != null) Text(message!),
             const Spacer(),
@@ -43,15 +46,24 @@ class _WeighmentAckScreenState extends ConsumerState<WeighmentAckScreen> {
               onPressed: acknowledged
                   ? () async {
                       try {
-                        await ref.read(weighmentRepositoryProvider).acknowledge(widget.weighmentId);
-                        final receipt = await ref.read(weighmentRepositoryProvider).createReceipt(widget.weighmentId);
-                        setState(() => message = 'Acknowledged. Receipt ${receipt['receipt_code']} created.');
+                        await ref
+                            .read(weighmentRepositoryProvider)
+                            .acknowledge(widget.weighmentId);
+                        final receipt = await ref
+                            .read(weighmentRepositoryProvider)
+                            .createReceipt(widget.weighmentId);
+                        if (!mounted) return;
+                        setState(
+                          () => message =
+                              '${t('i_acknowledge')} ✓ · ${receipt['receipt_code']}',
+                        );
                       } catch (e) {
+                        if (!mounted) return;
                         setState(() => message = e.toString());
                       }
                     }
                   : null,
-              child: const Text('Set Price & Listing Rules'),
+              child: Text(t('set_price_listing')),
             ),
           ],
         ),

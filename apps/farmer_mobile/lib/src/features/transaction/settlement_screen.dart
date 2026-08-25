@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/localization/app_strings.dart';
+import '../../core/localization/language_provider.dart';
 import '../../core/providers.dart';
 import '../../shared/money.dart';
 
@@ -18,43 +20,50 @@ class _SettlementScreenState extends ConsumerState<SettlementScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final language = ref.watch(languageProvider);
+    String t(String key) => AppStrings.tr(language, key);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Settlement')),
+      appBar: AppBar(title: Text(t('settlement'))),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(children: [
-          if (result != null) ...[
-            Card(
-              child: ListTile(
-                title: const Text('Final settlement'),
-                subtitle: Text(
-                  'Gross ${formatPaise(result!['gross_amount_paise'] as int)}\n'
-                  'Adjustment ${formatPaise(result!['adjustment_paise'] as int)}\n'
-                  'Platform fee ${formatPaise(result!['platform_fee_paise'] as int)}',
-                ),
-                trailing: Text(
-                  formatPaise(result!['final_amount_paise'] as int),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+        child: Column(
+          children: [
+            if (result != null)
+              Card(
+                child: ListTile(
+                  title: Text(t('final_settlement')),
+                  subtitle: Text(
+                    '${t('gross')} ${formatPaise(result!['gross_amount_paise'] as int)}\n'
+                    '${t('adjustment')} ${formatPaise(result!['adjustment_paise'] as int)}\n'
+                    '${t('platform_fee')} ${formatPaise(result!['platform_fee_paise'] as int)}',
+                  ),
+                  trailing: Text(
+                    formatPaise(result!['final_amount_paise'] as int),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
+            if (error != null)
+              Text(error!, style: const TextStyle(color: Colors.red)),
+            const Spacer(),
+            FilledButton(
+              onPressed: () async {
+                try {
+                  final x = await ref.read(apiClientProvider).post(
+                        '/payments/transactions/${widget.transactionId}/settle',
+                      );
+                  if (!mounted) return;
+                  setState(() => result = x);
+                } catch (e) {
+                  if (!mounted) return;
+                  setState(() => error = e.toString());
+                }
+              },
+              child: Text(t('load_complete_settlement')),
             ),
           ],
-          if (error != null) Text(error!, style: const TextStyle(color: Colors.red)),
-          const Spacer(),
-          FilledButton(
-            onPressed: () async {
-              try {
-                final x = await ref.read(apiClientProvider).post(
-                  '/payments/transactions/${widget.transactionId}/settle',
-                );
-                setState(() => result = x);
-              } catch (e) {
-                setState(() => error = e.toString());
-              }
-            },
-            child: const Text('Load / Complete Settlement'),
-          ),
-        ]),
+        ),
       ),
     );
   }

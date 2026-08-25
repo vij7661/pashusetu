@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/localization/app_strings.dart';
+import '../../core/localization/language_provider.dart';
 import '../auth/auth_controller.dart';
 import '../providers.dart';
 
@@ -26,6 +28,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   bool busy = false;
   String? error;
 
+  String t(String key) => AppStrings.tr(language, key);
+
   Future<void> next() async {
     setState(() { busy = true; error = null; });
     try {
@@ -33,6 +37,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         await ref.read(authControllerProvider.notifier).requestOtp(mobile.text.trim());
       } else if (step == 1) {
         await ref.read(authControllerProvider.notifier).verifyOtp(mobile.text.trim(), otp.text.trim());
+      } else if (step == 2) {
+        await ref.read(languageProvider.notifier).setLanguage(language);
       } else if (step == 5) {
         await ref.read(identityRepositoryProvider).createFarmer(
           fullName: name.text.trim(),
@@ -49,7 +55,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         setState(() => step++);
       }
     } catch (e) {
-      setState(() => error = e.toString());
+      final msg = e.toString();
+      setState(() => error = msg.contains('connection timeout')
+          ? t('connection_error')
+          : msg);
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -58,21 +67,27 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final titles = [
-      'Mobile Verification',
-      'Enter OTP',
-      'Choose Language',
-      'Farmer Details',
-      'KYC Verification',
-      'Payout Setup',
-      'Review Registration',
+      t('mobile_verification'),
+      t('enter_otp'),
+      t('choose_language'),
+      t('farmer_details'),
+      t('kyc_verification'),
+      t('payout_setup'),
+      t('review_registration'),
     ];
 
     Widget content;
     switch (step) {
       case 0:
-        content = TextField(controller: mobile, decoration: const InputDecoration(labelText: 'Mobile number'));
+        content = TextField(
+          controller: mobile,
+          decoration: InputDecoration(labelText: t('mobile_number')),
+        );
       case 1:
-        content = TextField(controller: otp, decoration: const InputDecoration(labelText: 'OTP'));
+        content = TextField(
+          controller: otp,
+          decoration: InputDecoration(labelText: t('otp')),
+        );
       case 2:
         content = DropdownButtonFormField<String>(
           initialValue: language,
@@ -84,37 +99,36 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             DropdownMenuItem(value: 'ta', child: Text('தமிழ்')),
             DropdownMenuItem(value: 'ml', child: Text('മലയാളം')),
           ],
-          onChanged: (v) => setState(() => language = v ?? 'te'),
+          onChanged: (v) async {
+            final selected = v ?? 'te';
+            setState(() => language = selected);
+            await ref.read(languageProvider.notifier).setLanguage(selected);
+          },
         );
       case 3:
         content = Column(children: [
-          TextField(controller: name, decoration: const InputDecoration(labelText: 'Full name')),
+          TextField(controller: name, decoration: InputDecoration(labelText: t('full_name'))),
           const SizedBox(height: 10),
-          TextField(controller: village, decoration: const InputDecoration(labelText: 'Village')),
+          TextField(controller: village, decoration: InputDecoration(labelText: t('village'))),
           const SizedBox(height: 10),
-          TextField(controller: mandal, decoration: const InputDecoration(labelText: 'Mandal')),
+          TextField(controller: mandal, decoration: InputDecoration(labelText: t('mandal'))),
           const SizedBox(height: 10),
-          TextField(controller: district, decoration: const InputDecoration(labelText: 'District')),
+          TextField(controller: district, decoration: InputDecoration(labelText: t('district'))),
         ]);
       case 4:
         content = Column(children: [
-          TextField(controller: aadhaar, decoration: const InputDecoration(labelText: '12-digit Aadhaar number')),
+          TextField(controller: aadhaar, decoration: InputDecoration(labelText: t('aadhaar_number'))),
           const SizedBox(height: 10),
-          const Text(
-            'UI only in APP-1. The backend intentionally does not store raw Aadhaar. '
-            'This screen will connect to the selected KYC provider adapter later.',
-          ),
+          Text(t('aadhaar_note')),
         ]);
       case 5:
         content = Column(children: [
-          TextField(controller: upi, decoration: const InputDecoration(labelText: 'UPI ID or Bank Account')),
+          TextField(controller: upi, decoration: InputDecoration(labelText: t('upi_bank'))),
           const SizedBox(height: 10),
-          const Text('Payout details are collected only during new registration.'),
+          Text(t('payout_note')),
         ]);
       default:
-        content = const Text(
-          'Review your information. Farmer profile is created in the backend when you continue.',
-        );
+        content = Text(t('review_note'));
     }
 
     return Scaffold(
@@ -129,7 +143,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             if (error != null) Text(error!, style: const TextStyle(color: Colors.red)),
             FilledButton(
               onPressed: busy ? null : next,
-              child: Text(step == 6 ? 'Submit Registration' : 'Continue'),
+              child: Text(step == 6 ? t('submit_registration') : t('continue')),
             ),
           ],
         ),
