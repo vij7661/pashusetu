@@ -12,7 +12,8 @@ class Settings(BaseSettings):
     refresh_token_days: int = 30
     otp_ttl_seconds: int = 300
     otp_max_attempts: int = 5
-    cors_origins: str = "http://localhost:3000"
+    cors_origins: str = "http://localhost:3000,http://localhost:5173"
+    cors_origin_regex: str | None = None
 
     model_config = SettingsConfigDict(env_file="../.env", extra="ignore")
 
