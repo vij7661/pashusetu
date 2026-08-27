@@ -6,8 +6,10 @@ This repository is being developed for a controlled goat-procurement marketplace
 
 1. The approved PashuSetu SRS / MVP specification is the requirements authority.
 2. GitHub Issues are implementation work orders derived from approved requirements.
-3. Do not invent, redesign, or silently change business rules because an implementation seems easier.
-4. If a requirement is ambiguous, contradictory, legally sensitive, payment-related, KYC/Aadhaar-related, or affects the transaction trust model, stop and request approval.
+3. `docs/NEXT_TASK.md` is the current executable work order for the local agent.
+4. `docs/AGENT_REPORT.md` is the execution mailbox used to report results back through GitHub.
+5. Do not invent, redesign, or silently change business rules because an implementation seems easier.
+6. If a requirement is ambiguous, contradictory, legally sensitive, payment-related, KYC/Aadhaar-related, or affects the transaction trust model, stop and request approval.
 
 ## 2. Branching and Git safety
 
@@ -47,7 +49,23 @@ When a tool itself presents a mandatory sandbox/OS security confirmation, reques
 
 Use engineering judgment for low-risk implementation details that do not alter approved business behavior. If several equivalent low-risk technical choices exist, choose the smallest/reversible option, test it, and document the choice rather than interrupting the user.
 
-## 4. Change discipline
+## 4. Automatic task handoff
+
+After a task reaches `PASS`:
+
+1. Update `docs/AGENT_REPORT.md` with the completed Task ID, validation results, changed files, commit SHA and safety confirmation.
+2. Commit and push the validated task changes/report when the task authorizes a push.
+3. Run `git pull --ff-only` on the same approved branch.
+4. Re-read `docs/NEXT_TASK.md`.
+5. If `NEXT_TASK.md` has `Status: READY` and its `Task ID` differs from the Task ID just completed, immediately execute that new task under these rules without asking the human to trigger it again.
+6. Repeat the report → push → pull → check cycle after each successful task.
+7. If the Task ID is unchanged, the status is not `READY`, or no new task has been published, stop cleanly and wait.
+8. On `BLOCKED` or `FAILED`, publish `AGENT_REPORT.md` and stop. Do not skip ahead to later work because doing so could hide a dependency failure.
+9. Do not poll GitHub indefinitely. Perform the post-success pull/check once per completed task. A later task needs a new local trigger unless it was already published before that check.
+
+This creates an automatic chain whenever ChatGPT/GitHub has already published the next work order, without creating an uncontrolled background loop.
+
+## 5. Change discipline
 
 - Make the smallest change that satisfies the approved task.
 - Do not perform opportunistic refactors in unrelated modules.
@@ -55,7 +73,7 @@ Use engineering judgment for low-risk implementation details that do not alter a
 - Generated-file changes must be intentional and explained.
 - If tooling changes files outside scope (for example `analysis_options.yaml`), revert those changes unless required.
 
-## 5. Mandatory validation before commit
+## 6. Mandatory validation before commit
 
 Run the relevant checks for every changed area.
 
@@ -100,7 +118,7 @@ Run targeted tests first when useful, then the relevant full suite before commit
 
 If a required runtime is unavailable, do not fake a pass. Report the blocker clearly.
 
-## 6. Docker and database safety
+## 7. Docker and database safety
 
 Allowed without special approval when part of an approved task:
 - `docker compose config`
@@ -120,14 +138,14 @@ Require explicit approval before:
 
 Never destroy the local or pilot database as a convenience fix.
 
-## 7. Security and sensitive data
+## 8. Security and sensitive data
 
 - Never store raw Aadhaar data unless a separately approved compliant design explicitly requires it.
 - KYC, payment custody/escrow, OTP providers, storage providers, and other external services must remain behind provider/adaptor boundaries.
 - Do not weaken authentication, authorization, idempotency, auditability, or evidence integrity to make a test pass.
 - Mask sensitive fields in logs and UI where required.
 
-## 8. Trust-critical rules
+## 9. Trust-critical rules
 
 Treat the following as high-risk changes requiring careful review and tests:
 - bid idempotency
@@ -144,12 +162,12 @@ Never use client timestamps to establish commercial priority when the backend is
 Never overwrite an acknowledged/locked weighment to represent a reweigh.
 Never silently mutate a locked agreement.
 
-## 9. Agent execution report (mandatory)
+## 10. Agent execution report (mandatory)
 
 At the end of every task execution, update `docs/AGENT_REPORT.md` with a concise machine-readable/human-readable report. This file is the handoff channel to ChatGPT/GitHub review and must be committed and pushed on the current approved non-main branch whenever repository push access is available.
 
 The report MUST contain:
-- task/work item and current objective
+- Task ID / work item and current objective
 - timestamp
 - branch name
 - status: `PASS`, `BLOCKED`, or `FAILED`
@@ -167,7 +185,7 @@ If the task is blocked before any source change, still update and push `docs/AGE
 
 Do not put secrets, tokens, private keys, raw Aadhaar, credentials, or sensitive personal data in the report.
 
-## 10. QA handoff
+## 11. QA handoff
 
 Development is not complete merely because code compiles.
 
@@ -181,7 +199,7 @@ Before asking for QA:
 
 The human QA owner decides acceptance/rejection of the release candidate.
 
-## 11. When to stop and ask for approval
+## 12. When to stop and ask for approval
 
 Stop and request explicit human approval only for materially risky or irreversible actions, including:
 - destructive commands or data deletion
@@ -197,7 +215,7 @@ Stop and request explicit human approval only for materially risky or irreversib
 
 Do not stop for routine development permissions that are already covered by the approved task and the autonomy policy above.
 
-## 12. Pilot-week priority
+## 13. Pilot-week priority
 
 For the controlled pilot build, prioritize the golden path and pilot blockers over polish:
 
