@@ -4,164 +4,114 @@
 
 **Status:** `READY`
 
-**Work item:** Pilot Golden Path — Verified listing + quantity-first, location-prioritized Buyer marketplace + bidding + single acceptance
+**Work item:** Pilot Golden Path — Verified listing + quantity-first, nearest-first Buyer marketplace + bidding + single acceptance
 
-**Current objective:** Complete and validate the next pilot slice from an acknowledged/verified goat or lot becoming a marketplace listing through a quantity-first Buyer discovery flow that prioritizes the nearest eligible inventory, shows an estimated transportation cost and estimated landed cost for comparison, followed by multiple bids, idempotent retries, partial-lot selection with a minimum purchase of three goats, and safe acceptance, while preserving deterministic trust-layer behavior.
+**Current objective:** Resume and complete the marketplace slice after resolving the trust/business blockers reported by Codex. Preserve all previously validated non-ambiguous behavior and implement the explicit decisions below.
 
 ## Requirements authority
 
-Follow `/AGENTS.md` and the approved SRS/MVP behavior. Preserve these product/trust rules:
-- Only verified/acknowledged livestock or lot can become an active listing.
-- Listing quantity/weight must use trusted verified weighment, not an unverified client-entered replacement.
-- Each goat is the atomic sale unit; do not support arbitrary kilogram splitting.
-- Buyer marketplace flow is **quantity first**: Buyer enters/selects the number of goats required before marketplace results/offers are displayed.
-- Normal requested quantity must be at least **3 goats**.
-- After quantity entry, show only currently active/available listing opportunities that can satisfy that requested quantity under the minimum-3/remaining-quantity rules.
-- Eligible marketplace results must be **sorted nearest-location first by default**.
-- Distance must be calculated from the Buyer's selected pickup/delivery/search location to the trusted livestock/collection/verification location used by the marketplace record; do not rank from arbitrary free-text Farmer location when a trusted verified/centre location exists.
-- Show distance to the Buyer where practical (for example `12 km away`) so ranking is transparent.
-- Nearest-first is the default ranking, not a hard distance filter. More distant eligible listings must still remain discoverable unless the Buyer applies an explicit distance filter later.
-- Use deterministic tie-breaking when two eligible opportunities have equal/near-equal distance (for example distance first, then server-authoritative listing creation/order key), not client timestamps.
-- Results should expose enough information for the Buyer to compare relevant opportunities, including distance, available goat count, trusted selected/available weight as applicable, Farmer asking/reference price where allowed, current marketplace/bid information supported by the backend, **estimated transport cost**, and **estimated landed cost**. Do not expose another Buyer's private identity or sensitive data.
-- Transportation in this pilot is **estimation only**. It is not a contractual charge, not part of Farmer settlement, not collected by PashuSetu, and must not change the bid/acceptance amount.
-- Label it clearly as `Estimated transport cost` and indicate that actual transportation charges may vary.
-- Estimated landed cost is for Buyer comparison only: `livestock/bid value + estimated transport cost`.
-- Use a simple configurable estimator, not hard-coded business logic in UI. Pilot formula should support configurable values such as `base pickup charge + (distance_km × per_km_rate) + optional load/quantity/weight adjustment`.
-- Transport estimate is calculated per trip/selected purchase, not simply `number_of_goats × flat transport charge`.
-- Keep estimator parameters behind development/backend configuration so pilot values can be tuned later without redesigning marketplace logic.
-- Do not convert the estimate into a payment, logistics booking, guaranteed quote, settlement deduction, or Farmer liability in this task.
-- For a multi-goat lot, the Buyer may bid for the requested quantity by selecting individually identifiable available goats from an eligible lot, or bid for the whole available lot.
-- A partial-lot selection must contain at least 3 goats.
-- A Buyer must not be allowed to submit a partial-lot bid for only 1 or 2 goats while 3+ goats are available; enforce server-side as well as in UI.
-- If an available lot has fewer than 3 goats remaining, those goats may only be sold together as the complete remaining quantity; the quantity-first results may surface such a remainder only when the Buyer's requested quantity matches that complete remaining quantity.
-- Quantity/location filtering is discovery convenience, not an inventory reservation. Availability must be revalidated server-side when a bid is submitted and again when an offer is accepted.
-- A goat already reserved/accepted/sold in another winning selection must not be simultaneously won by another Buyer.
-- Farmer may use recommended market price or own asking price only where current approved product behavior supports it; do not redesign pricing in this task.
-- Buyer bids/offers must be server-authoritative.
-- A client-generated idempotency key represents one user Bid intent and must be reused across HTTP retries.
-- Deduplication must occur at the authoritative backend boundary before duplicate commercial effects are appended.
-- Simultaneous/retried bids must not create duplicate bid intents.
-- Acceptance must be concurrency-safe for the exact goat selection and prevent overlapping winners.
-- Once an offer is accepted for selected goats, conflicting later accept attempts involving any of those goats must fail deterministically.
-- Unselected goats remain available for later valid offers where listing state permits it.
-- Audit/event history must remain sufficient to reconstruct the commercial decision path as supported by current architecture.
+Follow `/AGENTS.md` and the approved SRS/MVP behavior.
+
+## Explicit blocker resolutions — APPROVED
+
+1. **Trusted weight for partial-lot purchases**
+   - Partial-lot bidding is allowed only when every individually selectable goat has its own trusted verified weight captured during the Operator verification process and linked to that Goat ID.
+   - Do **not** estimate a selected goat's weight by equal division of a whole-lot weight.
+   - Do **not** allocate lot weight proportionally or invent any other derived weight rule.
+   - A lot with only one aggregate locked weight and no trusted per-goat verified weights is **whole-lot-only** for the pilot.
+   - For a valid partial selection, commercial weight is the sum of the selected goats' trusted verified weights.
+   - Offer total where per-kg pricing applies = `offer_per_kg × sum(selected trusted goat weights)`.
+
+2. **Authoritative distance/location model**
+   - Add/store trusted `latitude` and `longitude` for `MandalCentre`/verified collection location as the authoritative marketplace location.
+   - Buyer search origin is the Buyer's stored coordinates or an explicitly selected search/pickup/delivery coordinate.
+   - Nearest-first ranking must use Buyer search coordinates → trusted Centre/collection coordinates.
+   - Do not rank from Farmer free-text address when trusted Centre coordinates exist.
+   - If a listing lacks trusted coordinates, it may remain discoverable only after coordinate-capable listings and must be clearly treated as distance unavailable; do not fabricate coordinates.
+
+3. **Minimum quantity / remainder rule**
+   - The pilot minimum purchase from a lot is a strict **3 goats**.
+   - Remove the previously proposed 1–2 goat remainder exception.
+   - Buyer quantity input of 1 or 2 is rejected.
+   - A partial bid selecting 1 or 2 goats is rejected.
+   - If only 1 or 2 goats remain after prior accepted sales, those goats are not independently purchasable through this listing in the pilot.
+   - The Farmer may later combine/relist those remaining goats with other verified goats so a new eligible lot contains at least 3 goats.
+   - Do not create an alternate remainder-mode API/UX in this task.
+
+4. **Identifiable inventory completeness**
+   - Partial-lot eligibility requires every declared animal in the lot to have an individual Goat ID/link.
+   - A lot where `declared_quantity` exceeds the number of linked identifiable goats is **not eligible for partial-lot bidding**.
+   - Such an incomplete lot may be whole-lot-only only if the existing verified aggregate-lot contract safely supports it; otherwise keep it ineligible until inventory identity is complete.
+   - Never create synthetic Goat IDs merely to satisfy declared quantity.
+
+## Existing approved marketplace rules
+
+- Only verified/acknowledged livestock/lot can become an active listing.
+- Buyer flow is quantity first; normal requested quantity minimum is 3 goats.
+- Eligible results are nearest-first by default, not a hard distance cutoff.
+- Show distance where available, available quantity, trusted verified weight, allowed asking/reference price/bid information, estimated transport, and estimated landed cost without exposing another Buyer's private identity.
+- Transportation is estimation-only and must not change bid amount, Farmer acceptance amount, transaction value, settlement or payment.
+- Transport estimator must be configurable and deterministic, e.g. base pickup + distance component + optional load/weight adjustment, calculated per trip/selection.
+- Quantity/location search is not an inventory reservation; availability must be revalidated at bid submission and acceptance.
+- Same Buyer + same idempotency key must create one commercial bid intent/effect.
+- Server authority determines sequencing; do not use client timestamps for priority.
+- Overlapping accepted selections cannot result in the same goat being won twice.
+- Unselected goats remain available while they still satisfy listing/inventory rules.
+- Append-only/audit history must preserve the commercial decision path supported by the repository.
 
 Do not implement real payments, escrow, external notifications, real logistics booking, settlement, disputes, or unrelated architecture in this task.
 
 ## Authorized scope
 
-You MAY make focused changes required for this slice in:
-- `apps/farmer_mobile` listing creation / offer review / acceptance flows
-- `apps/buyer_mobile` quantity input / search-location input or use of stored Buyer location / marketplace results / listing detail / goat selection / bid flows
-- backend marketplace / listing discovery / distance ranking / transport-estimation presentation/config / bidding / audit / related authorization endpoints, schemas, models and services where a confirmed integration defect requires it
-- focused synthetic test fixtures and regression tests
-- local development documentation/config where needed
+You MAY make focused changes in:
+- `apps/farmer_mobile` listing / offer review / acceptance
+- `apps/buyer_mobile` quantity input / location / results / goat selection / bidding
+- `apps/operator_mobile` only where needed to capture/display trusted per-goat verified weights for partial-lot eligibility
+- backend livestock/weighment/identity/centre/marketplace/bidding/audit models, migrations, schemas, services and routes required for these approved decisions
+- focused tests and synthetic fixtures
 
-Do not merge to `main`.
-Do not delete databases/volumes/existing data.
-Do not use real personal/payment/KYC data.
+Non-destructive schema migrations required for trusted Centre coordinates or trusted per-goat verified weight support are authorized under AGENTS.md. Do not delete/reset existing data.
 
 ## Execute autonomously
 
-1. At task start follow AGENTS.md: inspect working tree, `git pull --ff-only`, then re-read `AGENTS.md` and this task.
-2. Verify Docker `db` and `api` health and run Alembic upgrade if needed.
-3. Run baseline Flutter validation for Farmer and Buyer (`flutter pub get`, `flutter analyze`, `flutter test`).
-4. Inspect current verified-weighment, marketplace/listing discovery, location fields, bidding, Farmer offer review and Buyer bidding contracts.
-5. Implement/prove quantity-first, nearest-first Buyer discovery with synthetic data:
-   - Buyer enters/selects required goat quantity before viewing eligible marketplace opportunities
-   - use Buyer's selected/stored search location as the ranking origin
-   - reject normal quantity 1 or 2
-   - quantity 3+ returns only active opportunities capable of satisfying that quantity
-   - stale/sold/unavailable goats are excluded
-   - complete 1–2 goat remainder may be surfaced only when requested quantity exactly matches that complete remainder under the exception rule
-   - eligible results are ordered by computed distance ascending by default
-   - equal-distance results use deterministic server-side tie-breaking
-   - more distant eligible results remain available after nearer ones; nearest-first is not a hidden hard cutoff
-   - result data supports meaningful comparison including distance without leaking private Buyer information
-6. Implement/prove estimation-only transport comparison:
-   - calculate estimated transport from configured base charge, distance-based rate, and optional load/quantity/weight adjustment supported by a simple deterministic estimator
-   - calculate estimate per trip/selection, not per-goat flat multiplication
-   - expose estimated transport and estimated landed cost in Buyer marketplace/listing comparison
-   - mark estimates clearly as non-binding and variable
-   - confirm livestock bid/offer amount remains unchanged by transport estimate
-   - confirm Farmer acceptance, transaction value, settlement/payment placeholders, and audit commercial amount do not treat estimated transport as a charge
-7. Prove/implement the commercial path:
-   - verified/acknowledged goat or lot → active listing with trusted market/collection location
-   - Buyer selects an eligible result after quantity + availability filtering and nearest-first ranking
-   - Buyer selects the requested number of individually identifiable available goats from the lot, or chooses the complete eligible lot
-   - server revalidates requested quantity and selected goat availability at bid submission
-   - at least two distinct Buyers can submit valid non-conflicting bids
-   - total offer amount uses offer-per-kg × trusted verified weight of selected goats (or complete lot weight) where per-kg pricing applies
-8. Validate idempotency: same Buyer + same idempotency key retried multiple times produces one commercial bid intent/effect; a different key is a new intent only when otherwise valid.
-9. Validate server-authoritative sequencing/concurrency. Do not use client timestamps for commercial priority.
-10. Validate Farmer acceptance:
-   - Farmer reviews offers for own listing only
-   - server revalidates selected goats at acceptance
-   - accept one valid offer for a selected set
-   - overlapping offers involving accepted goats cannot both win
-   - non-overlapping goats remain available
-   - accepted state, winning bid, selected goat IDs and remaining available IDs are persisted/retrievable
-11. Preserve append-only/audit semantics supported by repository.
-12. Fix only confirmed API/DTO/state/navigation/concurrency/idempotency/location-ranking/transport-estimation defects required for this slice.
-13. Add/update focused automated tests covering at minimum:
-   - quantity input is required before marketplace results
-   - normal quantity 1 and 2 rejected
-   - quantity 3+ filters out lots unable to satisfy request
-   - eligible lots are returned for requested quantity
-   - stale/unavailable inventory is not returned/accepted
-   - complete fewer-than-3 remainder exception behaves correctly
-   - nearest eligible listing is ranked first
-   - distance values/ranking are computed from Buyer search location to trusted listing/collection location
-   - equal-distance tie ordering is deterministic
-   - farther eligible listings remain discoverable after nearer ones
-   - transport estimate is deterministic for fixed config/distance/load inputs
-   - changing configurable transport parameters changes only the estimate, not livestock/bid amount
-   - estimated landed cost equals livestock/bid value + estimated transport
-   - transport estimate is not persisted/treated as settlement/payment charge
-   - unverified livestock cannot be listed
-   - whole-lot bidding works
-   - 1/2-goat partial bids rejected while 3+ available
-   - 3-goat partial bid valid
-   - multiple Buyers can bid
-   - idempotent retry does not duplicate bid intent
-   - unauthorized actions rejected
-   - overlapping accepted offers cannot create two winners
-   - unselected goats remain available after partial acceptance
-14. Exercise the live local API path end-to-end with synthetic data as far as practical.
-15. Re-run relevant Farmer/Buyer analyze/tests, targeted backend tests, full backend pytest if backend changed, and `/health`.
-16. Inspect final diff and secret-pattern scan; remove unrelated/generated changes.
-17. If all checks pass, commit/push focused changes on approved non-main branch.
-18. Update/push `docs/AGENT_REPORT.md` with this exact Task ID and final status.
-19. On PASS, follow AGENTS.md automatic handoff if a different READY Task ID is already published.
+1. Follow AGENTS.md task start: inspect working tree, `git pull --ff-only`, re-read AGENTS.md and this task.
+2. Preserve and build on partial implementation commit `98e7b046bd1b9ff39f6d7c6feddec682612339db`; do not undo already validated privacy/idempotency/audit/acceptance fixes unless a test proves they are wrong.
+3. Verify Docker `db`/`api`, Compose, Alembic, and `/health`.
+4. Run Farmer, Buyer, and Operator baseline validation where affected.
+5. Implement/prove trusted per-goat verification support needed for partial-lot selection. Whole-lot-only fallback must remain explicit when per-goat trusted weights are unavailable.
+6. Implement/prove trusted Centre coordinates and nearest-first distance ranking.
+7. Implement strict minimum-3 behavior with no 1–2 remainder exception.
+8. Implement/prove partial-lot eligibility requires complete Goat-ID linkage and trusted per-goat verified weights.
+9. Implement/prove quantity-first marketplace filtering and nearest-first ordering.
+10. Implement/prove estimation-only transport and landed-cost presentation; commercial transaction amounts must remain unchanged.
+11. Validate bid idempotency, server sequencing, privacy/authorization, overlap prevention and single-winner acceptance.
+12. Add focused tests at minimum for:
+   - aggregate-weight-only lot is whole-lot-only
+   - selected partial-lot commercial weight equals sum of trusted selected Goat weights
+   - no equal-division/derived selected weight fallback exists
+   - Centre coordinate distance ranking works and nearest eligible result is first
+   - missing trusted listing coordinates do not cause fabricated distance
+   - quantity 1 and 2 rejected
+   - partial bid of 1 or 2 rejected
+   - 1–2 goats remaining are not purchasable through the same listing
+   - incomplete `declared_quantity` vs Goat-link inventory cannot be partial-bid
+   - fully linked/verified 3+ goat selection can bid
+   - whole-lot path remains valid where supported
+   - transport estimate is deterministic/configurable and does not alter commercial amount
+   - same idempotency key does not duplicate bid intent
+   - overlapping accepted selections cannot produce duplicate winners
+   - authorization/privacy/audit behavior from the validated partial implementation remains covered
+13. Exercise the live local API path with synthetic data as practical.
+14. Re-run relevant Flutter analyze/tests, targeted backend tests, full backend pytest after backend/schema changes, migrations, and `/health`.
+15. Inspect diff, migration safety, and secret-pattern scan; remove unrelated changes.
+16. If all checks pass, commit and push focused changes on the approved non-main branch.
+17. Update and push `docs/AGENT_REPORT.md` with this exact Task ID and final status.
+18. On PASS, follow AGENTS.md automatic handoff only if a different READY Task ID is already published.
 
 ## Completion criteria
 
-PASS requires actual proof that:
-- Buyer must enter/select quantity before marketplace opportunities are displayed
-- normal requested quantity is minimum 3 goats
-- marketplace results are filtered to currently eligible inventory for that quantity
-- eligible results are sorted nearest-first by default using Buyer search location and trusted inventory/collection location
-- distance is visible/available to the Buyer where practical
-- nearest-first does not hide more distant eligible opportunities
-- deterministic tie-breaking exists for equal/near-equal distance
-- estimated transportation cost and estimated landed cost are shown for Buyer comparison
-- transportation remains estimation-only and does not alter bid amount, Farmer acceptance amount, payment/settlement, or transaction value
-- estimator uses configurable deterministic parameters rather than hard-coded UI values
-- quantity/location filtering does not falsely reserve inventory; server revalidates at bid and acceptance
-- whole-lot and valid partial-lot bidding are supported
-- complete 1–2 goat remainder exception is handled without stranding inventory
-- arbitrary kg splitting is not supported
-- multiple Buyers can bid safely
-- same idempotency key does not duplicate commercial effects
-- server authority determines sequencing
-- no goat can belong to two accepted offers
-- unselected goats remain available after valid partial acceptance
-- affected Flutter analyze/tests and backend tests pass
-- local API health remains good
-- no prohibited/destructive action occurred
-
-GUI-only presentation may remain for consolidated human QA later; clearly separate automated proof from pending visual QA.
+PASS requires actual proof of the explicit blocker resolutions above plus the previously approved marketplace/idempotency/acceptance behavior. GUI-only presentation may remain for consolidated human QA; distinguish it clearly from automated proof.
 
 ## Completion report
 
-Report Task ID/status, root causes/gaps, Farmer and Buyer validation, exact quantity-first + nearest-first discovery and bidding flow exercised, minimum-3/remainder behavior, distance-ranking/tie-break results, transport-estimator config/formula and non-binding/settlement-separation proof, idempotency/concurrency/authorization/audit results, backend test results, files changed, branch/commit SHAs, remaining manual QA, working tree state, and safety confirmation.
+Report Task ID/status; all four blocker resolutions; Farmer/Buyer/Operator validation; quantity-first + nearest-first discovery; trusted per-goat weight behavior; strict minimum-3 behavior; Centre-coordinate model; transport estimate separation; idempotency/concurrency/authorization/audit results; migrations; backend tests; files changed; branch/commit SHAs; manual QA; working tree; safety confirmation.
