@@ -2,48 +2,57 @@
 
 **Work item:** GitHub Issue #4 — Local PostgreSQL backend + Farmer integration
 
-**Current objective:** Diagnose and restore the local Docker/backend runtime without changing application source code.
+**Current objective:** Diagnose and fix the failing backend module status-route test, then rerun the full backend validation.
 
 ## Instructions
 
 Follow all rules in `/AGENTS.md`.
 
-Do not edit application source code for this task.
-Do not commit or push unless this task file is later updated to authorize a code/configuration fix.
+This task AUTHORIZES a focused backend/test fix for the `_status` route contract failure.
+Do not change business rules, transaction semantics, pricing, bidding, KYC, payments, or unrelated modules.
 Do not delete containers, images, databases, Docker volumes, or data.
-Do not change BIOS, WSL, Windows, or Docker Desktop system configuration automatically.
+Do not change BIOS, WSL, Windows, or Docker Desktop system configuration.
 
-## Execute
+## Known failure
 
-1. Inspect and report:
-   - `git status`
-   - current branch
-   - `docker version`
-   - `docker context ls`
-   - `docker info`
-   - `wsl --status`
-   - `wsl --version`
-   - `wsl -l -v`
-   - `docker compose config`
-   - `docker compose ps`
-2. If Docker is available and Compose validates, use the existing repository configuration to start only the development `db` and `api` services.
-3. Wait for/inspect service health.
-4. Run existing Alembic migrations through the API container.
-5. Call `http://localhost:8000/health`.
-6. Run the backend test suite through the existing development/test environment if available.
-7. Stop at the first meaningful blocker. Do not improvise destructive/system fixes.
+`tests/test_api_modules.py::test_module_scaffolds_are_exposed` fails because `/api/v1/livestock/_status` returns HTTP 404 while the test expects HTTP 200 and JSON status `scaffolded`.
+
+The current test loops across:
+- livestock
+- weighment
+- marketplace
+- bidding
+- agreement
+- transaction
+- logistics
+- payments
+- disputes
+- notifications
+- audit
+
+## Execute autonomously
+
+1. Inspect `backend/tests/test_api_modules.py`, `backend/app/api.py`, and the routers for the listed modules.
+2. Determine whether the failing test is stale because modules have progressed beyond scaffold status, or whether the API accidentally lost an intended compatibility/status route.
+3. Choose the smallest correct fix based on the current codebase and repository documentation. Do not blindly add dead `_status` endpoints if the test is obsolete; do not weaken a valid contract merely to make a test green.
+4. Implement only the focused fix needed for this contract/test mismatch.
+5. Run the targeted failing test first.
+6. Run the full backend test suite.
+7. Run backend lint/static checks used by the repository if available.
+8. Inspect the diff and exclude unrelated/generated changes.
+9. If all relevant checks pass, commit and push the focused fix to the current non-main branch with an appropriate `fix(backend): ...` or `test(backend): ...` commit message.
+10. Do not merge to `main`.
 
 ## Completion report
 
 Report:
-- Docker/WSL status
-- Compose status
-- DB status
-- API health result
-- migration result
-- backend test result
-- exact blocker if any
-- minimal recommended next action
+- root cause
+- files changed
+- targeted test result
+- full backend test result
+- lint/static-check result
+- branch and commit SHA if committed
+- any remaining blocker
 - confirmation that no prohibited actions were performed
 
-Do not claim this work item is complete unless the required checks actually pass.
+Do not claim Issue #4 is complete unless the backend runtime, migrations, health endpoint, and full backend tests all pass.
