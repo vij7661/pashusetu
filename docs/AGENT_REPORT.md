@@ -2,9 +2,10 @@
 
 ## Current report
 
-- **Task / Work item:** GitHub Issue #4 — Local PostgreSQL backend + Farmer integration
+- **Task ID:** `ISSUE-4-BACKEND-STATUS-001`
+- **Work item:** GitHub Issue #4 — Local PostgreSQL backend + Farmer integration
 - **Objective:** Diagnose and fix the failing backend module status-route test, then rerun full backend validation.
-- **Timestamp:** 2026-08-27T11:45:42+05:30
+- **Timestamp:** 2026-08-27T11:47:51+05:30
 - **Branch:** `feat/issue-4-local-backend-farmer-integration`
 - **Status:** `PASS`
 
