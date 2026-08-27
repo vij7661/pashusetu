@@ -69,7 +69,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         body = TextField(controller: otp, decoration: const InputDecoration(labelText: 'OTP'));
       case 2:
         body = DropdownButtonFormField<String>(
-          value: language,
+          initialValue: language,
           items: const [
             DropdownMenuItem(value: 'te', child: Text('తెలుగు')),
             DropdownMenuItem(value: 'hi', child: Text('हिंदी')),
@@ -87,7 +87,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           TextField(controller: contact, decoration: const InputDecoration(labelText: 'Contact person')),
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
-            value: buyerType,
+            initialValue: buyerType,
             items: const [
               DropdownMenuItem(value: 'INDIVIDUAL_RETAILER', child: Text('Individual Retailer')),
               DropdownMenuItem(value: 'PROPRIETORSHIP', child: Text('Proprietorship')),
