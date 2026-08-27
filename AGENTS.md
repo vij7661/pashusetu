@@ -49,14 +49,26 @@ When a tool itself presents a mandatory sandbox/OS security confirmation, reques
 
 Use engineering judgment for low-risk implementation details that do not alter approved business behavior. If several equivalent low-risk technical choices exist, choose the smallest/reversible option, test it, and document the choice rather than interrupting the user.
 
-## 4. Automatic task handoff
+## 4. Task start and automatic handoff
 
+### Task start (mandatory)
+Whenever the human gives the single trigger `Read AGENTS.md and execute docs/NEXT_TASK.md. Follow automatic task handoff after PASS.` or an equivalent instruction:
+
+1. First inspect `git status`.
+2. If the working tree contains unexpected/uncommitted user changes that make a safe fast-forward pull impossible, stop and report them rather than discarding or overwriting them.
+3. Otherwise run `git pull --ff-only` on the current approved branch before reading/executing the task.
+4. Re-read the freshly synchronized `AGENTS.md` and `docs/NEXT_TASK.md` after the pull.
+5. Execute the current `READY` task.
+
+The human should not need to run a separate `git pull` command before triggering a task.
+
+### Automatic handoff after PASS
 After a task reaches `PASS`:
 
 1. Update `docs/AGENT_REPORT.md` with the completed Task ID, validation results, changed files, commit SHA and safety confirmation.
 2. Commit and push the validated task changes/report when the task authorizes a push.
 3. Run `git pull --ff-only` on the same approved branch.
-4. Re-read `docs/NEXT_TASK.md`.
+4. Re-read `AGENTS.md` and `docs/NEXT_TASK.md`.
 5. If `NEXT_TASK.md` has `Status: READY` and its `Task ID` differs from the Task ID just completed, immediately execute that new task under these rules without asking the human to trigger it again.
 6. Repeat the report → push → pull → check cycle after each successful task.
 7. If the Task ID is unchanged, the status is not `READY`, or no new task has been published, stop cleanly and wait.
