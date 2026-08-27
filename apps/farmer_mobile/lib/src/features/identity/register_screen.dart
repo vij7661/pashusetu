@@ -35,8 +35,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     try {
       if (step == 0) {
         await ref.read(authControllerProvider.notifier).requestOtp(mobile.text.trim());
+        final authState = ref.read(authControllerProvider);
+        if (authState.hasError) throw authState.error!;
       } else if (step == 1) {
         await ref.read(authControllerProvider.notifier).verifyOtp(mobile.text.trim(), otp.text.trim());
+        final authState = ref.read(authControllerProvider);
+        if (authState.hasError) throw authState.error!;
       } else if (step == 2) {
         await ref.read(languageProvider.notifier).setLanguage(language);
       } else if (step == 5) {
