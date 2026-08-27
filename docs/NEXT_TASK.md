@@ -1,5 +1,9 @@
 # PashuSetu — Current Agent Task
 
+**Task ID:** `ISSUE-4-BACKEND-STATUS-001`
+
+**Status:** `READY`
+
 **Work item:** GitHub Issue #4 — Local PostgreSQL backend + Farmer integration
 
 **Current objective:** Diagnose and fix the failing backend module status-route test, then rerun the full backend validation.
@@ -42,10 +46,13 @@ The current test loops across:
 8. Inspect the diff and exclude unrelated/generated changes.
 9. If all relevant checks pass, commit and push the focused fix to the current non-main branch with an appropriate `fix(backend): ...` or `test(backend): ...` commit message.
 10. Do not merge to `main`.
+11. Update and push `docs/AGENT_REPORT.md` with this exact Task ID and final status.
+12. If status is `PASS`, follow the Automatic task handoff section in `AGENTS.md`: pull once, re-read `docs/NEXT_TASK.md`, and automatically execute it only if a different Task ID is already published with `Status: READY`.
 
 ## Completion report
 
 Report:
+- Task ID
 - root cause
 - files changed
 - targeted test result
