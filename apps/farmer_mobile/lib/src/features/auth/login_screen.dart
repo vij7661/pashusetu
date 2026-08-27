@@ -11,8 +11,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final mobile = TextEditingController(text: '+919876543210');
-  final otp = TextEditingController(text: '4816');
+  final mobile = TextEditingController();
+  final otp = TextEditingController();
   bool otpSent = false;
 
   @override
@@ -24,13 +24,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            TextField(controller: mobile, decoration: const InputDecoration(labelText: 'Registered mobile')),
+            TextField(
+                controller: mobile,
+                decoration:
+                    const InputDecoration(labelText: 'Registered mobile')),
             const SizedBox(height: 12),
             if (otpSent)
-              TextField(controller: otp, decoration: const InputDecoration(labelText: 'OTP')),
+              TextField(
+                  controller: otp,
+                  decoration: const InputDecoration(labelText: 'OTP')),
             const Spacer(),
             if (state.hasError)
-              Text(state.error.toString(), style: const TextStyle(color: Colors.red)),
+              Text(state.error.toString(),
+                  style: const TextStyle(color: Colors.red)),
             FilledButton(
               onPressed: state.isLoading
                   ? null
@@ -38,7 +44,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       final c = ref.read(authControllerProvider.notifier);
                       if (!otpSent) {
                         await c.requestOtp(mobile.text.trim());
-                        if (mounted && !ref.read(authControllerProvider).hasError) {
+                        if (mounted &&
+                            !ref.read(authControllerProvider).hasError) {
                           setState(() => otpSent = true);
                         }
                       } else {

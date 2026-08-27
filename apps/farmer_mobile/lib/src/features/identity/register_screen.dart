@@ -16,17 +16,14 @@ class RegisterScreen extends ConsumerStatefulWidget {
 
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   int step = 0;
-  final mobile = TextEditingController(text: '+919876543210');
-  final otp = TextEditingController(text: '4816');
-  final name = TextEditingController(text: 'Ramesh');
-  final village = TextEditingController(text: 'Chityal');
-  final mandal = TextEditingController(text: 'Chityal');
-  final district = TextEditingController(text: 'Nalgonda');
-  String language = 'te';
+  final mobile = TextEditingController();
+  final otp = TextEditingController();
+  final name = TextEditingController();
+  final village = TextEditingController();
+  final mandal = TextEditingController();
+  final district = TextEditingController();
   bool busy = false;
   String? error;
-
-  String t(String key) => AppStrings.tr(language, key);
 
   Future<void> next() async {
     setState(() {
@@ -34,6 +31,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       error = null;
     });
     try {
+      final language = ref.read(languageProvider);
       if (step == 0) {
         await ref
             .read(authControllerProvider.notifier)
@@ -46,8 +44,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             .verifyOtp(mobile.text.trim(), otp.text.trim());
         final authState = ref.read(authControllerProvider);
         if (authState.hasError) throw authState.error!;
-      } else if (step == 2) {
-        await ref.read(languageProvider.notifier).setLanguage(language);
       } else if (step == 5) {
         await ref.read(identityRepositoryProvider).createFarmer(
               fullName: name.text.trim(),
@@ -65,8 +61,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       }
     } catch (e) {
       final msg = e.toString();
-      setState(() => error =
-          msg.contains('connection timeout') ? t('connection_error') : msg);
+      final language = ref.read(languageProvider);
+      setState(() => error = msg.contains('connection timeout')
+          ? AppStrings.tr(language, 'connection_error')
+          : msg);
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -74,6 +72,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final language = ref.watch(languageProvider);
+    String t(String key) => AppStrings.tr(language, key);
     final titles = [
       t('mobile_verification'),
       t('enter_otp'),
@@ -109,7 +109,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           ],
           onChanged: (v) async {
             final selected = v ?? 'te';
-            setState(() => language = selected);
             await ref.read(languageProvider.notifier).setLanguage(selected);
           },
         );
