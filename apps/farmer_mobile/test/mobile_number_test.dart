@@ -43,8 +43,7 @@ void main() {
     expect(find.text('Mobile Verification'), findsOneWidget);
   });
 
-  testWidgets('mobile field filters malformed input and limits it to 10 digits',
-      (
+  testWidgets('mobile field rejects malformed and overlength input', (
     tester,
   ) async {
     await _openRegistration(tester);
@@ -52,7 +51,14 @@ void main() {
 
     await tester.enterText(field, '98ab76-5432101');
     await tester.pump();
+    expect(tester.widget<TextField>(field).controller!.text, isEmpty);
 
+    await tester.enterText(field, '98765432101');
+    await tester.pump();
+    expect(tester.widget<TextField>(field).controller!.text, isEmpty);
+
+    await tester.enterText(field, '9876543210');
+    await tester.pump();
     expect(tester.widget<TextField>(field).controller!.text, '9876543210');
   });
 }
