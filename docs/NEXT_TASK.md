@@ -6,86 +6,49 @@
 
 **Priority:** QA BLOCKER — highest priority until Farmer manual-QA gate passes.
 
-**Work item:** Farmer pre-manual-QA hardening gate — OTP UX + baseline negative/boundary/error review
+**Work item:** Farmer pre-manual-QA hardening + evidence handoff for independent QA review
 
 ## Objective
 
-Do not add new product features. Close the known OTP exception-leak defect and perform a focused pre-manual-QA baseline review of the Farmer onboarding/auth/profile/form flows so basic validation/error-state defects are caught automatically before the human resumes manual QA.
+Act as implementation engineer and automated tester. Do not self-certify the Farmer app as human-QA-ready without evidence. Fix the known OTP exception-leak defect, review the implemented Farmer golden path for baseline defects, execute automated checks, and then publish a structured evidence package in GitHub that ChatGPT can independently read as the manual-QA reviewer.
 
-The app may be declared **`PASS — FARMER APP READY FOR MANUAL QA`** only after the gate below is supported by actual automated checks and code inspection. Otherwise publish `BLOCKED` with exact defects.
+The final readiness decision belongs to the independent reviewer after reading the evidence. Your report may state `CANDIDATE READY FOR QA REVIEW` only when your checks are green; do not state final human/manual-QA approval.
 
-## Known blocker to fix first
+## Known blocker
 
-Wrong OTP currently exposes raw technical text such as `DioException [bad response]` and `OTP_INVALID` in the UI. Replace expected auth failures with localized user-friendly messages while preserving backend error codes internally/debug-only.
+Wrong OTP currently exposes raw technical text such as `DioException [bad response]` / `OTP_INVALID`. Expected auth failures must render localized user-friendly messages. Never expose Dio/HTTP/stack trace/backend class/raw JSON to normal users. Cover wrong, expired, reused, resend/rate-limit if present, offline/timeout, 4xx/5xx/unknown and correct QA OTP `4816`.
 
-At minimum handle:
-- wrong OTP;
-- expired OTP;
-- reused/already-used OTP;
-- resend/rate-limit state if present;
-- offline/network timeout;
-- backend 4xx/5xx/unknown response;
-- correct QA OTP `4816` success.
+## Baseline review
 
-No raw Dio/HTTP/stack trace/backend exception class/raw JSON may be displayed to a normal user.
+Review implemented Farmer screens/contracts in the MVP golden path: language/onboarding, registration/mobile/OTP, Farmer details/profile, goat/lot forms, acknowledgement/listing and existing offer/agreement/status surfaces. Do not invent missing product features.
 
-## Baseline Farmer readiness checklist
+For each applicable critical action check: required/empty/null; type/format; min/max/boundary; trimming/paste; positive path; negative/business path; friendly localized error mapping; duplicate/repeated submit; loading state; back/refresh/recreation; English/Telugu; auth/session/ownership; UI/API data integrity; no fixture autofill into fresh forms; no technical exception leakage.
 
-Review the Farmer screens/contracts currently in the MVP golden path, prioritizing onboarding, language selection, registration/mobile/OTP, Farmer details/profile, goat/lot creation forms, acknowledgement/listing forms, and offer/agreement/status surfaces already implemented. Do not invent missing product features.
+Specific required boundaries include mobile blank/9/10/11 digits, 6/7/8/9 valid prefixes, 0-5 invalid prefix, letters/symbols, seeded vs unseeded QA user; OTP blank/malformed/wrong/correct/expired/reused/resend/repeated submit/network/server failure; language fresh/English/Telugu/persistence/refresh; and below/exact/above boundaries for existing numeric/count business rules in implemented Farmer forms.
 
-For each touched/critical form or action verify as applicable:
+## Evidence package required for ChatGPT review
 
-1. **Input contracts** — required/empty/null, allowed characters, min/max length/range, trimming, numeric bounds, paste/autofill, exact boundary values.
-2. **Positive path** — valid input performs the intended action once, persists the correct value/state and navigates correctly.
-3. **Negative/business path** — invalid input/business state is blocked with a clear localized message and no unintended API/business side effect.
-4. **Error mapping** — known backend/domain codes map to localized friendly UI text; unexpected/network/server failures use a safe generic localized message; no technical exception leakage.
-5. **Repeated actions** — double tap/click, retry and duplicate submission do not create duplicate commercial or auth effects; buttons/loading state are sensible where implemented.
-6. **Navigation/state** — back/refresh/recreation does not incorrectly skip required onboarding, leak stale QA values, change locale, or corrupt in-progress state.
-7. **Localization** — English and Telugu strings exist for critical validation/error messages touched by this gate.
-8. **Auth/session safety** — invalid/expired auth does not navigate forward; successful auth preserves expected role/session behavior; QA OTP/test mode remains isolated.
-9. **Role/ownership** — existing Farmer-side protected API calls remain authorized correctly; do not weaken backend authorization.
-10. **Data integrity** — UI/API values agree for the fields covered; no debug/generated fixture data is injected into fresh forms.
+Update `docs/AGENT_REPORT.md` with Task ID and `CANDIDATE READY FOR QA REVIEW` or `BLOCKED`. The report must be specific enough for an independent QA reviewer to challenge the result, and must include:
 
-## Specific boundary checks required now
+1. **Requirements traceability matrix** — each implemented Farmer screen/action reviewed, relevant MVP/SRS/business rule, positive test, negative/boundary tests, result, and automated test name/file where applicable.
+2. **Defect ledger** — every defect discovered in this gate, severity, root cause, fix, regression test, commit.
+3. **Error-message matrix** — backend/domain condition/code -> English user message -> Telugu user message -> expected navigation/state. Explicitly prove raw exception text is absent.
+4. **API/side-effect evidence** for critical negative cases — e.g. invalid mobile/unseeded QA number creates zero OTP challenge; wrong OTP does not authenticate/navigate; duplicate submit does not duplicate state where protected.
+5. **State/navigation matrix** — fresh launch, language switch, refresh/recreate, back, failed auth, successful auth, and what state is expected/preserved.
+6. **Exact command/test results** — flutter analyze, full flutter test, relevant backend tests/full suite if changed, web build/smoke, QA DB/API health. Give exact pass/fail counts, not just 'green'.
+7. **Files/commits changed** and branch SHA.
+8. **Known gaps / not tested** — explicitly list anything not actually proven. Never mark an untested item as pass.
+9. **Manual test script for reviewer/human** — concise numbered steps using canonical QA fixture(s), expected result at every step, including at least one negative OTP case and one successful OTP case. Do not launch Chrome repeatedly while implementing.
+10. **Screenshots/log artifacts if the repo workflow can safely produce them**; otherwise state why they are absent. Do not fabricate visual evidence.
 
-- Mobile: blank, 9 digits, valid 10 digits starting 6/7/8/9, 11 digits/paste, letters/symbols, invalid 0-5 prefix, seeded vs valid-unseeded QA number.
-- OTP: blank/malformed length if applicable, wrong, correct, expired, reused, resend, repeated submit, network/server failure.
-- Language/onboarding: fresh state, English, Telugu, persisted locale, refresh/recreate, locale must not bypass auth/onboarding.
-- Any numeric/count field in existing Farmer goat/lot/listing forms: below minimum / exact minimum / above minimum or max where a rule already exists in SRS/code. Do not invent a new threshold.
-- Required text/select fields in existing Farmer forms: empty and valid cases.
+If evidence exposes another basic defect, fix it and rerun before publishing candidate-ready status. If something cannot be verified automatically, mark it `MANUAL REQUIRED`, not PASS.
 
-## Automated coverage expectation
+## Automated validation
 
-Add regression tests for any confirmed defect and enough widget/unit/repository tests to prove the baseline checks above for critical Farmer paths. A defect fixed during this task should normally receive an automated regression test.
+Run Farmer `flutter pub get`, `flutter analyze`, full `flutter test`, relevant backend auth/Farmer tests, full backend suite if backend changes, non-interactive web build/smoke where practical, and isolated QA DB/API health as needed. Add regression tests for confirmed defects.
 
-Run:
-- Farmer `flutter pub get`
-- Farmer `flutter analyze`
-- Farmer full `flutter test`
-- relevant backend auth/Farmer tests
-- full backend suite if backend source changes
-- non-interactive web build/smoke check where practical
-- isolated QA DB/API health checks as needed
+## Scope/safety
 
-Do not repeatedly launch Chrome during implementation. At most one final interactive launch is allowed only after all automated checks pass and only if no Farmer session is already running.
+Focused Farmer UX/validation/error mapping/localization/tests and confirmed backend contract fixes only. No new marketplace features, real SMS, Aadhaar/KYC integration, payments, Bluetooth, production/pilot deployment, pilot DB mutation, unrelated refactor, or invented business rules. Preserve isolated QA OTP/database safeguards.
 
-## Scope discipline
-
-Allowed: focused Farmer UX/validation/error mapping/localization/tests and backend contract fixes only where a confirmed mismatch exists.
-
-Not allowed: new marketplace features, real SMS, KYC/Aadhaar integration, payments, Bluetooth/device work, production/pilot deployment, pilot DB mutation, unrelated refactors, or business-rule invention.
-
-## Completion report
-
-Update `docs/AGENT_REPORT.md` with this exact Task ID and include:
-- exact readiness verdict: `PASS — FARMER APP READY FOR MANUAL QA` or `BLOCKED`;
-- defects found/fixed;
-- checklist areas actually reviewed;
-- exact test/analyze/build results;
-- known untested/manual-only items;
-- branch/commit SHA;
-- QA DB/API health and safety confirmation.
-
-## Completion criteria
-
-PASS only when the known OTP exception leak is fixed; critical Farmer onboarding/auth/form validation and error handling have been reviewed against the baseline above; automated regression is green; no known basic blocker remains in the reviewed Farmer golden path; and remaining work is genuinely human visual/usability QA rather than missing elementary validation/error handling.
+Follow `AGENTS.md` sync and working-tree safety. Commit/push focused changes. Stop after `CANDIDATE READY FOR QA REVIEW` or `BLOCKED` so ChatGPT can read `docs/AGENT_REPORT.md` and independently decide what happens next.
