@@ -29,7 +29,7 @@
 
 - Added `apps/farmer_mobile/web/`, `.metadata`, and project-local `.gitignore`.
 - Updated `apps/farmer_mobile/README.md` with Android and Chrome-specific launch commands.
-- **Implementation commit:** `ea696af7dd2c0cbf3c6100e49a83d9fb96750f16`
+- **Implementation commit:** `7c594f3f03116ccfa41f29b46e8fd12a9b5d45de`
 - Working tree: expected clean after report commit.
 
 ## QA launch
