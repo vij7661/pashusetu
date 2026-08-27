@@ -258,3 +258,17 @@ The launcher is expected to:
 - run `flutter run -d chrome`, which opens the Farmer app in Chrome automatically.
 
 Do not ask the human to manually run `cd`, `flutter pub get`, `docker compose`, or `flutter run` commands when this QA trigger is used. If Docker, Chrome, Flutter, or the API is unavailable, report the exact blocker and the minimum local action required. Keep the Flutter process attached so the human can perform manual QA; they can stop it with `q`/Ctrl+C when finished.
+
+## 15. Platform intent: Web QA vs Android pilot
+
+PashuSetu's Flutter Web/Chrome target is a **rapid development and manual QA surface only**. It is useful for fast inspection of screens, navigation, validation, localization, marketplace flows and other behavior that does not require native-device proof.
+
+The **controlled pilot / real usage target is Android mobile** for Farmer, Buyer and Operator apps. Native/mobile capabilities such as camera/evidence capture, device location, permissions, lifecycle behavior and future Bluetooth weighing-device integration must be validated on Android before pilot/release acceptance.
+
+Rules for Codex:
+- Never treat `flutter run -d chrome`, Chrome manual QA, or web-only automated success as proof that an app is Android-pilot-ready.
+- Web QA may establish functional/UI confidence for web-compatible behavior, but Android readiness is a separate gate.
+- Before declaring Farmer, Buyer or Operator **pilot/release ready**, run the applicable Android build/analyze/test/device or emulator validation available in the environment and explicitly report what was and was not tested on Android.
+- Any feature relying on camera, Bluetooth/BLE, GPS/location, Android permissions, file/device APIs or other native behavior requires Android validation; browser substitutes do not count as final proof.
+- Keep `test farmer app` mapped to Chrome for fast human QA unless the human explicitly requests Android testing.
+- When the human asks for `test farmer android`, `launch farmer android`, or equivalent, prefer a connected Android device; if none is available, use a configured Android emulator when practical. Do not silently fall back to Chrome and call it Android validation.
