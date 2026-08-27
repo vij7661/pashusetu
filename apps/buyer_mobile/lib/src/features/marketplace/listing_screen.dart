@@ -4,8 +4,17 @@ import '../../shared/money.dart';
 import '../providers.dart';
 
 class ListingScreen extends ConsumerStatefulWidget {
-  const ListingScreen({super.key, required this.listingId});
+  const ListingScreen({
+    super.key,
+    required this.listingId,
+    required this.requestedQuantity,
+    required this.availableGoatIds,
+    required this.partialEligible,
+  });
   final String listingId;
+  final int requestedQuantity;
+  final List<String> availableGoatIds;
+  final bool partialEligible;
 
   @override
   ConsumerState<ListingScreen> createState() => _ListingScreenState();
@@ -54,6 +63,11 @@ class _ListingScreenState extends ConsumerState<ListingScreen> {
                   listingId: widget.listingId,
                   pricePerKgPaise: (rupees * 100).round(),
                   idempotencyKey: key,
+                  selectedGoatIds: widget.partialEligible
+                      ? widget.availableGoatIds.take(widget.requestedQuantity).toList()
+                      : const [],
+                  wholeLot: !widget.partialEligible ||
+                      widget.requestedQuantity == widget.availableGoatIds.length,
                 );
                 setState(() {
                   result =

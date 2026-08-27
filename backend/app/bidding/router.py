@@ -29,6 +29,8 @@ def post_bid(
         listing_id,
         payload.price_per_kg_paise,
         idempotency_key,
+        payload.selected_goat_ids,
+        payload.whole_lot,
     )
     listing = db.get(Listing, bid.listing_id)
     return BidResponse(
@@ -39,6 +41,10 @@ def post_bid(
         server_sequence=bid.server_sequence,
         status=bid.status,
         reject_reason=bid.reject_reason,
+        selected_goat_ids=[str(x) for x in bid.selected_goat_ids],
+        selected_quantity=bid.selected_quantity,
+        selected_weight_kg=bid.selected_weight_kg,
+        whole_lot=bid.whole_lot,
     )
 
 
@@ -73,6 +79,10 @@ def list_bids(
             server_sequence=x.server_sequence,
             status=x.status,
             reject_reason=x.reject_reason,
+            selected_goat_ids=[str(value) for value in x.selected_goat_ids],
+            selected_quantity=x.selected_quantity,
+            selected_weight_kg=x.selected_weight_kg,
+            whole_lot=x.whole_lot,
         )
         for x in rows
     ]

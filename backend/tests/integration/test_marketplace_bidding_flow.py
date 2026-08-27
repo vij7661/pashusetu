@@ -149,10 +149,25 @@ def test_verified_listing_idempotent_bidding_and_single_acceptance(postgres_avai
         listing_code = created.json()["listing_id"]
         assert created.json()["verified_weight_kg"] == "50.000"
         assert (
-            client.get("/api/v1/marketplace/listings", headers=buyer_one_headers).json()[0][
-                "listing_id"
-            ]
-            == listing_code
+            client.get(
+                "/api/v1/marketplace/listings?required_quantity=3",
+                headers=buyer_one_headers,
+            ).json()
+            == []
+        )
+        assert (
+            client.get(
+                "/api/v1/marketplace/listings?required_quantity=1",
+                headers=buyer_one_headers,
+            ).status_code
+            == 400
+        )
+        assert (
+            client.get(
+                "/api/v1/marketplace/listings?required_quantity=2",
+                headers=buyer_one_headers,
+            ).status_code
+            == 400
         )
         assert client.get("/api/v1/marketplace/listings", headers=other_seller_headers).json() == []
 

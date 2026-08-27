@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 from app.audit.domain_events import listing_event
 from app.core.errors import AppError
 from app.identity.profile_models import FarmerProfile
-from app.livestock.models import Goat, Lot
-from app.marketplace.models import Listing, MarketPriceRecommendation
-from app.weighment.models import WeighmentSession, WeightReading
+from app.livestock.models import Goat, Lot, LotGoat
+from app.marketplace.models import Bid, Listing, MarketPriceRecommendation
+from app.weighment.models import MandalCentre, WeighmentSession, WeightReading
 
 
 def _farmer_for_user(db: Session, user_id: UUID) -> FarmerProfile:
@@ -71,6 +71,53 @@ def _verified_weighment(
 def calculate_total_paise(weight_kg: Decimal, price_per_kg_paise: int) -> int:
     total = weight_kg * Decimal(price_per_kg_paise)
     return int(total.quantize(Decimal(1), rounding=ROUND_HALF_UP))
+
+
+def available_goats(db: Session, listing: Listing) -> tuple[list[Goat], bool]:
+    if listing.target_type != "LOT":
+        goat = db.get(Goat, listing.target_id)
+        return ([goat] if goat else []), True
+    lot = db.get(Lot, listing.target_id)
+    goats = list(
+        db.scalars(
+            select(Goat).join(LotGoat, LotGoat.goat_id == Goat.id).where(LotGoat.lot_id == lot.id)
+        ).all()
+    )
+    accepted = db.scalars(
+        select(Bid).where(Bid.listing_id == listing.id, Bid.status == "ACCEPTED")
+    ).all()
+    if any(bid.whole_lot for bid in accepted):
+        return [], len(goats) == lot.declared_quantity
+    sold = {goat_id for bid in accepted for goat_id in bid.selected_goat_ids}
+    return [goat for goat in goats if goat.id not in sold], len(goats) == lot.declared_quantity
+
+
+def trusted_goat_weights(db: Session, goats: list[Goat]) -> dict[UUID, Decimal]:
+    result: dict[UUID, Decimal] = {}
+    for goat in goats:
+        session = db.scalar(
+            select(WeighmentSession)
+            .where(
+                WeighmentSession.target_type == "GOAT",
+                WeighmentSession.target_id == goat.id,
+                WeighmentSession.status == "VERIFIED",
+            )
+            .order_by(WeighmentSession.created_at.desc())
+        )
+        if session:
+            reading = db.scalar(
+                select(WeightReading).where(
+                    WeightReading.weighment_session_id == session.id, WeightReading.locked.is_(True)
+                )
+            )
+            if reading:
+                result[goat.id] = reading.net_kg
+    return result
+
+
+def listing_centre(db: Session, listing: Listing) -> MandalCentre | None:
+    session = db.get(WeighmentSession, listing.weighment_session_id)
+    return db.get(MandalCentre, session.centre_id) if session else None
 
 
 def create_listing(

@@ -1,6 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -42,3 +43,9 @@ class ListingSearchResult(BaseModel):
     farmer_price_per_kg_paise: int
     farmer_total_value_paise: int
     status: str
+    available_quantity: int
+    available_goat_ids: list[str]
+    partial_bidding_eligible: bool
+    distance_km: float | None
+    estimated_transport_paise: int | None
+    estimated_landed_cost_paise: int | None

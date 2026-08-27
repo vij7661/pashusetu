@@ -25,7 +25,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
       GoRoute(
         path: '/listing/:listingId',
-        builder: (_, state) => ListingScreen(listingId: state.pathParameters['listingId']!),
+        builder: (_, state) => ListingScreen(
+          listingId: state.pathParameters['listingId']!,
+          requestedQuantity: int.parse(state.uri.queryParameters['quantity'] ?? '3'),
+          availableGoatIds: (state.uri.queryParameters['goats'] ?? '')
+              .split(',')
+              .where((x) => x.isNotEmpty)
+              .toList(),
+          partialEligible: state.uri.queryParameters['partial'] == 'true',
+        ),
       ),
       GoRoute(
         path: '/listing/:listingId/bids',

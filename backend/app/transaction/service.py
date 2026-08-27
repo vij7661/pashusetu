@@ -4,14 +4,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
-from app.identity.profile_models import FarmerProfile, BuyerProfile
-from app.marketplace.models import Listing, Bid
+from app.identity.profile_models import BuyerProfile, FarmerProfile
+from app.marketplace.models import Bid, Listing
 from app.transaction.models import Transaction
 from app.transaction.state_machine import assert_transition
 
 
 def create_transaction_from_accepted_bid(db: Session, listing: Listing, bid: Bid) -> Transaction:
-    existing = db.scalar(select(Transaction).where(Transaction.listing_id == listing.id))
+    existing = db.scalar(select(Transaction).where(Transaction.accepted_bid_id == bid.id))
     if existing:
         return existing
 

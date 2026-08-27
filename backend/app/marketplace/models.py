@@ -1,7 +1,17 @@
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -29,7 +39,9 @@ class Listing(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     target_type: Mapped[str] = mapped_column(String(10), nullable=False)  # GOAT / LOT
     target_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False, index=True)
     weighment_session_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("weighment_sessions.id", ondelete="RESTRICT"), nullable=False
+        PGUUID(as_uuid=True),
+        ForeignKey("weighment_sessions.id", ondelete="RESTRICT"),
+        nullable=False,
     )
     verified_weight_kg: Mapped[Decimal] = mapped_column(Numeric(10, 3), nullable=False)
     pricing_mode: Mapped[str] = mapped_column(String(20), default="PER_KG", nullable=False)
@@ -38,7 +50,9 @@ class Listing(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     recommendation_id: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("market_price_recommendations.id", ondelete="SET NULL")
     )
-    sale_type: Mapped[str] = mapped_column(String(30), default="COMPETITIVE_BIDDING", nullable=False)
+    sale_type: Mapped[str] = mapped_column(
+        String(30), default="COMPETITIVE_BIDDING", nullable=False
+    )
     opens_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False)
     closes_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False)
     status: Mapped[str] = mapped_column(String(30), default="DRAFT", nullable=False)
@@ -66,7 +80,10 @@ class BidSequence(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "bid_sequences"
 
     listing_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("listings.id", ondelete="CASCADE"), unique=True, nullable=False
+        PGUUID(as_uuid=True),
+        ForeignKey("listings.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
     )
     last_sequence: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
@@ -80,7 +97,10 @@ class Bid(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     bid_code: Mapped[str] = mapped_column(String(40), unique=True, index=True, nullable=False)
     listing_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("listings.id", ondelete="CASCADE"), nullable=False, index=True
+        PGUUID(as_uuid=True),
+        ForeignKey("listings.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     buyer_profile_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("buyer_profiles.id", ondelete="RESTRICT"), nullable=False
@@ -91,3 +111,9 @@ class Bid(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     server_sequence: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[str] = mapped_column(String(30), default="ACTIVE", nullable=False)
     reject_reason: Mapped[str | None] = mapped_column(String(80))
+    selected_goat_ids: Mapped[list[UUID]] = mapped_column(
+        ARRAY(PGUUID(as_uuid=True)), default=list, nullable=False
+    )
+    selected_quantity: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    selected_weight_kg: Mapped[Decimal | None] = mapped_column(Numeric(10, 3))
+    whole_lot: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

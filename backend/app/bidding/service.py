@@ -1,6 +1,7 @@
 import hashlib
 import json
 from datetime import UTC, datetime
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
@@ -11,7 +12,7 @@ from app.audit.domain_events import listing_event
 from app.core.errors import AppError
 from app.identity.profile_models import BuyerProfile, FarmerProfile
 from app.marketplace.models import Bid, BidSequence, IdempotencyRecord, Listing
-from app.marketplace.service import calculate_total_paise
+from app.marketplace.service import available_goats, calculate_total_paise, trusted_goat_weights
 
 
 def _buyer_for_user(db: Session, user_id: UUID) -> BuyerProfile:
@@ -32,12 +33,16 @@ def submit_bid(
     listing_code: str,
     price_per_kg_paise: int,
     idempotency_key: str,
+    selected_goat_codes: list[str],
+    whole_lot: bool,
 ) -> Bid:
     buyer = _buyer_for_user(db, user_id)
     request_fp = _fingerprint(
         {
             "listing_code": listing_code,
             "price_per_kg_paise": price_per_kg_paise,
+            "selected_goat_ids": sorted(selected_goat_codes),
+            "whole_lot": whole_lot,
         }
     )
 
@@ -75,6 +80,45 @@ def submit_bid(
         db.commit()
         raise AppError("LISTING_CLOSED", "Listing is closed.", 409)
 
+    available, complete = available_goats(db, listing)
+    available_by_code = {goat.goat_code: goat for goat in available}
+    if listing.target_type == "GOAT":
+        selected = available
+        whole_lot = True
+    elif whole_lot:
+        selected = available
+    else:
+        if len(selected_goat_codes) < 3:
+            raise AppError(
+                "MINIMUM_PARTIAL_QUANTITY", "A partial lot bid requires at least 3 goats.", 400
+            )
+        if len(set(selected_goat_codes)) != len(selected_goat_codes) or any(
+            code not in available_by_code for code in selected_goat_codes
+        ):
+            raise AppError(
+                "GOAT_SELECTION_UNAVAILABLE", "Selected goats are not all available.", 409
+            )
+        if not complete:
+            raise AppError(
+                "LOT_IDENTITY_INCOMPLETE",
+                "Every declared goat must be individually identified.",
+                409,
+            )
+        selected = [available_by_code[code] for code in selected_goat_codes]
+    if listing.target_type == "LOT" and len(selected) < 3:
+        raise AppError("MINIMUM_QUANTITY_REQUIRED", "Minimum lot purchase is 3 goats.", 400)
+    if listing.target_type == "LOT" and not whole_lot:
+        weights = trusted_goat_weights(db, selected)
+        if len(weights) != len(selected):
+            raise AppError(
+                "TRUSTED_GOAT_WEIGHTS_REQUIRED",
+                "Partial bids require verified weight for every selected goat.",
+                409,
+            )
+        commercial_weight = sum(weights.values(), Decimal(0))
+    else:
+        commercial_weight = listing.verified_weight_kg
+
     seq = db.scalar(
         select(BidSequence).where(BidSequence.listing_id == listing.id).with_for_update()
     )
@@ -89,10 +133,14 @@ def submit_bid(
         listing_id=listing.id,
         buyer_profile_id=buyer.id,
         price_per_kg_paise=price_per_kg_paise,
-        total_offer_paise=calculate_total_paise(listing.verified_weight_kg, price_per_kg_paise),
+        total_offer_paise=calculate_total_paise(commercial_weight, price_per_kg_paise),
         idempotency_key=idempotency_key,
         server_sequence=seq.last_sequence,
         status="ACTIVE",
+        selected_goat_ids=[goat.id for goat in selected],
+        selected_quantity=len(selected),
+        selected_weight_kg=commercial_weight,
+        whole_lot=whole_lot,
     )
     db.add(bid)
     db.flush()
@@ -151,15 +199,15 @@ def accept_bid(
     if listing.seller_farmer_profile_id != farmer.id:
         raise AppError("FORBIDDEN", "Farmer does not own this listing.", 403)
 
-    if listing.accepted_bid_id:
-        accepted = db.get(Bid, listing.accepted_bid_id)
-        if not accepted or accepted.bid_code != bid_code:
-            raise AppError(
-                "OFFER_ALREADY_ACCEPTED",
-                "A different offer has already been accepted for this listing.",
-                409,
-            )
-        return listing, accepted
+    already_accepted = db.scalar(
+        select(Bid).where(
+            Bid.listing_id == listing.id,
+            Bid.bid_code == bid_code,
+            Bid.status == "ACCEPTED",
+        )
+    )
+    if already_accepted:
+        return listing, already_accepted
 
     if listing.status not in {"PUBLISHED", "CLOSED"}:
         raise AppError(
@@ -175,6 +223,27 @@ def accept_bid(
     )
     if not bid:
         raise AppError("BID_NOT_VALID", "Bid is not active/valid for this listing.", 404)
+
+    accepted_bids = db.scalars(
+        select(Bid).where(Bid.listing_id == listing.id, Bid.status == "ACCEPTED")
+    ).all()
+    if any(accepted_bid.whole_lot for accepted_bid in accepted_bids) or (
+        bid.whole_lot and accepted_bids
+    ):
+        raise AppError(
+            "GOAT_SELECTION_ALREADY_ACCEPTED",
+            "The whole lot or part of it has already been accepted.",
+            409,
+        )
+    sold_ids = {
+        goat_id for accepted_bid in accepted_bids for goat_id in accepted_bid.selected_goat_ids
+    }
+    if sold_ids.intersection(bid.selected_goat_ids):
+        raise AppError(
+            "GOAT_SELECTION_ALREADY_ACCEPTED",
+            "One or more selected goats are no longer available.",
+            409,
+        )
 
     # Deterministic rule for equal-price offers: earliest server sequence wins among equal amounts.
     best = db.scalar(
@@ -197,7 +266,12 @@ def accept_bid(
         select(Bid).where(Bid.listing_id == listing.id, Bid.id != bid.id, Bid.status == "ACTIVE")
     ).all()
     for other in other_bids:
-        other.status = "NOT_SELECTED"
+        if set(other.selected_goat_ids).intersection(bid.selected_goat_ids):
+            other.status = "NOT_SELECTED"
+
+    remaining, _ = available_goats(db, listing)
+    remaining_ids = {goat.id for goat in remaining} - set(bid.selected_goat_ids)
+    listing.status = "PUBLISHED" if len(remaining_ids) >= 3 else "OFFER_ACCEPTED"
 
     listing_event(
         db,
