@@ -1,57 +1,53 @@
 # PashuSetu — Agent Execution Report
 
-- **Task ID:** `PILOT-GOLDENPATH-004`
-- **Objective:** Quantity-first, nearest-first marketplace with trusted partial-lot weights, minimum-three selection, estimates, idempotency and overlap-safe acceptance.
-- **Timestamp:** 2026-08-27T14:10:36+05:30
+- **Task ID:** `PILOT-GOLDENPATH-005`
+- **Objective:** Accepted offer → authoritative agreement snapshot → attributable pickup/delivery evidence → trusted final weighment → tolerance → settlement-ready/dispute routing.
+- **Timestamp:** 2026-08-27T16:30:10+05:30
 - **Branch:** `feat/issue-4-local-backend-farmer-integration`
 - **Status:** `PASS`
 
-## Approved blocker resolutions implemented
+## Business/trust result
 
-- Partial selection stores explicit Goat IDs and uses the sum of their individual `VERIFIED` locked readings; no equal/proportional aggregate-weight allocation exists. Aggregate-only/incompletely identified lots are whole-lot-only.
-- `MandalCentre` now stores trusted decimal latitude/longitude. Discovery computes Buyer/search-coordinate-to-Centre distance, sorts coordinate-capable results nearest-first with listing ID as deterministic tie-break, and places missing-coordinate results last without fabricated distance.
-- Buyer discovery and partial bids reject quantities 1–2. Accepted selections drive remaining inventory; fewer than three remaining goats are not independently discoverable/purchasable.
-- Partial eligibility requires linked Goat count to equal declared quantity and every selected Goat to have a verified locked reading. Whole-lot aggregate behavior remains supported.
+- Reused the repository-approved tolerance stored as `Agreement.tolerance_basis_points`: `150` basis points = `1.5%`. The API rejects agreement proposals with any other pilot tolerance.
+- Agreement versions snapshot the accepted Bid ID, transaction/listing, Farmer and Buyer profiles, exact selected Goat IDs/whole-lot intent, accepted price/kg, trusted selection weight and livestock amount. The livestock amount is accepted price/kg × trusted selection weight, rounded to paise; transport estimates are absent.
+- A `(transaction_id, version)` uniqueness constraint plus transaction row locking serializes agreement version creation. Locked agreement confirmation is an idempotent no-op; no mutation endpoint was introduced.
+- Pickup and delivery records retain transaction, actor, server timestamps, synthetic local evidence reference and retry key. Audit events record pickup evidence and delivery/tolerance decisions.
+- Pickup is restricted to the Operator who produced the listing's trusted origin weighment. Finalization is restricted to the active Operator who produced the referenced verified delivery weighment, with Farmer/listing target-scope checks.
+- Tolerance compares the preserved accepted-selection weight with a separate locked final reading; the original weight/readings are not overwritten and arbitrary client final-weight values are not accepted.
+- Within `1.5%` routes `TOLERANCE_CHECK → SETTLEMENT_READY`; outside routes to `DISPUTED` and creates/reuses one open dispute. No payment capture/movement was implemented.
+- Transaction row locks, unique transaction evidence/dispute records and same-key replay responses prevent duplicate/contradictory effects. Different retry keys after evidence/finalization receive immutable-record conflicts.
 
-## Flow and trust results
+## Migration and environment
 
-- Buyer UI requires quantity and search coordinates before results, displays available quantity/distance, and submits explicit Goat selection or whole-lot intent.
-- Discovery returns only active quantity-capable lots. Distance is ranking, not a hidden cutoff.
-- Transport estimate is configurable through query inputs and displayed separately with landed estimate; bid/transaction commercial totals remain price-per-kg × trusted selected weight.
-- Bid submission revalidates identification, minimum quantity, trusted weights and current availability under the locked listing row.
-- Acceptance revalidates overlap; whole-lot and overlapping selections cannot both win. Non-overlapping inventory remains active only while at least three goats remain.
-- Multiple accepted partial bids can create separate transactions; transaction uniqueness is now per accepted Bid.
-- Prior privacy, idempotency, server sequence, deterministic priority and atomic audit-event behavior remains covered.
-
-## Migration
-
-- `0008_marketplace_partial` is current head.
-- Adds nullable Centre coordinates and non-null/defaulted Bid selection metadata.
-- Replaces the one-transaction-per-listing uniqueness constraint with one-transaction-per-accepted-Bid. No tables/data are dropped or reset.
+- Non-destructive migration `0009_pilot_evidence` is current head. It adds agreement snapshot fields, evidence attribution/retry fields, preserved tolerance-decision values and agreement-version uniqueness; it drops/resets no data in upgrade.
+- Docker Compose valid; PostgreSQL healthy; API running; `/health` HTTP `200`.
 
 ## Exact validation
 
-- Compose valid; PostgreSQL healthy; API running; Alembic current at `0008_marketplace_partial (head)`; `/health` HTTP 200.
-- Farmer: `flutter pub get` passed; analyze `No issues found! (ran in 13.3s)`; `7 passed`.
-- Buyer: `flutter pub get` passed; analyze `No issues found! (ran in 12.0s)`; `2 passed`.
-- Operator: `flutter pub get` passed; analyze `No issues found! (ran in 13.7s)`; `2 passed`.
-- Focused Ruff: passed with existing `B008`/`EXE002` exclusions.
-- Focused marketplace tests: `3 passed, 1 warning in 4.88s`.
-- Full backend: `40 passed, 1 warning in 8.75s` (later runtime pass also `40 passed, 1 warning in 20.93s`).
-- Existing warning: Starlette/httpx TestClient deprecation.
+- Focused Ruff on changed backend/migration/test files: `All checks passed!` with existing FastAPI `B008` and executable-bit `EXE002` exclusions.
+- Focused transaction-evidence tests: `5 passed in 2.93s`.
+- Full backend: `46 passed, 1 warning in 7.54s`. Warning is the existing Starlette/httpx TestClient deprecation.
+- Farmer: `flutter pub get` passed; analyze `No issues found! (ran in 12.6s)`; `7 passed`.
+- Buyer: `flutter pub get` passed; analyze `No issues found! (ran in 12.5s)`; `2 passed`.
+- Operator: `flutter pub get` passed; analyze `No issues found! (ran in 10.1s)`; `2 passed`.
+- `git diff --check`: passed. Alembic: `0009_pilot_evidence (head)`.
 
-## Files / commit
+## Files and commits
 
-- Buyer quantity/location/results/listing/bid UI and repository.
-- Marketplace/bidding schemas, models, routes and services.
-- Centre model/development seed, transaction model/service, migration, focused tests.
-- **Implementation commit:** `953ccc9022d17c2e7e3d978db4e48ac18d4c46c2`
-- Working tree: expected clean after report commit.
+- Agreement models/schemas/service/router; transaction state model; settlement eligibility.
+- Logistics evidence models/schemas/service/router and append-only audit calls.
+- Alembic migration `0009_pilot_transaction_evidence.py` and focused regression tests.
+- Operator logistics repository and pickup/delivery verification screen.
+- **Implementation commit:** `b9887567a714972fc4a9f8d366363f6ba3a70b10`
+- **Proof/test commit:** `c4ac4fa3a15ea47e0aa2ec67677885d1449b4da9`
+- Working tree: expected clean after this report commit.
 
-## Manual QA
+## Known limitations / QA next action
 
-- Visually verify Buyer quantity/location entry, nearest-first cards, distance-unavailable placement, explicit partial selection messaging, Farmer multi-offer review, and accepted/remaining inventory presentation. Automated tests do not claim GUI E2E or real logistics/transport booking.
+- Automated coverage proves snapshot derivation, locked immutability, exact selection-weight use, tolerance boundary/state contracts and evidence command contracts; the full backend suite exercises existing PostgreSQL integration flows. A single synthetic HTTP script spanning every new endpoint was not added.
+- Human QA should run one within-tolerance and one outside-tolerance transaction through the Operator screen, then inspect Buyer/Farmer status and Admin audit history. Synthetic evidence only; no real storage, booking or payment execution.
+- Recommended next action: review commits and perform consolidated golden-path visual/API QA.
 
 ## Safety
 
-No prohibited/destructive action occurred. No database, table, existing data, volume, container, image, Git history or security control was deleted/reset/weakened. No real personal, Aadhaar, KYC, payment, credential, token or secret data was used. No merge to `main`, force-push, production deployment or paid service action occurred.
+No prohibited/destructive action occurred. No database/table/data/volume/container/image was deleted or reset; no destructive migration ran; no authorization/audit control was weakened. No secrets, credentials, raw Aadhaar/KYC/payment data or real personal data were used. No merge to `main`, force-push, production deployment, real payment action or paid external service action occurred.
