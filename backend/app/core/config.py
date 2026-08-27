@@ -2,6 +2,7 @@ from functools import lru_cache
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import make_url
 
 
 class Settings(BaseSettings):
@@ -27,12 +28,14 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_otp_test_safety(self):
+        database_name = make_url(self.database_url).database
         if self.otp_test_mode and (
             self.app_env.lower() not in {"local", "qa", "test"}
             or not self.database_isolated_for_qa
+            or database_name not in {"pashusetu_qa", "pashusetu_test"}
         ):
             raise ValueError(
-                "OTP test mode requires an isolated local/QA/test environment and database"
+                "OTP test mode requires an isolated local/QA/test environment and named QA/test database"
             )
         return self
 

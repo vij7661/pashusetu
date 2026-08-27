@@ -19,8 +19,13 @@ Future<void> _openRegistration(WidgetTester tester) async {
 
 void main() {
   test('only an exact 10-digit local mobile number is valid', () {
-    expect(isValidMobileNumber('9876543210'), isTrue);
-    expect(toIndiaE164('9876543210'), '+919876543210');
+    for (final prefix in ['6', '7', '8', '9']) {
+      expect(isValidMobileNumber('${prefix}123456789'), isTrue);
+    }
+    for (final prefix in ['0', '1', '2', '3', '4', '5']) {
+      expect(isValidMobileNumber('${prefix}123456789'), isFalse);
+    }
+    expect(toIndiaE164('6123456789'), '+916123456789');
     expect(isValidMobileNumber('987654321'), isFalse);
     expect(isValidMobileNumber('98765432101'), isFalse);
     expect(isValidMobileNumber('+919876543210'), isFalse);

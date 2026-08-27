@@ -13,8 +13,11 @@ try {
     Write-Host "Checking Docker engine..."
     docker info *> $null
 
-    Write-Host "Starting local PostgreSQL and API services..."
-    docker compose up -d db api
+    Write-Host "Preparing the isolated QA database and canonical fixtures..."
+    & (Join-Path $PSScriptRoot 'reset_qa_db.ps1')
+
+    Write-Host "Starting the API against the isolated QA database..."
+    docker compose up -d api
 
     Write-Host "Waiting for API health..."
     $healthy = $false

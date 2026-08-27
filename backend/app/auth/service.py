@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.auth.providers import DevelopmentOTPProvider
@@ -31,6 +31,15 @@ def request_otp(db: Session, mobile_e164: str, purpose: str) -> None:
             404,
         )
 
+    db.execute(
+        update(OTPChallenge)
+        .where(
+            OTPChallenge.mobile_e164 == mobile_e164,
+            OTPChallenge.purpose == purpose,
+            OTPChallenge.consumed.is_(False),
+        )
+        .values(consumed=True)
+    )
     challenge = OTPChallenge(
         mobile_e164=mobile_e164,
         purpose=purpose,

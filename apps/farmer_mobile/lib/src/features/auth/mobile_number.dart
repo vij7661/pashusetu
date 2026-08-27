@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 const int mobileNumberLength = 10;
 
 bool isValidMobileNumber(String value) =>
-    RegExp(r'^[0-9]{10}$').hasMatch(value);
+    RegExp(r'^[6-9][0-9]{9}$').hasMatch(value);
 
 String toIndiaE164(String value) => '+91$value';
 

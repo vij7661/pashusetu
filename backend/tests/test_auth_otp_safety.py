@@ -24,6 +24,9 @@ class FakeDB:
     def add(self, value):
         self.added.append(value)
 
+    def execute(self, value):
+        return value
+
     def commit(self):
         self.commits += 1
 
@@ -33,6 +36,13 @@ def test_backend_rejects_invalid_indian_mobile_before_otp_state():
         OTPRequest(mobile_e164="+91987654321", purpose="LOGIN")
     with pytest.raises(ValidationError):
         OTPRequest(mobile_e164="+9198765432100", purpose="LOGIN")
+    for prefix in "012345":
+        with pytest.raises(ValidationError):
+            OTPRequest(mobile_e164=f"+91{prefix}123456789", purpose="LOGIN")
+    for prefix in "6789":
+        assert OTPRequest(mobile_e164=f"+91{prefix}123456789").mobile_e164.startswith(
+            "+91"
+        )
 
     app.dependency_overrides[get_db] = lambda: FakeDB()
     try:
@@ -63,7 +73,7 @@ def test_unseeded_valid_qa_number_creates_no_challenge(monkeypatch):
 
 def test_seeded_qa_number_can_create_test_challenge(monkeypatch):
     sent = []
-    db = FakeDB(user=SimpleNamespace(mobile_e164="+919876543210"))
+    db = FakeDB(user=SimpleNamespace(mobile_e164="+916123456789"))
     monkeypatch.setattr(
         service,
         "get_settings",
@@ -75,11 +85,11 @@ def test_seeded_qa_number_can_create_test_challenge(monkeypatch):
         lambda _provider, mobile, otp: sent.append((mobile, otp)),
     )
 
-    service.request_otp(db, "+919876543210", "LOGIN")
+    service.request_otp(db, "+916123456789", "LOGIN")
 
     assert len(db.added) == 1
     assert db.commits == 1
-    assert sent == [("+919876543210", service.DEV_OTP)]
+    assert sent == [("+916123456789", service.DEV_OTP)]
 
 
 def test_test_otp_mode_is_disabled_by_default(monkeypatch):
@@ -117,5 +127,17 @@ def test_test_otp_mode_accepts_explicit_isolated_qa_configuration():
         app_env="qa",
         otp_test_mode=True,
         database_isolated_for_qa=True,
+        database_url="postgresql+psycopg://qa:qa@db_qa:5432/pashusetu_qa",
     )
     assert settings.otp_test_mode is True
+
+
+def test_test_otp_mode_rejects_normal_database_even_when_flagged_isolated():
+    with pytest.raises(ValidationError):
+        Settings(
+            _env_file=None,
+            app_env="qa",
+            otp_test_mode=True,
+            database_isolated_for_qa=True,
+            database_url="postgresql+psycopg://qa:qa@db:5432/pashusetu",
+        )
