@@ -1,92 +1,55 @@
 # PashuSetu — Current Agent Task
 
-**Task ID:** `PILOT-STABILIZATION-006`
+**Task ID:** `QA-FARMER-L10N-001`
 
 **Status:** `READY`
 
-**Work item:** Consolidated Golden-Path Stabilization — Farmer/Operator/Buyer end-to-end readiness gate
+**Work item:** Farmer QA defect — first launch incorrectly opens registration in Telugu
 
-**Current objective:** Stabilize the complete controlled-pilot golden path already implemented across Farmer, Operator, Buyer and backend, close only confirmed integration/regression gaps, and produce a readiness verdict for human QA. Do not add new product features in this task.
+**Current objective:** Fix the Farmer app onboarding/localization initialization defect found during manual Chrome QA. On a fresh app/browser state, the user must not be forced directly into Telugu registration. The app must present the intended welcome/language-selection entry flow first, apply the language only after the user deliberately selects it, and persist that selection for later launches.
 
-## Requirements authority
+## QA evidence
 
-Follow `/AGENTS.md`, the approved SRS/MVP behavior, and validated implementations from `PILOT-GOLDENPATH-001` through `PILOT-GOLDENPATH-005`.
+Manual QA screenshot showed the Farmer app opening directly at `#/register` with Telugu strings and a prefilled phone number, without a deliberate language-selection step in the current QA session. Treat this as a localization/onboarding state defect. Do not change backend business rules.
 
-## Golden path under test
+## Expected behavior
 
-Farmer registration/login → language/profile → goat/lot registration → Operator verification/weighment → Farmer acknowledgement/reweigh → listing creation → Buyer quantity-first search → nearest-first eligible inventory → whole-lot/valid partial-lot bid → idempotent multiple bids → exactly overlap-safe acceptance → authoritative agreement snapshot → pickup evidence → delivery evidence → trusted final weighment → 1.5% tolerance → settlement-ready OR dispute.
+1. Fresh app state / cleared browser storage:
+   - app opens the approved initial welcome/language-selection screen, not registration;
+   - no language is silently forced by stale/default state in a way that bypasses the language-selection step.
+2. User explicitly selects English:
+   - registration/login/onboarding displays English;
+   - language persists on refresh/relaunch unless the user changes it.
+3. User explicitly selects Telugu:
+   - registration/login/onboarding displays Telugu;
+   - language persists on refresh/relaunch unless the user changes it.
+4. Existing users with a previously persisted valid language may retain that preference, but routing must still respect the intended onboarding/auth state. Do not use persisted language as a reason to bypass required onboarding/navigation.
+5. Do not prefill a real-looking phone number from test/debug state on a fresh manual QA launch unless the approved product explicitly requires it. Remove or isolate development-only seed/default values from normal QA startup if confirmed.
 
-Also preserve the approved pilot rule that lot/competitive-bid purchases use minimum 3 goats. Do not invent a separate sub-3 commercial flow in this task unless such a flow is already explicitly present in the approved SRS/codebase; if the current UI suggests one but the backend does not support it, report the inconsistency rather than silently implementing a new business rule.
+## Authorized scope
 
-## Stabilization rules
-
-- No new architecture, pricing, payment, KYC, logistics-provider, notification-provider or settlement features.
-- Fix only confirmed defects that block or materially break the approved golden path.
-- Preserve trust invariants: server-authoritative weights, idempotency, auditability, no double selling, immutable/versioned agreement, no transport estimate in commercial amount, 1.5% tolerance, no client timestamp priority.
-- Do not weaken validation, authorization, concurrency, audit or evidence rules merely to make a test pass.
-- GUI-only gaps that require human visual judgment may remain, but must be enumerated clearly.
+Focused changes only in Farmer Flutter app startup/routing/localization/persistence and related tests, plus the Farmer QA launcher if it is the source of stale state. Backend changes are not expected unless a test proves they are required.
 
 ## Execute autonomously
 
-1. Follow AGENTS.md task-start sync and confirm working tree safety.
-2. Verify Docker Compose, PostgreSQL, API, Alembic head and `/health`.
-3. Run full baseline automated validation:
-   - Farmer: `flutter pub get`, `flutter analyze`, `flutter test`
-   - Buyer: `flutter pub get`, `flutter analyze`, `flutter test`
-   - Operator: `flutter pub get`, `flutter analyze`, `flutter test`
-   - Backend: focused lint on changed/critical files, targeted golden-path tests, then full `pytest`
-4. Build or extend a synthetic consolidated regression that proves the principal backend/API state chain as far as practical without external services:
-   - Farmer + livestock/lot creation
-   - trusted weighment + acknowledgement
-   - listing publication
-   - Buyer discovery and valid bid
-   - accepted Bid/Transaction
-   - agreement snapshot
-   - pickup/delivery evidence
-   - final trusted weighment
-   - one within-tolerance transaction → settlement-ready
-   - one outside-tolerance transaction → dispute
-5. Verify critical negative paths at minimum:
-   - unverified livestock cannot list
-   - unstable/untrusted reading cannot become authoritative
-   - duplicate bid retry cannot duplicate commercial effect
-   - overlapping selections cannot double-sell a goat
-   - unauthorized/unrelated actors are rejected
-   - transport estimate cannot alter agreement/transaction amount
-   - locked agreement cannot be silently mutated
-   - arbitrary client final weight cannot decide settlement
-6. Inspect Farmer app end-to-end state/navigation contracts for registration, livestock/lot, weighment acknowledgement, listing, offer review/acceptance, agreement/transaction/status/dispute. Fix only confirmed integration/state/navigation blockers.
-7. Inspect Buyer app end-to-end state/navigation contracts for auth, quantity/location search, nearest-first results, partial/whole-lot bid, transaction/agreement/status. Fix only confirmed blockers.
-8. Inspect Operator app contracts for verification/weighment, pickup evidence, delivery/final weighment and transaction linkage. Fix only confirmed blockers.
-9. Verify localization/state persistence for Farmer Telugu/English on screens touched by the golden path. Do not expand to unrelated localization polish.
-10. Re-run every affected validation after fixes.
-11. Inspect final diff, migration state, secret-pattern scan and generated-file noise; revert unrelated changes.
-12. If all automated gates pass, commit and push the stabilization changes/report on the approved non-main branch.
-13. Update `docs/AGENT_REPORT.md` with exact Task ID and one of these readiness outcomes:
-   - `PASS — FARMER APP READY FOR QA`
-   - `PASS — GOLDEN PATH READY FOR CONSOLIDATED QA`
-   - `BLOCKED` with exact blocker
-14. Include a concise human-QA checklist grouped by Farmer, Buyer, Operator, and transaction/dispute flow.
-15. On PASS, do not invent another task automatically unless a different READY Task ID already exists.
-
-## Farmer readiness gate
-
-Codex may declare **`FARMER APP READY FOR QA`** only if all of the following are supported by actual checks:
-- Farmer `flutter analyze` clean
-- Farmer tests pass
-- Farmer auth/registration backend contract proven
-- goat and lot creation contract proven
-- trusted weighment acknowledgement/reweigh contract proven
-- listing creation and offer acceptance contract proven
-- agreement/transaction/status/dispute Farmer-side contract has no known blocking integration error
-- backend/API/PostgreSQL/migrations healthy
-- no known architecture/business-rule ambiguity remains in the Farmer golden path
-- remaining items are visual/manual QA or non-blocking polish, not structural rewrites
+1. Follow `AGENTS.md` task-start sync and working-tree safety.
+2. Reproduce the defect in Chrome using the Farmer QA launcher or a controlled browser/local-storage state.
+3. Inspect app startup route, auth/onboarding route guards, language provider/default locale initialization, shared preferences/browser storage, and any debug/test seed values.
+4. Identify the actual root cause; do not merely force English globally.
+5. Implement the smallest fix that preserves explicit English/Telugu selection and persistence.
+6. Add/adjust automated tests covering at minimum:
+   - fresh state begins at intended language/welcome entry, not direct registration;
+   - explicit English selection drives English onboarding;
+   - explicit Telugu selection drives Telugu onboarding;
+   - persisted selection survives provider/app recreation;
+   - persisted locale does not incorrectly bypass onboarding/auth routing;
+   - no production/QA startup phone-number seed leaks into a fresh registration field, if such a seed caused the observed value.
+7. Run Farmer `flutter pub get`, `flutter analyze`, `flutter test`.
+8. If web behavior can be safely smoke-tested, run/build Chrome as needed and confirm the first page after a clean QA state matches expected behavior.
+9. Inspect diff and avoid unrelated localization polish/refactors.
+10. Commit and push the focused fix on the approved non-main branch.
+11. Update and push `docs/AGENT_REPORT.md` with this exact Task ID, root cause, files changed, exact test results, and whether Chrome manual re-check is ready.
 
 ## Completion criteria
 
-PASS requires the consolidated automated golden path and negative trust checks to succeed, all three Flutter apps to analyze/test cleanly where applicable, backend full suite to pass, local services/migrations to be healthy, no critical integration blocker to remain, and a precise QA handoff to be published.
-
-## Completion report
-
-Report exact readiness verdict; full test/analyze counts; consolidated API flow exercised; negative-path results; any fixes made; Farmer readiness-gate evaluation line by line; Buyer/Operator readiness notes; remaining manual QA checklist; branch/commit SHA(s); working tree state; and safety confirmation.
+PASS only when automated checks support the corrected initialization/persistence behavior and the Farmer app can be relaunched for human QA without automatically dropping a fresh user into Telugu registration. If browser storage must be cleared for a true fresh-state retest, update the QA launcher so `test farmer app` provides a reliable clean QA start without requiring manual command sequences, while preserving an option for persistence testing.
