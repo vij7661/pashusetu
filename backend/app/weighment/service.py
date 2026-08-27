@@ -1,4 +1,3 @@
-from decimal import Decimal
 from uuid import UUID, uuid4
 
 from sqlalchemy import func, select
@@ -8,13 +7,12 @@ from app.core.errors import AppError
 from app.identity.profile_models import FarmerProfile
 from app.livestock.models import EvidenceAsset, Goat, Lot
 from app.weighment.models import (
-    MandalCentre,
+    FarmerWeighmentAcknowledgement,
     OperatorProfile,
     ScaleDevice,
+    WeighmentReceipt,
     WeighmentSession,
     WeightReading,
-    FarmerWeighmentAcknowledgement,
-    WeighmentReceipt,
 )
 from app.weighment.schemas import ReadingCreate
 
@@ -36,7 +34,9 @@ def resolve_target(db: Session, target_type: str, target_code: str):
     return target
 
 
-def resolve_scale_for_operator(db: Session, operator: OperatorProfile, scale_code: str) -> ScaleDevice:
+def resolve_scale_for_operator(
+    db: Session, operator: OperatorProfile, scale_code: str
+) -> ScaleDevice:
     scale = db.scalar(
         select(ScaleDevice).where(
             ScaleDevice.scale_code == scale_code,
@@ -49,6 +49,28 @@ def resolve_scale_for_operator(db: Session, operator: OperatorProfile, scale_cod
     if scale.calibration_status != "VALID":
         raise AppError("SCALE_CALIBRATION_INVALID", "Scale calibration is not valid.", 409)
     return scale
+
+
+def require_session_operator(
+    db: Session, session: WeighmentSession, user_id: UUID
+) -> OperatorProfile:
+    operator = operator_for_user(db, user_id)
+    if session.operator_id != operator.id:
+        raise AppError(
+            "WEIGHMENT_OPERATOR_MISMATCH",
+            "Only the assigned operator may modify this weighment.",
+            403,
+        )
+    return operator
+
+
+def require_session_farmer(db: Session, session: WeighmentSession, user_id: UUID) -> FarmerProfile:
+    farmer = db.scalar(select(FarmerProfile).where(FarmerProfile.user_id == user_id))
+    if not farmer or session.farmer_profile_id != farmer.id:
+        raise AppError(
+            "WEIGHMENT_FARMER_MISMATCH", "Only the livestock owner may review this weighment.", 403
+        )
+    return farmer
 
 
 def start_weighment(
@@ -85,8 +107,9 @@ def append_reading(db: Session, session: WeighmentSession, payload: ReadingCreat
         raise AppError("WEIGHMENT_NOT_LIVE", "Weighment is not accepting readings.", 409)
 
     next_sequence = db.scalar(
-        select(func.coalesce(func.max(WeightReading.sequence_no), 0) + 1)
-        .where(WeightReading.weighment_session_id == session.id)
+        select(func.coalesce(func.max(WeightReading.sequence_no), 0) + 1).where(
+            WeightReading.weighment_session_id == session.id
+        )
     )
     reading = WeightReading(
         weighment_session_id=session.id,
@@ -143,13 +166,31 @@ def attach_verification_video(
         raise AppError("WEIGHT_NOT_LOCKED", "Lock a stable weight before verification video.", 409)
 
     evidence = db.get(EvidenceAsset, evidence_id)
-    if not evidence:
+    if not evidence or evidence.owner_type != "WEIGHMENT" or evidence.owner_id != session.id:
         raise AppError("EVIDENCE_NOT_FOUND", "Evidence asset not found.", 404)
-
-    evidence.owner_type = "WEIGHMENT"
-    evidence.owner_id = session.id
-    evidence.evidence_type = "WEIGHMENT_VIDEO"
     session.status = "FARMER_REVIEW"
+    db.commit()
+    db.refresh(evidence)
+    return evidence
+
+
+def create_verification_evidence(
+    db: Session, session: WeighmentSession, user_id: UUID, file_name: str, mime_type: str
+) -> EvidenceAsset:
+    require_session_operator(db, session, user_id)
+    if session.status != "WEIGHT_LOCKED":
+        raise AppError("WEIGHT_NOT_LOCKED", "Lock a stable weight before verification video.", 409)
+    extension = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else "bin"
+    evidence = EvidenceAsset(
+        owner_type="WEIGHMENT",
+        owner_id=session.id,
+        evidence_type="WEIGHMENT_VIDEO",
+        storage_key=f"weighment/{session.id}/{uuid4().hex}.{extension}",
+        mime_type=mime_type,
+        captured_by_user_id=user_id,
+        status="PENDING_UPLOAD",
+    )
+    db.add(evidence)
     db.commit()
     db.refresh(evidence)
     return evidence
@@ -160,14 +201,16 @@ def acknowledge_weighment(
     session: WeighmentSession,
     acknowledged: bool,
     method: str,
-) -> FarmerWeighmentAcknowledgement:
+) -> FarmerWeighmentAcknowledgement | None:
     if session.status != "FARMER_REVIEW":
-        raise AppError("WEIGHMENT_NOT_READY_FOR_ACK", "Weighment is not ready for farmer acknowledgement.", 409)
+        raise AppError(
+            "WEIGHMENT_NOT_READY_FOR_ACK", "Weighment is not ready for farmer acknowledgement.", 409
+        )
 
     if not acknowledged:
         session.status = "REJECTED_BY_FARMER"
         db.commit()
-        raise AppError("FARMER_REJECTED_WEIGHT", "Farmer rejected weighment; start a reweigh.", 409)
+        return None
 
     ack = FarmerWeighmentAcknowledgement(
         weighment_session_id=session.id,
@@ -184,7 +227,9 @@ def acknowledge_weighment(
 
 def create_receipt(db: Session, session: WeighmentSession) -> WeighmentReceipt:
     if session.status != "ACKNOWLEDGED":
-        raise AppError("ACK_REQUIRED", "Farmer acknowledgement is required before receipt generation.", 409)
+        raise AppError(
+            "ACK_REQUIRED", "Farmer acknowledgement is required before receipt generation.", 409
+        )
 
     locked = db.scalar(
         select(WeightReading).where(

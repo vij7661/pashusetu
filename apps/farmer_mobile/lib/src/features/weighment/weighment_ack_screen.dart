@@ -42,6 +42,20 @@ class _WeighmentAckScreenState extends ConsumerState<WeighmentAckScreen> {
             ),
             if (message != null) Text(message!),
             const Spacer(),
+            OutlinedButton(
+              onPressed: () async {
+                try {
+                  await ref.read(weighmentRepositoryProvider).reject(widget.weighmentId);
+                  if (!mounted) return;
+                  setState(() => message = t('reweigh_required'));
+                } catch (e) {
+                  if (!mounted) return;
+                  setState(() => message = e.toString());
+                }
+              },
+              child: Text(t('reject_reweigh')),
+            ),
+            const SizedBox(height: 8),
             FilledButton(
               onPressed: acknowledged
                   ? () async {

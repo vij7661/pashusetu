@@ -14,4 +14,11 @@ class WeighmentRepository {
   Future<Map<String, dynamic>> createReceipt(String weighmentId) {
     return _api.post('/weighment/sessions/$weighmentId/receipt');
   }
+
+  Future<Map<String, dynamic>> reject(String weighmentId) {
+    return _api.post(
+      '/weighment/sessions/$weighmentId/acknowledge',
+      body: {'acknowledged': false, 'method': 'APP_CONFIRMATION'},
+    );
+  }
 }

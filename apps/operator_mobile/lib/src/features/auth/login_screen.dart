@@ -55,7 +55,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     setState(() => sent = true);
                   } else {
                     await repo.verifyOtp(mobile.text.trim(), otp.text.trim());
-                    if (mounted) context.go('/home');
+                    if (!context.mounted) return;
+                    context.go('/home');
                   }
                 } catch (e) {
                   setState(() => error = e.toString());

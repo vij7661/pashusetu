@@ -10,23 +10,27 @@ from app.db.session import get_db
 from app.identity.models import User
 from app.weighment.models import MandalCentre, OperatorProfile, ScaleDevice, WeighmentSession
 from app.weighment.schemas import (
-    WeighmentStartRequest,
-    WeighmentSessionResponse,
+    AcknowledgeRequest,
+    LockReadingRequest,
     ReadingCreate,
     ReadingResponse,
-    LockReadingRequest,
-    VerificationEvidenceRequest,
-    AcknowledgeRequest,
     ReceiptResponse,
     ReweighRequest,
+    VerificationEvidenceCreate,
+    VerificationEvidenceRequest,
+    WeighmentSessionResponse,
+    WeighmentStartRequest,
 )
 from app.weighment.service import (
-    start_weighment,
-    append_reading,
-    lock_reading,
-    attach_verification_video,
     acknowledge_weighment,
+    append_reading,
+    attach_verification_video,
     create_receipt,
+    create_verification_evidence,
+    lock_reading,
+    require_session_farmer,
+    require_session_operator,
+    start_weighment,
 )
 
 router = APIRouter(prefix="/weighment", tags=["weighment"])
@@ -79,6 +83,7 @@ def post_reading(
     user: User = Depends(current_user),
 ):
     s = _session_by_code(db, weighment_id)
+    require_session_operator(db, s, user.id)
     r = append_reading(db, s, payload)
     return ReadingResponse(
         reading_id=str(r.id),
@@ -99,6 +104,7 @@ def post_lock(
     user: User = Depends(current_user),
 ):
     s = _session_by_code(db, weighment_id)
+    require_session_operator(db, s, user.id)
     r = lock_reading(db, s, UUID(payload.reading_id))
     return ReadingResponse(
         reading_id=str(r.id),
@@ -119,8 +125,26 @@ def post_verification_video(
     user: User = Depends(current_user),
 ):
     s = _session_by_code(db, weighment_id)
+    require_session_operator(db, s, user.id)
     evidence = attach_verification_video(db, s, UUID(payload.video_evidence_id))
     return {"evidence_id": str(evidence.id), "status": s.status}
+
+
+@router.post("/sessions/{weighment_id}/verification-evidence", status_code=201)
+def post_verification_evidence(
+    weighment_id: str,
+    payload: VerificationEvidenceCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    s = _session_by_code(db, weighment_id)
+    evidence = create_verification_evidence(db, s, user.id, payload.file_name, payload.mime_type)
+    return {
+        "evidence_id": str(evidence.id),
+        "upload_method": "PUT",
+        "upload_url": f"http://localhost:8000/dev-upload/{evidence.id}",
+        "status": evidence.status,
+    }
 
 
 @router.post("/sessions/{weighment_id}/acknowledge")
@@ -131,8 +155,9 @@ def post_acknowledge(
     user: User = Depends(current_user),
 ):
     s = _session_by_code(db, weighment_id)
+    require_session_farmer(db, s, user.id)
     ack = acknowledge_weighment(db, s, payload.acknowledged, payload.method)
-    return {"acknowledgement_id": str(ack.id), "status": s.status}
+    return {"acknowledgement_id": str(ack.id) if ack else None, "status": s.status}
 
 
 @router.post("/sessions/{weighment_id}/receipt", response_model=ReceiptResponse)
@@ -142,6 +167,7 @@ def post_receipt(
     user: User = Depends(current_user),
 ):
     s = _session_by_code(db, weighment_id)
+    require_session_farmer(db, s, user.id)
     receipt = create_receipt(db, s)
     return ReceiptResponse(
         receipt_id=str(receipt.id),
@@ -151,7 +177,9 @@ def post_receipt(
     )
 
 
-@router.post("/sessions/{weighment_id}/reweigh", response_model=WeighmentSessionResponse, status_code=201)
+@router.post(
+    "/sessions/{weighment_id}/reweigh", response_model=WeighmentSessionResponse, status_code=201
+)
 def post_reweigh(
     weighment_id: str,
     payload: ReweighRequest,
@@ -159,12 +187,14 @@ def post_reweigh(
     user: User = Depends(current_user),
 ):
     previous = _session_by_code(db, weighment_id)
+    require_session_operator(db, previous, user.id)
     if previous.status not in {"REJECTED_BY_FARMER", "DISPUTED"}:
         raise AppError("REWEIGH_NOT_ALLOWED", "Reweigh is not allowed in the current state.", 409)
 
     target_code = str(previous.target_id)
     # Resolve target code from persisted target entity.
     from app.livestock.models import Goat, Lot
+
     if previous.target_type == "GOAT":
         target = db.get(Goat, previous.target_id)
         target_code = target.goat_code

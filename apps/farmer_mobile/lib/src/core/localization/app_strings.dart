@@ -58,6 +58,8 @@ class AppStrings {
       'review_weighment_note': 'Review the operator-created verified weight, Scale ID, centre and evidence before acknowledging.',
       'i_acknowledge': 'I acknowledge',
       'ack_confirm_note': 'I confirm the verified weighment shown to me.',
+      'reject_reweigh': 'Reject weight and request reweigh',
+      'reweigh_required': 'Weight rejected · fresh reweigh required',
       'set_price_listing': 'Set Price & Listing Rules',
       'buyer_offers': 'Buyer Offers',
       'no_offers': 'No offers yet.',
