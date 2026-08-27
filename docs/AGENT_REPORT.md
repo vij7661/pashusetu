@@ -1,53 +1,110 @@
 # PashuSetu — Agent Execution Report
 
-- **Task ID:** `PILOT-GOLDENPATH-005`
-- **Objective:** Accepted offer → authoritative agreement snapshot → attributable pickup/delivery evidence → trusted final weighment → tolerance → settlement-ready/dispute routing.
-- **Timestamp:** 2026-08-27T16:30:10+05:30
+- **Task ID:** `PILOT-STABILIZATION-006`
+- **Objective:** Consolidated Farmer/Operator/Buyer golden-path stabilization and readiness gate.
+- **Timestamp:** 2026-08-27T16:52:12+05:30
 - **Branch:** `feat/issue-4-local-backend-farmer-integration`
-- **Status:** `PASS`
+- **Status:** `PASS — GOLDEN PATH READY FOR CONSOLIDATED QA`
 
-## Business/trust result
+## Readiness verdict
 
-- Reused the repository-approved tolerance stored as `Agreement.tolerance_basis_points`: `150` basis points = `1.5%`. The API rejects agreement proposals with any other pilot tolerance.
-- Agreement versions snapshot the accepted Bid ID, transaction/listing, Farmer and Buyer profiles, exact selected Goat IDs/whole-lot intent, accepted price/kg, trusted selection weight and livestock amount. The livestock amount is accepted price/kg × trusted selection weight, rounded to paise; transport estimates are absent.
-- A `(transaction_id, version)` uniqueness constraint plus transaction row locking serializes agreement version creation. Locked agreement confirmation is an idempotent no-op; no mutation endpoint was introduced.
-- Pickup and delivery records retain transaction, actor, server timestamps, synthetic local evidence reference and retry key. Audit events record pickup evidence and delivery/tolerance decisions.
-- Pickup is restricted to the Operator who produced the listing's trusted origin weighment. Finalization is restricted to the active Operator who produced the referenced verified delivery weighment, with Farmer/listing target-scope checks.
-- Tolerance compares the preserved accepted-selection weight with a separate locked final reading; the original weight/readings are not overwritten and arbitrary client final-weight values are not accepted.
-- Within `1.5%` routes `TOLERANCE_CHECK → SETTLEMENT_READY`; outside routes to `DISPUTED` and creates/reuses one open dispute. No payment capture/movement was implemented.
-- Transaction row locks, unique transaction evidence/dispute records and same-key replay responses prevent duplicate/contradictory effects. Different retry keys after evidence/finalization receive immutable-record conflicts.
+The controlled-pilot golden path is ready for consolidated human QA. Automated gates are green, local services/migrations are healthy, and no known structural integration blocker remains.
 
-## Migration and environment
+## Stabilization fixes
 
-- Non-destructive migration `0009_pilot_evidence` is current head. It adds agreement snapshot fields, evidence attribution/retry fields, preserved tolerance-decision values and agreement-version uniqueness; it drops/resets no data in upgrade.
-- Docker Compose valid; PostgreSQL healthy; API running; `/health` HTTP `200`.
+- Bid acceptance now returns the authoritative Transaction ID; accepted Buyer bid responses expose the same ID.
+- Farmer listing history opens offer review, and accepting an offer navigates directly to agreement creation/confirmation.
+- Buyer bid history exposes the agreement action once its bid is accepted.
+- Buyer delivery UI is now read-only guidance: only the trusted Operator may submit evidence/final weighment.
+- Operator delivery resolves the public server weighment code emitted by the weighment workflow instead of incorrectly requiring an internal UUID.
+- Farmer screens touched by the flow use persisted language state and English/Telugu strings.
+- Farmer registration no longer solicits raw Aadhaar or payout values when no approved provider workflow exists; explanatory provider notices remain.
+
+## Consolidated API proof
+
+The PostgreSQL-backed integration regression covers:
+
+- unverified livestock listing rejection;
+- verified locked origin weighment and listing publication;
+- Buyer visibility isolation and minimum-quantity validation;
+- multiple bids, same-key retry idempotency, changed-payload conflict and server sequencing;
+- unauthorized acceptance rejection and priority enforcement;
+- exactly one accepted Bid and Transaction;
+- accepted-Bid-derived commercial agreement snapshot, both-party confirmation and locked state;
+- simulated funds-secured state and transaction-scoped transport;
+- Operator pickup evidence plus same-key replay;
+- separate trusted delivery weighment by public weighment code;
+- within-1.5% route to `SETTLEMENT_READY`;
+- a separate outside-1.5% transaction route to `DISPUTED`, same-key replay and exactly one open dispute;
+- append-only listing audit event sequence.
+
+Existing focused/integration tests additionally cover unstable-reading lock rejection, Farmer acknowledgement/reweigh preservation, partial-lot exact trusted-weight selection, overlap rejection, transport-estimate separation, agreement immutability, arbitrary tolerance rejection, unauthorized access and transaction-state contracts.
 
 ## Exact validation
 
-- Focused Ruff on changed backend/migration/test files: `All checks passed!` with existing FastAPI `B008` and executable-bit `EXE002` exclusions.
-- Focused transaction-evidence tests: `5 passed in 2.93s`.
-- Full backend: `46 passed, 1 warning in 7.54s`. Warning is the existing Starlette/httpx TestClient deprecation.
-- Farmer: `flutter pub get` passed; analyze `No issues found! (ran in 12.6s)`; `7 passed`.
-- Buyer: `flutter pub get` passed; analyze `No issues found! (ran in 12.5s)`; `2 passed`.
-- Operator: `flutter pub get` passed; analyze `No issues found! (ran in 10.1s)`; `2 passed`.
-- `git diff --check`: passed. Alembic: `0009_pilot_evidence (head)`.
+- Docker Compose: valid; PostgreSQL: healthy; API: running; `/health`: HTTP `200`.
+- Alembic: `0009_pilot_evidence (head)`; no migration change was required.
+- Focused Ruff: `All checks passed!` with existing `B008`/`EXE002` exclusions.
+- Consolidated PostgreSQL integration: `1 passed, 1 warning in 5.61s`.
+- Full backend: `46 passed, 1 warning in 38.02s`. Warning is the existing Starlette/httpx TestClient deprecation.
+- Farmer: `flutter pub get` passed; analyze `No issues found! (ran in 7.3s)`; `8 passed`.
+- Buyer: `flutter pub get` passed; analyze `No issues found! (ran in 13.3s)`; `2 passed`.
+- Operator: `flutter pub get` passed; analyze `No issues found! (ran in 13.0s)`; `2 passed`.
+- Secret-pattern scan found no credential/token/private-key material in changed scope. `git diff --check` passed.
 
-## Files and commits
+## Farmer readiness gate
 
-- Agreement models/schemas/service/router; transaction state model; settlement eligibility.
-- Logistics evidence models/schemas/service/router and append-only audit calls.
-- Alembic migration `0009_pilot_transaction_evidence.py` and focused regression tests.
-- Operator logistics repository and pickup/delivery verification screen.
-- **Implementation commit:** `b9887567a714972fc4a9f8d366363f6ba3a70b10`
-- **Proof/test commit:** `c4ac4fa3a15ea47e0aa2ec67677885d1449b4da9`
-- Working tree: expected clean after this report commit.
+- Analyze clean: **PASS**
+- Tests pass: **PASS (8)**
+- Auth/registration backend contract: **PASS** via existing auth/identity tests and healthy API; raw sensitive placeholders removed.
+- Goat/lot creation: **PASS** via PostgreSQL livestock/weighment integration.
+- Trusted acknowledgement/reweigh: **PASS** via integration coverage preserving original locked reading/session.
+- Listing/offer acceptance: **PASS** via consolidated API regression and repaired navigation.
+- Agreement/transaction/status/dispute contract: **PASS**; accepted Transaction handoff is now explicit.
+- Backend/API/PostgreSQL/migrations healthy: **PASS**
+- Material Farmer-path business ambiguity: **NONE KNOWN**
 
-## Known limitations / QA next action
+**Farmer sub-verdict:** `PASS — FARMER APP READY FOR QA`.
 
-- Automated coverage proves snapshot derivation, locked immutability, exact selection-weight use, tolerance boundary/state contracts and evidence command contracts; the full backend suite exercises existing PostgreSQL integration flows. A single synthetic HTTP script spanning every new endpoint was not added.
-- Human QA should run one within-tolerance and one outside-tolerance transaction through the Operator screen, then inspect Buyer/Farmer status and Admin audit history. Synthetic evidence only; no real storage, booking or payment execution.
-- Recommended next action: review commits and perform consolidated golden-path visual/API QA.
+## Buyer and Operator readiness
+
+- Buyer quantity-first discovery/bidding remains validated; accepted bids now link to agreement. Buyer-entered delivery authority was removed.
+- Operator weighment tests pass; pickup/delivery commands now align with backend evidence and public weighment identifiers.
+- The legacy backend can still represent an individual GOAT listing, while quantity-first Buyer discovery enforces the approved minimum-three competitive lot path. No new sub-three UI/business flow was introduced.
+
+## Files / commit
+
+- Farmer: listing/offer navigation, English/Telugu strings/test and registration sensitive-input removal.
+- Buyer: listing/bid-to-agreement navigation and read-only delivery authority presentation.
+- Backend: bidding response handoff, delivery weighment-code lookup and consolidated PostgreSQL regression.
+- **Implementation commit:** `77a529354811650b3483ea9ce8bf28bfb7c7d81b`
+- Working tree: expected clean after report commit.
+
+## Human QA checklist
+
+### Farmer
+
+- Switch English/Telugu, restart, and confirm language persistence.
+- Register without being asked to enter raw Aadhaar/payment details.
+- Create goats/lot, acknowledge verified weight, publish listing, open offers, accept and enter agreement.
+
+### Buyer
+
+- Search with quantity/location; verify nearest-first eligible results and minimum-three messaging.
+- Submit/retry a bid, view bid state, and open agreement only after acceptance.
+- Confirm delivery view cannot submit Buyer-entered final weight.
+
+### Operator
+
+- Verify livestock, lock stable reading, attach evidence and hand off acknowledgement.
+- Record pickup evidence; create verified delivery weighment and finalize using displayed weighment code.
+
+### Transaction/dispute
+
+- Run one 1.5%-boundary/inside case to settlement-ready and one outside case to dispute.
+- Retry pickup/delivery commands and inspect no duplicates.
+- Inspect agreement commercial amount excludes transport estimate and audit history identifies actors/evidence/weights.
 
 ## Safety
 
-No prohibited/destructive action occurred. No database/table/data/volume/container/image was deleted or reset; no destructive migration ran; no authorization/audit control was weakened. No secrets, credentials, raw Aadhaar/KYC/payment data or real personal data were used. No merge to `main`, force-push, production deployment, real payment action or paid external service action occurred.
+No prohibited/destructive action occurred. No database/table/data/volume/container/image was deleted/reset, and no destructive migration ran. No security, authorization, idempotency, audit or evidence control was weakened. No real Aadhaar/KYC/payment data, secrets or credentials were used. No real payment/logistics/storage provider, production deployment, merge to `main`, force-push or paid action occurred.
