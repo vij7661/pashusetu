@@ -234,3 +234,27 @@ For the controlled pilot build, prioritize the golden path and pilot blockers ov
 Farmer registration → goat/lot → Operator verification/weighment → Farmer acknowledgement → listing → multiple Buyer bids → exactly one accepted offer → agreement → pickup/delivery evidence → tolerance → settlement/dispute → Admin audit trail.
 
 Do not add new product features during the pilot-week implementation unless explicitly approved.
+
+## 14. One-command Farmer QA launch
+
+When the human tells Codex `test farmer app`, `launch farmer app`, `open farmer app`, or equivalent:
+
+1. Inspect `git status`; do not overwrite unexpected local changes.
+2. Run `git pull --ff-only` on the current approved branch when safe.
+3. Re-read this `AGENTS.md` after pulling.
+4. Run the repository QA launcher from the repository root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\start_farmer_qa.ps1
+```
+
+The launcher is expected to:
+- verify the Docker Linux engine is available;
+- start the existing local `db` and `api` Compose services;
+- wait for `http://localhost:8000/health` to return HTTP 200;
+- apply current non-destructive Alembic migrations;
+- resolve Farmer Flutter dependencies;
+- verify Flutter detects Chrome;
+- run `flutter run -d chrome`, which opens the Farmer app in Chrome automatically.
+
+Do not ask the human to manually run `cd`, `flutter pub get`, `docker compose`, or `flutter run` commands when this QA trigger is used. If Docker, Chrome, Flutter, or the API is unavailable, report the exact blocker and the minimum local action required. Keep the Flutter process attached so the human can perform manual QA; they can stop it with `q`/Ctrl+C when finished.
