@@ -4,23 +4,40 @@
 
 **Status:** `READY`
 
-**Work item:** Pilot Golden Path — Verified listing + Buyer marketplace + bidding + single acceptance
+**Work item:** Pilot Golden Path — Verified listing + quantity-first, location-prioritized Buyer marketplace + bidding + single acceptance
 
-**Current objective:** Complete and validate the next pilot slice from an acknowledged/verified goat or lot becoming a marketplace listing through Buyer discovery, multiple bids, idempotent retries, and exactly one accepted offer, while preserving deterministic trust-layer behavior.
+**Current objective:** Complete and validate the next pilot slice from an acknowledged/verified goat or lot becoming a marketplace listing through a quantity-first Buyer discovery flow that prioritizes the nearest eligible inventory, followed by multiple bids, idempotent retries, partial-lot selection with a minimum purchase of three goats, and safe acceptance, while preserving deterministic trust-layer behavior.
 
 ## Requirements authority
 
-Follow `/AGENTS.md` and the approved SRS/MVP behavior. Preserve these trust rules:
+Follow `/AGENTS.md` and the approved SRS/MVP behavior. Preserve these product/trust rules:
 - Only verified/acknowledged livestock or lot can become an active listing.
-- Listing quantity/weight must use the trusted verified weighment, not an unverified client-entered replacement.
+- Listing quantity/weight must use trusted verified weighment, not an unverified client-entered replacement.
+- Each goat is the atomic sale unit; do not support arbitrary kilogram splitting.
+- Buyer marketplace flow is **quantity first**: Buyer enters/selects the number of goats required before marketplace results/offers are displayed.
+- Normal requested quantity must be at least **3 goats**.
+- After quantity entry, show only currently active/available listing opportunities that can satisfy that requested quantity under the minimum-3/remaining-quantity rules.
+- Eligible marketplace results must be **sorted nearest-location first by default**.
+- Distance must be calculated from the Buyer's selected pickup/delivery/search location to the trusted livestock/collection/verification location used by the marketplace record; do not rank from arbitrary free-text Farmer location when a trusted verified/centre location exists.
+- Show distance to the Buyer where practical (for example `12 km away`) so ranking is transparent.
+- Nearest-first is the default ranking, not a hard distance filter. More distant eligible listings must still remain discoverable unless the Buyer applies an explicit distance filter later.
+- Use deterministic tie-breaking when two eligible opportunities have equal/near-equal distance (for example distance first, then server-authoritative listing creation/order key), not client timestamps.
+- Results should expose enough information for the Buyer to compare relevant opportunities, including distance, available goat count, trusted selected/available weight as applicable, Farmer asking/reference price where allowed, and current marketplace/bid information supported by the backend. Do not expose another Buyer's private identity or sensitive data.
+- For a multi-goat lot, the Buyer may bid for the requested quantity by selecting individually identifiable available goats from an eligible lot, or bid for the whole available lot.
+- A partial-lot selection must contain at least 3 goats.
+- A Buyer must not be allowed to submit a partial-lot bid for only 1 or 2 goats while 3+ goats are available; enforce server-side as well as in UI.
+- If an available lot has fewer than 3 goats remaining, those goats may only be sold together as the complete remaining quantity; the quantity-first results may surface such a remainder only when the Buyer's requested quantity matches that complete remaining quantity.
+- Quantity/location filtering is discovery convenience, not an inventory reservation. Availability must be revalidated server-side when a bid is submitted and again when an offer is accepted.
+- A goat already reserved/accepted/sold in another winning selection must not be simultaneously won by another Buyer.
 - Farmer may use recommended market price or own asking price only where current approved product behavior supports it; do not redesign pricing in this task.
 - Buyer bids/offers must be server-authoritative.
 - A client-generated idempotency key represents one user Bid intent and must be reused across HTTP retries.
 - Deduplication must occur at the authoritative backend boundary before duplicate commercial effects are appended.
 - Simultaneous/retried bids must not create duplicate bid intents.
-- Acceptance must be concurrency-safe and result in exactly one accepted offer for the listing.
-- Once one offer is accepted, conflicting later accept attempts must fail deterministically and must not silently overwrite the accepted state.
-- Audit/event history must remain sufficient to reconstruct the commercial decision path as supported by the current architecture.
+- Acceptance must be concurrency-safe for the exact goat selection and prevent overlapping winners.
+- Once an offer is accepted for selected goats, conflicting later accept attempts involving any of those goats must fail deterministically.
+- Unselected goats remain available for later valid offers where listing state permits it.
+- Audit/event history must remain sufficient to reconstruct the commercial decision path as supported by current architecture.
 
 Do not implement real payments, escrow, external notifications, logistics, settlement, disputes, or unrelated architecture in this task.
 
@@ -28,8 +45,8 @@ Do not implement real payments, escrow, external notifications, logistics, settl
 
 You MAY make focused changes required for this slice in:
 - `apps/farmer_mobile` listing creation / offer review / acceptance flows
-- `apps/buyer_mobile` marketplace / listing detail / bid flows
-- backend marketplace / bidding / audit / related authorization endpoints, schemas, models and services where a confirmed integration defect requires it
+- `apps/buyer_mobile` quantity input / search-location input or use of stored Buyer location / marketplace results / listing detail / goat selection / bid flows
+- backend marketplace / listing discovery / distance ranking / bidding / audit / related authorization endpoints, schemas, models and services where a confirmed integration defect requires it
 - focused synthetic test fixtures and regression tests
 - local development documentation/config where needed
 
@@ -41,78 +58,89 @@ Do not use real personal/payment/KYC data.
 
 1. At task start follow AGENTS.md: inspect working tree, `git pull --ff-only`, then re-read `AGENTS.md` and this task.
 2. Verify Docker `db` and `api` health and run Alembic upgrade if needed.
-3. Run baseline Flutter validation:
-   - Farmer: `flutter pub get`, `flutter analyze`, `flutter test`
-   - Buyer: `flutter pub get`, `flutter analyze`, `flutter test`
-4. Inspect current verified-weighment, marketplace, bidding, Farmer offer review and Buyer bidding contracts.
-5. Using safe synthetic data, prove or implement the path:
-   - verified/acknowledged goat or lot → active listing
-   - Buyer discovery/listing retrieval
-   - at least two distinct Buyers can submit valid bids
-   - total offer amount shown/calculated from offer-per-kg × trusted lot weight where current product flow uses per-kg pricing
-6. Validate idempotency behavior:
-   - same Buyer + same idempotency key retried multiple times produces one commercial bid intent/effect
-   - duplicate transmission does not append duplicate authoritative bid records/events
-   - different idempotency key represents a new intent only when otherwise valid
-7. Validate ordering/concurrency behavior using server-authoritative sequencing/timestamps already modeled by the backend. Do not use client timestamps for commercial priority.
-8. Validate Farmer acceptance:
-   - Farmer can review offers for own listing only
-   - accept one valid offer
-   - exactly one offer/listing acceptance wins under repeated or concurrent acceptance attempts
-   - conflicting/later acceptance attempts fail cleanly/deterministically
-   - accepted state and winning bid are persisted and retrievable
-9. Preserve append-only/audit semantics supported by the repository; add focused coverage if current code lacks proof of the bid/acceptance decision history.
-10. Fix only confirmed API/DTO/state/navigation/concurrency/idempotency defects required for this approved slice. Do not weaken authorization or determinism to make tests pass.
-11. Add or update focused automated tests covering at minimum:
+3. Run baseline Flutter validation for Farmer and Buyer (`flutter pub get`, `flutter analyze`, `flutter test`).
+4. Inspect current verified-weighment, marketplace/listing discovery, location fields, bidding, Farmer offer review and Buyer bidding contracts.
+5. Implement/prove quantity-first, nearest-first Buyer discovery with synthetic data:
+   - Buyer enters/selects required goat quantity before viewing eligible marketplace opportunities
+   - use Buyer's selected/stored search location as the ranking origin
+   - reject normal quantity 1 or 2
+   - quantity 3+ returns only active opportunities capable of satisfying that quantity
+   - stale/sold/unavailable goats are excluded
+   - complete 1–2 goat remainder may be surfaced only when requested quantity exactly matches that complete remainder under the exception rule
+   - eligible results are ordered by computed distance ascending by default
+   - equal-distance results use deterministic server-side tie-breaking
+   - more distant eligible results remain available after nearer ones; nearest-first is not a hidden hard cutoff
+   - result data supports meaningful comparison including distance without leaking private Buyer information
+6. Prove/implement the commercial path:
+   - verified/acknowledged goat or lot → active listing with trusted market/collection location
+   - Buyer selects an eligible result after quantity + availability filtering and nearest-first ranking
+   - Buyer selects the requested number of individually identifiable available goats from the lot, or chooses the complete eligible lot
+   - server revalidates requested quantity and selected goat availability at bid submission
+   - at least two distinct Buyers can submit valid non-conflicting bids
+   - total offer amount uses offer-per-kg × trusted verified weight of selected goats (or complete lot weight) where per-kg pricing applies
+7. Validate idempotency: same Buyer + same idempotency key retried multiple times produces one commercial bid intent/effect; a different key is a new intent only when otherwise valid.
+8. Validate server-authoritative sequencing/concurrency. Do not use client timestamps for commercial priority.
+9. Validate Farmer acceptance:
+   - Farmer reviews offers for own listing only
+   - server revalidates selected goats at acceptance
+   - accept one valid offer for a selected set
+   - overlapping offers involving accepted goats cannot both win
+   - non-overlapping goats remain available
+   - accepted state, winning bid, selected goat IDs and remaining available IDs are persisted/retrievable
+10. Preserve append-only/audit semantics supported by repository.
+11. Fix only confirmed API/DTO/state/navigation/concurrency/idempotency/location-ranking defects required for this slice.
+12. Add/update focused automated tests covering at minimum:
+   - quantity input is required before marketplace results
+   - normal quantity 1 and 2 rejected
+   - quantity 3+ filters out lots unable to satisfy request
+   - eligible lots are returned for requested quantity
+   - stale/unavailable inventory is not returned/accepted
+   - complete fewer-than-3 remainder exception behaves correctly
+   - nearest eligible listing is ranked first
+   - distance values/ranking are computed from Buyer search location to trusted listing/collection location
+   - equal-distance tie ordering is deterministic
+   - farther eligible listings remain discoverable after nearer ones
    - unverified livestock cannot be listed
-   - verified livestock/lot listing succeeds
+   - whole-lot bidding works
+   - 1/2-goat partial bids rejected while 3+ available
+   - 3-goat partial bid valid
    - multiple Buyers can bid
-   - idempotent retry does not duplicate a bid intent
-   - unauthorized Buyer/Farmer actions are rejected
-   - exactly one offer can be accepted
-   - repeated/concurrent acceptance cannot produce two winners
-12. Exercise the live local API path end-to-end with synthetic data as far as practical.
-13. Re-run relevant validation:
-   - Farmer analyze/tests if changed
-   - Buyer analyze/tests if changed
-   - targeted backend tests
-   - full backend pytest suite if backend code changes
-   - `/health`
-14. Inspect the final diff, secret-pattern scan, and remove unrelated/generated changes.
-15. If all relevant checks pass, commit and push focused implementation changes on the approved non-main branch.
-16. Update and push `docs/AGENT_REPORT.md` with this exact Task ID and final status.
-17. If status is `PASS`, follow the AGENTS.md automatic task handoff rule and execute a different READY Task ID if one is already published.
+   - idempotent retry does not duplicate bid intent
+   - unauthorized actions rejected
+   - overlapping accepted offers cannot create two winners
+   - unselected goats remain available after partial acceptance
+13. Exercise the live local API path end-to-end with synthetic data as far as practical.
+14. Re-run relevant Farmer/Buyer analyze/tests, targeted backend tests, full backend pytest if backend changed, and `/health`.
+15. Inspect final diff and secret-pattern scan; remove unrelated/generated changes.
+16. If all checks pass, commit/push focused changes on approved non-main branch.
+17. Update/push `docs/AGENT_REPORT.md` with this exact Task ID and final status.
+18. On PASS, follow AGENTS.md automatic handoff if a different READY Task ID is already published.
 
 ## Completion criteria
 
-This task is `PASS` only when actual checks/tests support:
-- only verified/acknowledged livestock/lot can become an active listing
-- Buyer marketplace can retrieve the active listing
-- multiple Buyers can place valid bids
-- retrying the same Bid intent with the same idempotency key does not create duplicate commercial effects
-- server authority, not client timestamp, determines commercial sequencing where applicable
-- Farmer can review and accept only offers on own listing
-- exactly one accepted offer exists even under repeated/concurrent accept attempts
-- accepted/winning state is persisted and retrievable
-- affected Flutter analyze/tests pass
-- relevant backend tests pass and local API health remains good
+PASS requires actual proof that:
+- Buyer must enter/select quantity before marketplace opportunities are displayed
+- normal requested quantity is minimum 3 goats
+- marketplace results are filtered to currently eligible inventory for that quantity
+- eligible results are sorted nearest-first by default using Buyer search location and trusted inventory/collection location
+- distance is visible/available to the Buyer where practical
+- nearest-first does not hide more distant eligible opportunities
+- deterministic tie-breaking exists for equal/near-equal distance
+- quantity/location filtering does not falsely reserve inventory; server revalidates at bid and acceptance
+- whole-lot and valid partial-lot bidding are supported
+- complete 1–2 goat remainder exception is handled without stranding inventory
+- arbitrary kg splitting is not supported
+- multiple Buyers can bid safely
+- same idempotency key does not duplicate commercial effects
+- server authority determines sequencing
+- no goat can belong to two accepted offers
+- unselected goats remain available after valid partial acceptance
+- affected Flutter analyze/tests and backend tests pass
+- local API health remains good
 - no prohibited/destructive action occurred
 
 GUI-only presentation may remain for consolidated human QA later; clearly separate automated proof from pending visual QA.
 
 ## Completion report
 
-Report:
-- Task ID and final status
-- root causes/gaps found
-- Farmer analyze/test results
-- Buyer analyze/test results
-- exact listing/bidding/acceptance flow exercised
-- idempotency/concurrency results
-- authorization/audit results
-- backend targeted/full-suite results
-- files changed
-- branch and implementation commit SHA(s)
-- remaining manual QA items
-- working tree state
-- safety confirmation
+Report Task ID/status, root causes/gaps, Farmer and Buyer validation, exact quantity-first + nearest-first discovery and bidding flow exercised, minimum-3/remainder behavior, distance-ranking/tie-break results, idempotency/concurrency/authorization/audit results, backend test results, files changed, branch/commit SHAs, remaining manual QA, working tree state, and safety confirmation.
