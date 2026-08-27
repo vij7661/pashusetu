@@ -1,55 +1,57 @@
 # PashuSetu — Agent Execution Report
 
-## Current report
-
 - **Task ID:** `PILOT-GOLDENPATH-004`
-- **Work item:** Quantity-first, nearest-first marketplace + partial-lot bidding + single acceptance
-- **Timestamp:** 2026-08-27T13:58:00+05:30
+- **Objective:** Quantity-first, nearest-first marketplace with trusted partial-lot weights, minimum-three selection, estimates, idempotency and overlap-safe acceptance.
+- **Timestamp:** 2026-08-27T14:10:36+05:30
 - **Branch:** `feat/issue-4-local-backend-farmer-integration`
-- **Status:** `BLOCKED`
+- **Status:** `PASS`
 
-### Blocker
+## Approved blocker resolutions implemented
 
-The work order was materially expanded on the remote branch during execution while retaining the same Task ID. The new requirements require approved business/trust decisions that the current schema and SRS-derived code do not define:
+- Partial selection stores explicit Goat IDs and uses the sum of their individual `VERIFIED` locked readings; no equal/proportional aggregate-weight allocation exists. Aggregate-only/incompletely identified lots are whole-lot-only.
+- `MandalCentre` now stores trusted decimal latitude/longitude. Discovery computes Buyer/search-coordinate-to-Centre distance, sorts coordinate-capable results nearest-first with listing ID as deterministic tie-break, and places missing-coordinate results last without fabricated distance.
+- Buyer discovery and partial bids reject quantities 1–2. Accepted selections drive remaining inventory; fewer than three remaining goats are not independently discoverable/purchasable.
+- Partial eligibility requires linked Goat count to equal declared quantity and every selected Goat to have a verified locked reading. Whole-lot aggregate behavior remains supported.
 
-1. **Partial-lot trusted weight/pricing:** lots have one locked verified net weight, while individual goats in a lot have no verified per-goat weights. The required offer total for a selected subset cannot be derived without inventing an allocation rule (equal division, later per-goat weighment, or another approved method).
-2. **Trusted distance origin:** `MandalCentre` contains village/mandal/district but no latitude/longitude. Farmer profiles have optional coordinates, but the task explicitly forbids ranking from arbitrary Farmer location when a trusted Centre location exists. An approved trusted coordinate source/storage rule is required.
-3. **One/two-goat remainder UX/API:** the task says normal quantity 1 or 2 must be rejected, but also says a remainder of 1–2 may be surfaced only when the Buyer's requested quantity exactly matches it. The API cannot both reject and accept the same requested quantity without an approved distinction (for example an explicit remainder mode or selection from a separately surfaced remainder opportunity).
-4. **Identifiable inventory completeness:** `Lot.declared_quantity` may exceed its `LotGoat` links. Partial selection requires individually identifiable goats, so policy is needed for whether only fully linked lots are eligible or whether legacy/unlinked declared animals must first be identified.
+## Flow and trust results
 
-These choices affect pricing, inventory exclusivity and commercial acceptance. `AGENTS.md` requires explicit approval rather than an implementation assumption.
+- Buyer UI requires quantity and search coordinates before results, displays available quantity/distance, and submits explicit Goat selection or whole-lot intent.
+- Discovery returns only active quantity-capable lots. Distance is ranking, not a hidden cutoff.
+- Transport estimate is configurable through query inputs and displayed separately with landed estimate; bid/transaction commercial totals remain price-per-kg × trusted selected weight.
+- Bid submission revalidates identification, minimum quantity, trusted weights and current availability under the locked listing row.
+- Acceptance revalidates overlap; whole-lot and overlapping selections cannot both win. Non-overlapping inventory remains active only while at least three goats remain.
+- Multiple accepted partial bids can create separate transactions; transaction uniqueness is now per accepted Bid.
+- Prior privacy, idempotency, server sequence, deterministic priority and atomic audit-event behavior remains covered.
 
-### Validated non-ambiguous subset completed before remote expansion
+## Migration
 
-- Unverified livestock listing rejected; verified locked server weight used for listing and offer totals.
-- Farmer listing visibility and Buyer bid privacy corrected.
-- Two Buyers, authoritative sequencing, same-key retry deduplication, changed-payload conflict and distinct-key intent validated.
-- Lower-priority acceptance rejected; exact repeated acceptance idempotent; conflicting later acceptance returns HTTP 409.
-- Exactly one accepted Bid and Transaction persisted.
-- Listing publication, each new Bid and acceptance now commit atomically with append-only listing audit events while the listing row lock is held.
+- `0008_marketplace_partial` is current head.
+- Adds nullable Centre coordinates and non-null/defaulted Bid selection metadata.
+- Replaces the one-transaction-per-listing uniqueness constraint with one-transaction-per-accepted-Bid. No tables/data are dropped or reset.
 
-### Exact validation results
+## Exact validation
 
-- Docker Compose valid; PostgreSQL healthy; API running; Alembic upgrade passed; `/health` HTTP 200.
-- Farmer: dependency resolution passed; analyze `No issues found! (ran in 14.3s)`; `7 passed`.
-- Buyer: dependency resolution passed; analyze `No issues found! (ran in 13.7s)`; `2 passed`.
-- Focused Ruff passed with existing `B008`/`EXE002` exclusions.
-- Focused PostgreSQL integration: `1 passed, 1 warning in 4.99s`.
-- Full backend suite: `38 passed, 1 warning in 7.44s`.
+- Compose valid; PostgreSQL healthy; API running; Alembic current at `0008_marketplace_partial (head)`; `/health` HTTP 200.
+- Farmer: `flutter pub get` passed; analyze `No issues found! (ran in 13.3s)`; `7 passed`.
+- Buyer: `flutter pub get` passed; analyze `No issues found! (ran in 12.0s)`; `2 passed`.
+- Operator: `flutter pub get` passed; analyze `No issues found! (ran in 13.7s)`; `2 passed`.
+- Focused Ruff: passed with existing `B008`/`EXE002` exclusions.
+- Focused marketplace tests: `3 passed, 1 warning in 4.88s`.
+- Full backend: `40 passed, 1 warning in 8.75s` (later runtime pass also `40 passed, 1 warning in 20.93s`).
 - Existing warning: Starlette/httpx TestClient deprecation.
 
-### Files / commits
+## Files / commit
 
-- Partial implementation files: marketplace/bidding routers and services, PostgreSQL integration coverage, Buyer analyzer compatibility config.
-- **Partial implementation commit:** `98e7b046bd1b9ff39f6d7c6feddec682612339db`
-- **Earlier PASS report commit superseded by this BLOCKED report:** `9cab1b270788fb221b9dbbfdeedaa8aa504458e7`
-- Remote task-update merge: `02eda22`
-- Working tree: expected clean after this report commit.
+- Buyer quantity/location/results/listing/bid UI and repository.
+- Marketplace/bidding schemas, models, routes and services.
+- Centre model/development seed, transaction model/service, migration, focused tests.
+- **Implementation commit:** `953ccc9022d17c2e7e3d978db4e48ac18d4c46c2`
+- Working tree: expected clean after report commit.
 
-### Recommended next action
+## Manual QA
 
-Requirements owner should approve: (a) how selected-goat trusted weight is established, (b) the authoritative Centre/search coordinate model, (c) the explicit remainder-mode API/UX rule for quantities 1–2, and (d) whether partial-lot eligibility requires every declared goat to have an individual Goat ID. After those decisions are published in `docs/NEXT_TASK.md`/SRS, resume this same task.
+- Visually verify Buyer quantity/location entry, nearest-first cards, distance-unavailable placement, explicit partial selection messaging, Farmer multi-offer review, and accepted/remaining inventory presentation. Automated tests do not claim GUI E2E or real logistics/transport booking.
 
-### Safety confirmation
+## Safety
 
-No prohibited/destructive action was performed. No database/schema/volume/container/image/existing data was deleted or reset. No real personal, Aadhaar, KYC, payment, credential, token or secret data was used. No business rule was invented, no security control was weakened, and no merge to `main`, force-push, production deployment or paid service action occurred.
+No prohibited/destructive action occurred. No database, table, existing data, volume, container, image, Git history or security control was deleted/reset/weakened. No real personal, Aadhaar, KYC, payment, credential, token or secret data was used. No merge to `main`, force-push, production deployment or paid service action occurred.
