@@ -17,7 +17,7 @@ This repository is being developed for a controlled goat-procurement marketplace
 - Never rewrite public history unless explicitly approved.
 - Never commit secrets, `.env`, credentials, private keys, tokens, production URLs, or sensitive test data.
 - Do not merge PRs unless explicitly instructed.
-- Before a commit, show or inspect the intended diff and ensure unrelated files are excluded.
+- Before a commit, inspect the intended diff and ensure unrelated files are excluded. Routine diff inspection does not require human approval.
 - Use focused commit messages, for example:
   - `feat(farmer): ...`
   - `fix(buyer): ...`
@@ -25,7 +25,29 @@ This repository is being developed for a controlled goat-procurement marketplace
   - `test(bidding): ...`
   - `docs: ...`
 
-## 3. Change discipline
+## 3. Autonomy and approval policy
+
+For an approved task, proceed autonomously through routine, reversible development actions. Do not repeatedly ask the human for permission merely because a command reads files, runs tests, resolves dependencies, starts existing development services, edits in-scope source files, or performs ordinary Git operations on the approved non-main branch.
+
+Allowed without additional approval when needed to complete the current approved task:
+- inspect/search/read repository files and Git history/status/diffs
+- edit files explicitly within task scope
+- create non-destructive temporary/build files required by normal tooling
+- `flutter pub get`, analyze, test and normal Flutter build/test commands
+- install/resolve project-level dependencies declared by the repository, provided this does not install paid services or change OS/system configuration
+- run backend/unit/integration tests
+- `docker compose config`, `ps`, logs, and starting/restarting existing development services
+- execute existing non-destructive migrations against the local development/test database
+- make HTTP calls to local development endpoints
+- create/switch approved feature or bugfix branches
+- stage, commit and push validated task changes to the approved non-main branch when the current task authorizes implementation/commit
+- revert incidental out-of-scope changes caused by tooling
+
+When a tool itself presents a mandatory sandbox/OS security confirmation, request only the minimum permission necessary and continue after approval. Do not ask conversationally for permission again if the user/tool has already authorized that action for the current task.
+
+Use engineering judgment for low-risk implementation details that do not alter approved business behavior. If several equivalent low-risk technical choices exist, choose the smallest/reversible option, test it, and document the choice rather than interrupting the user.
+
+## 4. Change discipline
 
 - Make the smallest change that satisfies the approved task.
 - Do not perform opportunistic refactors in unrelated modules.
@@ -33,7 +55,7 @@ This repository is being developed for a controlled goat-procurement marketplace
 - Generated-file changes must be intentional and explained.
 - If tooling changes files outside scope (for example `analysis_options.yaml`), revert those changes unless required.
 
-## 4. Mandatory validation before commit
+## 5. Mandatory validation before commit
 
 Run the relevant checks for every changed area.
 
@@ -78,14 +100,14 @@ Run targeted tests first when useful, then the relevant full suite before commit
 
 If a required runtime is unavailable, do not fake a pass. Report the blocker clearly.
 
-## 5. Docker and database safety
+## 6. Docker and database safety
 
 Allowed without special approval when part of an approved task:
 - `docker compose config`
 - `docker compose ps`
-- starting existing development services
+- starting/restarting existing development services
 - viewing logs
-- running migrations that are already part of the approved branch
+- running existing non-destructive migrations on development/test databases
 - running tests
 
 Require explicit approval before:
@@ -98,14 +120,14 @@ Require explicit approval before:
 
 Never destroy the local or pilot database as a convenience fix.
 
-## 6. Security and sensitive data
+## 7. Security and sensitive data
 
 - Never store raw Aadhaar data unless a separately approved compliant design explicitly requires it.
 - KYC, payment custody/escrow, OTP providers, storage providers, and other external services must remain behind provider/adaptor boundaries.
 - Do not weaken authentication, authorization, idempotency, auditability, or evidence integrity to make a test pass.
 - Mask sensitive fields in logs and UI where required.
 
-## 7. Trust-critical rules
+## 8. Trust-critical rules
 
 Treat the following as high-risk changes requiring careful review and tests:
 - bid idempotency
@@ -122,7 +144,7 @@ Never use client timestamps to establish commercial priority when the backend is
 Never overwrite an acknowledged/locked weighment to represent a reweigh.
 Never silently mutate a locked agreement.
 
-## 8. QA handoff
+## 9. QA handoff
 
 Development is not complete merely because code compiles.
 
@@ -136,21 +158,23 @@ Before asking for QA:
 
 The human QA owner decides acceptance/rejection of the release candidate.
 
-## 9. When to stop and ask for approval
+## 10. When to stop and ask for approval
 
-Stop before:
-- destructive commands
-- production deployment
-- public release
+Stop and request explicit human approval only for materially risky or irreversible actions, including:
+- destructive commands or data deletion
+- production/pilot deployment or public release
 - merging to `main`
-- changing business rules
+- force-push/history rewrite
+- changing approved business rules or resolving material requirement ambiguity by assumption
 - schema-destructive migrations
-- real payment/KYC/Aadhaar integrations
-- introducing paid infrastructure/services
-- changing secrets or cloud-account configuration
-- resolving an ambiguous requirement by assumption
+- real payment/KYC/Aadhaar integrations or handling real sensitive credentials/data
+- introducing paid infrastructure/services or actions likely to incur charges
+- changing secrets, cloud-account configuration, Windows/WSL/BIOS/security configuration
+- disabling security controls or materially weakening authentication/authorization/auditability
 
-## 10. Pilot-week priority
+Do not stop for routine development permissions that are already covered by the approved task and the autonomy policy above.
+
+## 11. Pilot-week priority
 
 For the controlled pilot build, prioritize the golden path and pilot blockers over polish:
 
