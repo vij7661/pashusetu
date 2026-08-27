@@ -1,98 +1,108 @@
 # PashuSetu — Current Agent Task
 
-**Task ID:** `QA-FARMER-L10N-001`
+**Task ID:** `QA-AUTH-TESTDB-001`
 
 **Status:** `READY`
 
-**Work item:** Farmer QA defects — first-launch localization + mobile-number validation/autofill
+**Work item:** Build synchronized isolated QA database + canonical test fixtures for manual QA and automation
 
-**Current objective:** Fix the Farmer app onboarding/localization initialization defect found during manual Chrome QA and the mobile-number input defect found on the registration screen. On a fresh app/browser state, the user must not be forced directly into Telugu registration, and the mobile field must not auto-populate with stale/generated/debug values. The user must deliberately enter a valid 10-digit mobile number.
+**Current objective:** Create an isolated QA/test data environment that is shared by manual QA and automation, with deterministic synthetic users, OTP behavior, livestock/lot/listing fixtures and safety guards that prevent any QA reset/seed/test-OTP operation from touching pilot/production data. Keep the canonical fixture identifiers and mobile numbers synchronized with the approved QA workbook.
 
-## QA evidence
+## Canonical QA fixture contract
 
-Manual QA showed:
-- the Farmer app opening at `#/register` in Telugu without a deliberate language-selection step;
-- the mobile-number field behaving as though a prior/generated number could be reused/auto-populated;
-- registration then surfacing a generic API error.
+Use these fixture IDs and synthetic 10-digit local mobile numbers as the canonical seeded users. Prefixes are intentionally mixed; no role is tied to any prefix.
 
-Treat these as onboarding/localization/input-validation defects. Do not change marketplace business rules.
+- `FARMER_EN_001` — Farmer — `6123456789` — English
+- `FARMER_TE_001` — Farmer — `7234567890` — Telugu
+- `FARMER_SUB3_001` — Farmer — `8345678901` — English — fewer-than-3-goats scenario
+- `BUYER_001` — Buyer — `9456789012` — English
+- `OPERATOR_001` — Operator — `6789012345` — English
+- `ADMIN_001` — Admin — `7890123456` — English
 
-## Important interactive-QA rule
+The same fixture IDs/numbers must be used by manual QA instructions, seed scripts, backend/API tests and any Flutter/automation fixture references. Do not create a second conflicting user-number set.
 
-- Do **not** repeatedly launch Chrome while diagnosing/fixing this task.
-- Prefer automated widget/provider/router/input tests, `flutter analyze`, `flutter test`, and non-interactive web checks.
-- At most **one** interactive Chrome launch is allowed at the end for a final smoke check unless the human explicitly asks for another launch.
-- Reuse an existing Farmer web instance/hot reload where practical.
-- Publish PASS/BLOCKED and stop; do not keep relaunching until full manual E2E QA is complete.
+## Mobile-number rules
 
-## Expected behavior
+- Local mobile input is exactly 10 digits.
+- First digit must be one of `6`, `7`, `8`, `9`.
+- Prefix is not role-specific; any role may use any valid prefix.
+- `0`-`5` starting digits must be rejected as invalid for this pilot mobile contract.
+- QA API boundary may convert validated local input to `+91<10 digits>` internally.
+- Valid-but-unseeded 10-digit numbers in QA return `QA_TEST_USER_NOT_FOUND` (or equivalent clear QA response), create no OTP challenge and send no SMS.
+- Invalid length/format/prefix is rejected before OTP state creation.
 
-### Startup/localization
-1. Fresh app state / cleared browser storage:
-   - app opens the approved initial welcome/language-selection screen, not registration;
-   - no language is silently forced in a way that bypasses the language-selection step.
-2. Explicit English selection drives English onboarding and persists on refresh/relaunch.
-3. Explicit Telugu selection drives Telugu onboarding and persists on refresh/relaunch.
-4. Persisted locale must not bypass required onboarding/auth routing.
+## QA database isolation
 
-### Mobile-number input
-5. Fresh registration must show an **empty** mobile-number field. Do not prefill real-looking, generated, debug, browser-restored or seeded phone values in normal QA startup.
-6. Mobile input must contain **digits only** and represent exactly **10 digits** for this pilot UI contract.
-7. More than 10 digits must never be accepted as a valid number. Prefer preventing entry beyond 10 digits at the field/input-formatter level; if an overlength value reaches validation by paste/browser autofill/programmatic state, show a clear localized **"Invalid mobile number"** error and do not call the OTP/API endpoint.
-8. Fewer than 10 digits must also return the same invalid-mobile validation and must not call the OTP/API endpoint.
-9. Non-digit characters, spaces, country-code prefixes typed into this field, and malformed values must be rejected/normalized only if the existing approved UX explicitly supports normalization. Do not silently turn arbitrary strings into a valid number.
-10. Browser autofill/autocomplete must not inject an unrelated previously stored phone value into fresh QA registration where Flutter/web controls can prevent it.
-11. Client-side validation is UX protection only; inspect the backend auth/OTP request contract and ensure the backend also rejects invalid mobile lengths/formats before creating OTP state. If the backend already validates correctly, do not redesign it.
-12. A valid 10-digit number may proceed to auth/OTP handling only after format validation succeeds.
+Create/use an explicitly isolated QA database, e.g. `pashusetu_qa`, or an equivalent existing test database if the repository already has a safe convention.
 
-### QA test-number allowlist behavior
-13. In the **isolated LOCAL/QA environment only**, test OTP issuance must be restricted to seeded/approved QA fixture mobile numbers from the QA test dataset. Do not issue a synthetic/test OTP to arbitrary valid 10-digit numbers.
-14. Therefore, a syntactically valid 10-digit number that is **not** present in the QA fixture store must return a clear non-sensitive QA response such as **"Test user not found"** / **"Mobile number not registered for QA testing"** and must create no OTP state and send no SMS.
-15. A syntactically valid 10-digit number that **is** present in the QA fixture store may proceed to the test OTP provider.
-16. This allowlist restriction must be impossible to activate in pilot/production. Pilot/production behavior must not depend on the QA fixture allowlist; when real OTP is later configured, any legitimate valid 10-digit registration number should be handled by the approved real auth flow.
-17. Fail closed: if QA/test OTP mode is enabled while the environment or database is not explicitly marked isolated QA/test, refuse to start or refuse OTP issuance rather than falling back to a permissive test mode.
-18. Keep all QA phone numbers synthetic; do not use or seed real personal phone numbers.
+Hard safety requirements:
+- QA seed/reset/cleanup commands must verify both environment identity and target DB identity before mutating data.
+- Commands must fail closed if environment is not explicit LOCAL/QA/TEST or if DB identity is ambiguous/non-QA.
+- Never reset/seed/drop/truncate pilot/production data.
+- Do not share QA and pilot DB connection strings.
+- No real phone numbers, Aadhaar, payment credentials or personal data.
+- Test OTP provider must be disabled/fail closed outside isolated QA/test configuration.
+- Do not integrate a real SMS provider in this task.
+
+## Manual + automation shared data
+
+Manual QA and automation should reference the same logical fixtures. Build a deterministic seeding mechanism so the environment can be recreated safely.
+
+At minimum seed/provide:
+- the six canonical users above;
+- test OTP profiles for valid, wrong, expired, reuse and resend scenarios;
+- livestock/goat/lot fixtures sufficient for Farmer manual QA and existing marketplace automation;
+- a dedicated `FARMER_SUB3_001` data path for fewer-than-3-goats behavior without changing the approved minimum-3 Buyer competitive-lot purchase rule;
+- verified and unverified livestock/listing states;
+- enough Buyer/Operator/Admin linkage for later E2E QA;
+- stable fixture IDs/codes rather than relying on random database-generated values in test instructions where practical.
+
+Do not pre-populate the Farmer registration input field with these numbers. The workbook/fixtures are references for the tester; fresh UI fields remain empty.
+
+## OTP QA behavior
+
+The QA OTP provider must exercise real auth state behavior without real SMS:
+- seeded QA user + valid request → deterministic/test-readable OTP challenge through approved QA mechanism;
+- wrong OTP rejected and attempt behavior preserved;
+- expired OTP rejected;
+- verified OTP cannot be reused;
+- resend invalidates/replaces prior OTP as defined by existing auth rules;
+- unseeded valid mobile → QA user not found, zero challenge side effect;
+- invalid mobile → validation rejection, zero challenge side effect.
+
+Avoid one universal insecure production-style bypass. QA determinism must exist only behind explicit QA/test environment controls.
 
 ## Authorized scope
 
-Focused changes only in:
-- Farmer Flutter startup/routing/localization/persistence;
-- Farmer mobile-number form/input formatter/validation/autofill behavior;
-- auth/OTP backend validation and QA-only test-number gating only if a confirmed gap exists;
-- related focused tests;
-- Farmer QA launcher only if stale browser state contributes to the defect.
+Focused changes allowed in:
+- backend QA/test data/fixture/seeding support;
+- Docker Compose or test-only environment wiring required to isolate QA DB safely;
+- auth/OTP QA provider configuration and tests;
+- non-destructive test-only migration/fixture support if required;
+- reusable test fixture modules for backend/API/Flutter automation references;
+- documentation mapping canonical fixture IDs to seeded data.
 
-Do not connect a real SMS provider in this task.
+Do not implement new product features, real SMS, payments, KYC, Bluetooth, production deployment, or pilot DB mutations.
 
 ## Execute autonomously
 
 1. Follow `AGENTS.md` task-start sync and working-tree safety.
-2. Diagnose the localization and phone-field defects primarily through code inspection and automated tests.
-3. Inspect startup route, auth/onboarding guards, locale provider/storage, registration controllers, form initialization, browser autofill hints, input formatters and any debug/test seed values.
-4. Identify root causes; do not merely force English or hard-code one universal test phone/OTP bypass.
-5. Implement the smallest fixes preserving explicit locale selection/persistence and user-entered phone data.
-6. Add/adjust automated tests covering at minimum:
-   - fresh state begins at intended welcome/language entry;
-   - English and Telugu selections work and persist;
-   - persisted locale does not bypass onboarding;
-   - fresh registration mobile field is empty;
-   - 9-digit number rejected without API/OTP call;
-   - 10-digit numeric number accepted by client format validation;
-   - 11+ digit number cannot be entered or is rejected without API/OTP call;
-   - alphabetic/symbol malformed number rejected;
-   - stale/debug/autofill phone seed is not populated in fresh QA state;
-   - backend invalid-phone request rejection;
-   - QA seeded valid 10-digit fixture number can request test OTP;
-   - QA unseeded but syntactically valid 10-digit number gets QA-user-not-found and creates no OTP state;
-   - QA OTP/test allowlist mode cannot operate against non-QA/pilot/production configuration.
-7. Run Farmer `flutter pub get`, `flutter analyze`, `flutter test`.
-8. If backend changes occur, run targeted auth/OTP tests and full relevant backend suite.
-9. Run a non-interactive web build/smoke check where practical. Only after automated checks pass may Codex perform one final interactive Chrome launch, and only if no Farmer QA instance is already running.
-10. Inspect diff; avoid unrelated localization/input refactors.
-11. Commit and push the focused fix on the approved non-main branch.
-12. Update and push `docs/AGENT_REPORT.md` with this exact Task ID, root causes, files changed, exact test results, mobile-validation behavior, QA seeded-vs-unseeded number behavior, and whether one human Chrome re-check is ready.
-13. Stop after publishing PASS/BLOCKED.
+2. Inspect current Docker/PostgreSQL/auth test setup and existing test fixtures before introducing another convention.
+3. Design the smallest explicit QA DB isolation mechanism compatible with the repo.
+4. Implement hard environment/DB identity safety guards before any reset/seed command.
+5. Implement deterministic seed/upsert behavior for the canonical fixtures above. Re-running seed should not create duplicates or corrupt state.
+6. Implement/align QA OTP behavior with seeded-vs-unseeded rules.
+7. Add test coverage for all four valid prefixes `6/7/8/9`, invalid `0-5` prefixes, short/long/malformed numbers, seeded OTP success and unseeded zero-side-effect failure.
+8. Add tests proving reset/seed/test-OTP commands refuse non-QA/pilot/production configuration.
+9. Seed livestock/lot/listing/linkage fixtures needed for manual Farmer QA and later automation, including sub-3 Farmer data.
+10. Provide one safe documented command/workflow to initialize/reset the QA DB and seed canonical data; do not require the human to type destructive raw SQL.
+11. Run Docker config/health, migrations, targeted auth/fixture tests and full backend tests.
+12. Ensure Farmer Flutter tests remain green if shared auth/test contracts changed.
+13. Inspect diff, secret scan and safety guards.
+14. Commit and push focused changes on the approved non-main branch.
+15. Update `docs/AGENT_REPORT.md` with Task ID/status, exact DB/environment names, canonical seeded fixture mapping, OTP behavior, reset/seed command, safety proof, tests, commits and whether manual Farmer QA is ready to resume.
+16. Stop after PASS/BLOCKED. Do not launch Chrome automatically as part of this task.
 
 ## Completion criteria
 
-PASS only when automated checks support corrected onboarding/localization initialization; the mobile field starts empty; malformed/short/overlength values are rejected without OTP/API side effects; valid QA fixture numbers can reach test OTP; arbitrary valid-but-unseeded 10-digit numbers cannot receive test OTP; QA test mode fails closed outside isolated QA; and the Farmer app is ready for one human re-check without repeated Chrome launches.
+PASS requires an isolated reusable QA database/data workflow shared by manual QA and automation; canonical fixture IDs/numbers exactly match this task; 6/7/8/9 prefixes are accepted without role coupling; invalid prefixes/formats are rejected; seeded-only test OTP behavior works; unseeded valid mobiles create no OTP side effects; seed/reset is deterministic/idempotent and fails closed against non-QA targets; required Farmer/marketplace fixture data is available; backend validation is green; no pilot/production or real personal data is touched.
