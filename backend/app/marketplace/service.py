@@ -1,10 +1,11 @@
-from datetime import datetime, timezone
-from decimal import Decimal, ROUND_HALF_UP
+from datetime import UTC, datetime
+from decimal import ROUND_HALF_UP, Decimal
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.audit.domain_events import listing_event
 from app.core.errors import AppError
 from app.identity.profile_models import FarmerProfile
 from app.livestock.models import Goat, Lot
@@ -39,7 +40,9 @@ def _target_for_farmer(db: Session, farmer: FarmerProfile, target_type: str, tar
     return target
 
 
-def _verified_weighment(db: Session, target_type: str, target_id: UUID) -> tuple[WeighmentSession, Decimal]:
+def _verified_weighment(
+    db: Session, target_type: str, target_id: UUID
+) -> tuple[WeighmentSession, Decimal]:
     session = db.scalar(
         select(WeighmentSession)
         .where(
@@ -50,7 +53,9 @@ def _verified_weighment(db: Session, target_type: str, target_id: UUID) -> tuple
         .order_by(WeighmentSession.created_at.desc())
     )
     if not session:
-        raise AppError("VERIFIED_WEIGHMENT_REQUIRED", "Verified weighment is required before listing.", 409)
+        raise AppError(
+            "VERIFIED_WEIGHMENT_REQUIRED", "Verified weighment is required before listing.", 409
+        )
 
     reading = db.scalar(
         select(WeightReading).where(
@@ -65,7 +70,7 @@ def _verified_weighment(db: Session, target_type: str, target_id: UUID) -> tuple
 
 def calculate_total_paise(weight_kg: Decimal, price_per_kg_paise: int) -> int:
     total = weight_kg * Decimal(price_per_kg_paise)
-    return int(total.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    return int(total.quantize(Decimal(1), rounding=ROUND_HALF_UP))
 
 
 def create_listing(
@@ -107,13 +112,20 @@ def create_listing(
         status="PUBLISHED",
     )
     db.add(listing)
-    db.commit()
+    db.flush()
+    listing_event(
+        db,
+        listing.id,
+        "LISTING_PUBLISHED",
+        actor_user_id=user_id,
+        payload={"listing_code": listing.listing_code, "weighment_session_id": str(session.id)},
+    )
     db.refresh(listing)
     return listing
 
 
 def close_listing_if_expired(db: Session, listing: Listing) -> Listing:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if listing.status == "PUBLISHED" and now >= listing.closes_at:
         listing.status = "CLOSED"
         db.commit()

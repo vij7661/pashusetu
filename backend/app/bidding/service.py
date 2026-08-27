@@ -1,12 +1,13 @@
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.audit.domain_events import listing_event
 from app.core.errors import AppError
 from app.identity.profile_models import BuyerProfile, FarmerProfile
 from app.marketplace.models import Bid, BidSequence, IdempotencyRecord, Listing
@@ -33,10 +34,12 @@ def submit_bid(
     idempotency_key: str,
 ) -> Bid:
     buyer = _buyer_for_user(db, user_id)
-    request_fp = _fingerprint({
-        "listing_code": listing_code,
-        "price_per_kg_paise": price_per_kg_paise,
-    })
+    request_fp = _fingerprint(
+        {
+            "listing_code": listing_code,
+            "price_per_kg_paise": price_per_kg_paise,
+        }
+    )
 
     existing_idem = db.scalar(
         select(IdempotencyRecord).where(
@@ -62,7 +65,7 @@ def submit_bid(
     if not listing:
         raise AppError("LISTING_NOT_FOUND", "Listing not found.", 404)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if listing.status != "PUBLISHED":
         raise AppError("LISTING_NOT_OPEN", "Listing is not open for bidding.", 409)
     if now < listing.opens_at:
@@ -107,7 +110,13 @@ def submit_bid(
     )
 
     try:
-        db.commit()
+        listing_event(
+            db,
+            listing.id,
+            "BID_SUBMITTED",
+            actor_user_id=user_id,
+            payload={"bid_code": bid.bid_code, "server_sequence": bid.server_sequence},
+        )
     except IntegrityError:
         db.rollback()
         existing = db.scalar(
@@ -144,10 +153,18 @@ def accept_bid(
 
     if listing.accepted_bid_id:
         accepted = db.get(Bid, listing.accepted_bid_id)
+        if not accepted or accepted.bid_code != bid_code:
+            raise AppError(
+                "OFFER_ALREADY_ACCEPTED",
+                "A different offer has already been accepted for this listing.",
+                409,
+            )
         return listing, accepted
 
     if listing.status not in {"PUBLISHED", "CLOSED"}:
-        raise AppError("LISTING_NOT_ACCEPTABLE", "Listing cannot accept a bid in its current state.", 409)
+        raise AppError(
+            "LISTING_NOT_ACCEPTABLE", "Listing cannot accept a bid in its current state.", 409
+        )
 
     bid = db.scalar(
         select(Bid).where(
@@ -182,7 +199,13 @@ def accept_bid(
     for other in other_bids:
         other.status = "NOT_SELECTED"
 
-    db.commit()
+    listing_event(
+        db,
+        listing.id,
+        "BID_ACCEPTED",
+        actor_user_id=farmer_user_id,
+        payload={"bid_code": bid.bid_code, "server_sequence": bid.server_sequence},
+    )
     db.refresh(listing)
     db.refresh(bid)
     return listing, bid

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -6,8 +6,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import current_user
+from app.core.errors import AppError
 from app.db.session import get_db
 from app.identity.models import User
+from app.identity.profile_models import BuyerProfile, FarmerProfile
 from app.marketplace.models import Listing, MarketPriceRecommendation
 from app.marketplace.schemas import (
     ListingCreate,
@@ -26,7 +28,7 @@ def recommendations(
     db: Session = Depends(get_db),
     user: User = Depends(current_user),
 ):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rows = db.scalars(
         select(MarketPriceRecommendation).where(
             MarketPriceRecommendation.market_code == market_code,
@@ -84,7 +86,14 @@ def search_listings(
     db: Session = Depends(get_db),
     user: User = Depends(current_user),
 ):
-    stmt = select(Listing).where(Listing.status == "PUBLISHED")
+    farmer = db.scalar(select(FarmerProfile).where(FarmerProfile.user_id == user.id))
+    buyer = db.scalar(select(BuyerProfile).where(BuyerProfile.user_id == user.id))
+    if farmer:
+        stmt = select(Listing).where(Listing.seller_farmer_profile_id == farmer.id)
+    elif buyer:
+        stmt = select(Listing).where(Listing.status == "PUBLISHED")
+    else:
+        raise AppError("FORBIDDEN", "Farmer or Buyer profile is required.", 403)
     if min_weight_kg is not None:
         stmt = stmt.where(Listing.verified_weight_kg >= min_weight_kg)
     if max_weight_kg is not None:

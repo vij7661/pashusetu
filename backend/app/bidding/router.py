@@ -3,12 +3,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import current_user
+from app.bidding.schemas import BidAcceptanceResponse, BidCreate, BidResponse
+from app.bidding.service import accept_bid, submit_bid
 from app.core.errors import AppError
 from app.db.session import get_db
 from app.identity.models import User
-from app.marketplace.models import Listing, Bid
-from app.bidding.schemas import BidCreate, BidResponse, BidAcceptanceResponse
-from app.bidding.service import submit_bid, accept_bid
+from app.identity.profile_models import BuyerProfile, FarmerProfile
+from app.marketplace.models import Bid, Listing
 from app.transaction.service import create_transaction_from_accepted_bid
 
 router = APIRouter(prefix="/bidding", tags=["bidding"])
@@ -50,9 +51,17 @@ def list_bids(
     listing = db.scalar(select(Listing).where(Listing.listing_code == listing_id))
     if not listing:
         raise AppError("LISTING_NOT_FOUND", "Listing not found.", 404)
+    farmer = db.scalar(select(FarmerProfile).where(FarmerProfile.user_id == user.id))
+    buyer = db.scalar(select(BuyerProfile).where(BuyerProfile.user_id == user.id))
+    if farmer and listing.seller_farmer_profile_id == farmer.id:
+        bid_filter = Bid.listing_id == listing.id
+    elif buyer:
+        bid_filter = (Bid.listing_id == listing.id) & (Bid.buyer_profile_id == buyer.id)
+    else:
+        raise AppError("FORBIDDEN", "Only the seller or bidding Buyer may review offers.", 403)
     rows = db.scalars(
         select(Bid)
-        .where(Bid.listing_id == listing.id)
+        .where(bid_filter)
         .order_by(Bid.price_per_kg_paise.desc(), Bid.server_sequence.asc())
     ).all()
     return [
