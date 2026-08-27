@@ -43,23 +43,33 @@ Treat these as onboarding/localization/input-validation defects. Do not change m
 9. Non-digit characters, spaces, country-code prefixes typed into this field, and malformed values must be rejected/normalized only if the existing approved UX explicitly supports normalization. Do not silently turn arbitrary strings into a valid number.
 10. Browser autofill/autocomplete must not inject an unrelated previously stored phone value into fresh QA registration where Flutter/web controls can prevent it.
 11. Client-side validation is UX protection only; inspect the backend auth/OTP request contract and ensure the backend also rejects invalid mobile lengths/formats before creating OTP state. If the backend already validates correctly, do not redesign it.
-12. A valid 10-digit test/QA number may proceed to the approved OTP flow/test provider once that environment is available.
+12. A valid 10-digit number may proceed to auth/OTP handling only after format validation succeeds.
+
+### QA test-number allowlist behavior
+13. In the **isolated LOCAL/QA environment only**, test OTP issuance must be restricted to seeded/approved QA fixture mobile numbers from the QA test dataset. Do not issue a synthetic/test OTP to arbitrary valid 10-digit numbers.
+14. Therefore, a syntactically valid 10-digit number that is **not** present in the QA fixture store must return a clear non-sensitive QA response such as **"Test user not found"** / **"Mobile number not registered for QA testing"** and must create no OTP state and send no SMS.
+15. A syntactically valid 10-digit number that **is** present in the QA fixture store may proceed to the test OTP provider.
+16. This allowlist restriction must be impossible to activate in pilot/production. Pilot/production behavior must not depend on the QA fixture allowlist; when real OTP is later configured, any legitimate valid 10-digit registration number should be handled by the approved real auth flow.
+17. Fail closed: if QA/test OTP mode is enabled while the environment or database is not explicitly marked isolated QA/test, refuse to start or refuse OTP issuance rather than falling back to a permissive test mode.
+18. Keep all QA phone numbers synthetic; do not use or seed real personal phone numbers.
 
 ## Authorized scope
 
 Focused changes only in:
 - Farmer Flutter startup/routing/localization/persistence;
 - Farmer mobile-number form/input formatter/validation/autofill behavior;
-- auth/OTP backend validation only if a confirmed gap exists;
+- auth/OTP backend validation and QA-only test-number gating only if a confirmed gap exists;
 - related focused tests;
 - Farmer QA launcher only if stale browser state contributes to the defect.
+
+Do not connect a real SMS provider in this task.
 
 ## Execute autonomously
 
 1. Follow `AGENTS.md` task-start sync and working-tree safety.
 2. Diagnose the localization and phone-field defects primarily through code inspection and automated tests.
 3. Inspect startup route, auth/onboarding guards, locale provider/storage, registration controllers, form initialization, browser autofill hints, input formatters and any debug/test seed values.
-4. Identify root causes; do not merely force English or hard-code a test phone number.
+4. Identify root causes; do not merely force English or hard-code one universal test phone/OTP bypass.
 5. Implement the smallest fixes preserving explicit locale selection/persistence and user-entered phone data.
 6. Add/adjust automated tests covering at minimum:
    - fresh state begins at intended welcome/language entry;
@@ -67,19 +77,22 @@ Focused changes only in:
    - persisted locale does not bypass onboarding;
    - fresh registration mobile field is empty;
    - 9-digit number rejected without API/OTP call;
-   - 10-digit numeric number accepted by client validation;
+   - 10-digit numeric number accepted by client format validation;
    - 11+ digit number cannot be entered or is rejected without API/OTP call;
    - alphabetic/symbol malformed number rejected;
    - stale/debug/autofill phone seed is not populated in fresh QA state;
-   - backend invalid-phone request rejection is tested if backend changes are required.
+   - backend invalid-phone request rejection;
+   - QA seeded valid 10-digit fixture number can request test OTP;
+   - QA unseeded but syntactically valid 10-digit number gets QA-user-not-found and creates no OTP state;
+   - QA OTP/test allowlist mode cannot operate against non-QA/pilot/production configuration.
 7. Run Farmer `flutter pub get`, `flutter analyze`, `flutter test`.
 8. If backend changes occur, run targeted auth/OTP tests and full relevant backend suite.
 9. Run a non-interactive web build/smoke check where practical. Only after automated checks pass may Codex perform one final interactive Chrome launch, and only if no Farmer QA instance is already running.
 10. Inspect diff; avoid unrelated localization/input refactors.
 11. Commit and push the focused fix on the approved non-main branch.
-12. Update and push `docs/AGENT_REPORT.md` with this exact Task ID, root causes, files changed, exact test results, mobile-validation behavior and whether one human Chrome re-check is ready.
+12. Update and push `docs/AGENT_REPORT.md` with this exact Task ID, root causes, files changed, exact test results, mobile-validation behavior, QA seeded-vs-unseeded number behavior, and whether one human Chrome re-check is ready.
 13. Stop after publishing PASS/BLOCKED.
 
 ## Completion criteria
 
-PASS only when automated checks support corrected onboarding/localization initialization and the mobile field starts empty, accepts only a valid 10-digit number for the pilot UI contract, rejects malformed/short/overlength values without sending OTP/API requests, and the Farmer app is ready for one human re-check without repeated Chrome launches.
+PASS only when automated checks support corrected onboarding/localization initialization; the mobile field starts empty; malformed/short/overlength values are rejected without OTP/API side effects; valid QA fixture numbers can reach test OTP; arbitrary valid-but-unseeded 10-digit numbers cannot receive test OTP; QA test mode fails closed outside isolated QA; and the Farmer app is ready for one human re-check without repeated Chrome launches.
