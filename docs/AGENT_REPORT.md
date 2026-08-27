@@ -1,47 +1,47 @@
 # PashuSetu — Agent Execution Report
 
-- **Task ID:** `FARMER-QA-CHROME-LAUNCH`
-- **Objective:** Diagnose and safely repair the Farmer QA Chrome launcher, then rerun the Farmer validation gate.
-- **Timestamp:** 2026-08-27T17:12:34+05:30
+- **Task ID:** `QA-FARMER-L10N-001`
+- **Objective:** Correct Farmer web first-launch routing, require an explicit language choice on onboarding, persist the selected locale, and remove seeded registration/login values.
+- **Timestamp:** 2026-08-27T17:31:11+05:30
 - **Branch:** `feat/issue-4-local-backend-farmer-integration`
 - **Status:** `PASS`
 
-## Diagnosis and fix
+## Diagnosis and implementation
 
-- Flutter 3.47.1 detected Chrome 151 correctly at `C:\Program Files (x86)\Google\Chrome\Application\chrome.exe`; browser installation/device discovery was not the fault.
-- Reproduction reported: `This application is not configured to build on the web.` The Farmer project had no `web/` platform scaffold, so Chrome waited for a debug-service connection.
-- Added the standard Flutter web scaffold and metadata, kept existing app/business code unchanged, and documented the exact Chrome QA command from `apps/farmer_mobile`.
-- Removed the irrelevant generated counter widget test. No dependency or lockfile change was retained.
+- Browser URL restoration could retain `#/register` because the router did not override the platform default location.
+- Registration independently defaulted to Telugu, while the welcome screen had no explicit language selection.
+- Registration and login controllers contained seeded QA phone/OTP and profile values.
+- Forced the initial browser route to `/`, made onboarding language selection explicit for fresh state, retained valid persisted choices without bypassing onboarding, and made registration use the shared language provider.
+- Removed all seeded registration/login values and added focused onboarding initialization and persistence tests.
 
 ## Exact validation
 
-- `flutter doctor -v`: Chrome web development available.
-- `flutter devices`: Chrome and Edge detected.
-- `flutter build web --dart-define=API_BASE_URL=http://localhost:8000/api/v1`: passed; `Built build\web`.
-- `flutter run -d chrome --web-port 7357 --dart-define=API_BASE_URL=http://localhost:8000/api/v1`: Chrome connected to the Dart VM/debug service and started `web_entrypoint.dart`.
-- Local Farmer web endpoint: HTTP `200`; Flutter bootstrap present.
+- `flutter test test/onboarding_initialization_test.dart`: passed, `5` tests.
 - `flutter pub get`: passed.
-- `flutter analyze`: `No issues found! (ran in 9.9s)`.
-- `flutter test`: `8 passed`.
+- `flutter analyze`: `No issues found! (ran in 10.9s)`.
+- `flutter test`: passed, `13` tests.
+- `flutter build web --dart-define=API_BASE_URL=http://localhost:8000/api/v1`: passed; `Built build\web` in `107.8s`. Informational Wasm and existing CupertinoIcons font warnings only.
 - `git diff --check`: passed.
+- Official `tools/start_farmer_qa.ps1` final interactive check: Docker database healthy, API running, migrations applied, Chrome launched, and Flutter connected to the debug service in `56.9s`. The QA session was left active.
 
-## Files / commit
+## Environment and files
 
-- Added `apps/farmer_mobile/web/`, `.metadata`, and project-local `.gitignore`.
-- Updated `apps/farmer_mobile/README.md` with Android and Chrome-specific launch commands.
-- **Implementation commit:** `7c594f3f03116ccfa41f29b46e8fd12a9b5d45de`
-- Working tree: expected clean after report commit.
+- Local PostgreSQL and API services are running; the database container reported healthy.
+- Changed `apps/farmer_mobile/lib/src/core/router.dart`.
+- Changed `apps/farmer_mobile/lib/src/core/localization/language_provider.dart`.
+- Changed `apps/farmer_mobile/lib/src/features/onboarding/welcome_screen.dart`.
+- Changed `apps/farmer_mobile/lib/src/features/identity/register_screen.dart`.
+- Changed `apps/farmer_mobile/lib/src/features/identity/login_screen.dart`.
+- Added `apps/farmer_mobile/test/onboarding_initialization_test.dart`.
+- **Implementation commit:** `ff43abb`
+- Working tree: expected clean after the report commit.
 
-## QA launch
+## Known limitations / next action
 
-From `apps/farmer_mobile`:
-
-```powershell
-flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000/api/v1
-```
-
-The verified QA Chrome session was left active after testing.
+- Automated widget coverage verifies fresh English/Telugu selection, empty phone/OTP fields, persistence across provider recreation, and that persisted Telugu does not bypass welcome routing.
+- Human QA should use the active Chrome session to visually confirm the welcome screen and exercise registration in both English and Telugu.
+- Pull and inspect `docs/NEXT_TASK.md` once after publishing this PASS report, per automatic handoff rules.
 
 ## Safety
 
-No prohibited/destructive action occurred. No database, data, volume, system/browser configuration, dependency constraint, secret or credential was changed. No production deployment, merge to `main`, force-push or paid/external service action occurred.
+No prohibited or destructive action was performed. No database/volume deletion, system or browser configuration change, secret handling, production deployment, merge to `main`, force-push, business-rule change, or paid/external service action occurred.
