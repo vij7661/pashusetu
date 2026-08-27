@@ -2,61 +2,65 @@
 
 ## Current report
 
-- **Task ID:** `ISSUE-4-BACKEND-STATUS-001`
+- **Task ID:** `ISSUE-4-FARMER-INTEGRATION-002`
 - **Work item:** GitHub Issue #4 — Local PostgreSQL backend + Farmer integration
-- **Objective:** Diagnose and fix the failing backend module status-route test, then rerun full backend validation.
-- **Timestamp:** 2026-08-27T11:47:51+05:30
+- **Objective:** Complete and validate Farmer authentication, registration, authenticated profile retrieval, and local-backend configuration through the running FastAPI/PostgreSQL stack.
+- **Timestamp:** 2026-08-27T12:08:00+05:30
 - **Branch:** `feat/issue-4-local-backend-farmer-integration`
 - **Status:** `PASS`
 
 ### Commands / checks executed
 
-- Inspected `backend/tests/test_api_modules.py`, `backend/app/api.py`, all listed module routers, repository documentation, and relevant Git history.
-- Ran `docker compose config --quiet` and `docker compose ps`.
-- Ran `docker compose exec -T api alembic upgrade head`.
-- Called `http://localhost:8000/health`.
-- Ran targeted and full backend pytest suites.
-- Ran focused Ruff validation and repository-wide Ruff statistics.
-- Inspected the final diff and committed only the focused test correction.
+- Inspected Farmer API configuration, API/token repositories, auth controller, registration/login screens, router, backend auth/profile schemas, routers, services, CORS configuration, and existing tests.
+- Ran Farmer `flutter pub get`, `flutter analyze`, and `flutter test` before and after the focused changes.
+- Ran `docker compose config --quiet`, `docker compose ps`, and `docker compose exec -T api alembic upgrade head`.
+- Exercised browser CORS preflight and the live OTP request → OTP verification/token → authenticated `/auth/me` → Farmer creation → authenticated `/identity/farmers/me` path using synthetic development-only data.
+- Ran targeted backend health and Farmer schema tests.
+- Called `http://localhost:8000/health` and inspected the final Git diff.
 
 ### Environment / service status
 
-- Docker Desktop Linux engine: available.
-- Compose configuration: valid (exit 0).
+- Docker Compose configuration: valid (exit 0).
 - PostgreSQL `db`: running and healthy on port 5432.
 - API: running on port 8000.
 - Alembic migration: passed (exit 0).
-- API health: HTTP 200 with local `pashusetu-api` status `ok`.
+- API health: HTTP 200 with local service status `ok`.
+- Web CORS preflight from a localhost development origin: HTTP 200 with the origin allowed.
 
 ### Files changed
 
-- `backend/tests/test_api_modules.py` — replaced the obsolete scaffold `_status` HTTP assertions with checks that every listed module exposes at least one registered OpenAPI route.
+- `apps/farmer_mobile/lib/src/core/api/api_config.dart` — retained the existing runtime defaults and override while exposing deterministic resolution for regression testing.
+- `apps/farmer_mobile/lib/src/features/identity/register_screen.dart` — prevents onboarding from advancing when the auth controller records an OTP request or verification failure.
+- `apps/farmer_mobile/test/api_config_test.dart` — covers Web localhost, Android emulator host alias, and explicit `API_BASE_URL` override behavior.
 - `docs/AGENT_REPORT.md` — updated this execution handoff report.
 
 ### Validation results
 
-- Targeted test: `1 passed in 4.47s`.
-- Full backend suite: `36 passed, 1 warning in 7.35s`.
-- Warning: existing Starlette deprecation warning for `httpx` usage through `starlette.testclient`.
-- Focused lint: `All checks passed!` (exit 0) for `tests/test_api_modules.py`, ignoring the repository-wide executable-bit `EXE002` condition.
-- Repository-wide lint: exit 1 with 290 existing violations: 107 `EXE002`, 86 `B008`, 55 `I001`, 15 `F401`, 10 `UP017`, 8 `FURB157`, 6 `RUF059`, 2 `FURB192`, and 1 `BLE001`.
+- Farmer dependency resolution: passed; 12 newer package versions are outside current constraints.
+- Farmer analyze: `No issues found! (ran in 4.6s)`.
+- Farmer tests: `6 passed`, including 3 API-base regression tests.
+- Targeted backend tests: `5 passed, 1 warning in 3.97s`.
+- Backend warning: existing Starlette deprecation warning for `httpx` through `starlette.testclient`.
+- Live contract: OTP request HTTP 202; OTP verification HTTP 200 with access/refresh tokens; authenticated session role `FARMER`; Farmer creation HTTP 201; authenticated Farmer retrieval HTTP 200 with matching Farmer ID and Telugu preference.
+- Full backend suite was not rerun because no backend source changed; the immediately preceding validated baseline remains `36 passed, 1 warning`.
+- Repository-wide Ruff cleanup was not run because `docs/NEXT_TASK.md` explicitly excludes that separate technical debt.
 
 ### Root cause / blocker
 
-The failing test was stale scaffold-era coverage. The listed modules now expose implemented domain routes, while no current code or documentation defines `_status` returning `scaffolded` as a compatibility contract.
+The backend and Farmer DTO/path/token contracts already matched. The confirmed client defect was failure propagation during registration: `AuthController` stores failures in `AsyncValue`, but `RegisterScreen.next()` previously advanced after awaiting the controller because it expected an exception. The screen now checks the controller state and retains the current step on failure.
 
-There is no blocker for the focused status-route test objective. Repository-wide Ruff cleanup remains out of scope and should be handled separately.
+No automated blocker remains. GUI-only rendering and final visible navigation to Home were not claimed as automated E2E coverage.
 
 ### Recommended next action
 
-Review commit `ef5cab7a5512900c87892420f07b74f94e60f9dc` and create a separate work item for the pre-existing repository-wide Ruff baseline if lint-clean CI is required.
+Human QA should run the Farmer app once in Chrome and/or an Android emulator, complete the synthetic development OTP registration flow, and visually confirm the final Home screen and English/Telugu presentation.
 
 ### Commit / working tree
 
-- **Implementation commit SHA:** `ef5cab7a5512900c87892420f07b74f94e60f9dc`
+- **Implementation commit SHA:** `9756f2f44954477a2319adc15b8fd6bef012f84d`
 - **Report commit SHA:** recorded by the subsequent report commit in Git history.
 - **Working tree clean:** Expected after committing this report.
 
 ### Safety confirmation
 
-No prohibited or destructive actions were performed. No containers, images, databases, Docker volumes, or data were deleted; no system configuration, business rules, transaction semantics, pricing, bidding, KYC, or payment behavior was changed; and no merge to `main`, force-push, or history rewrite was performed.
+No prohibited or destructive actions were performed. No containers, images, databases, Docker volumes, or existing data were deleted. One synthetic development-only Farmer user/profile was created through the normal local API contract; no real Aadhaar, KYC, payment, credential, or personal data was used. No system configuration, business rules, transaction semantics, or unrelated modules were changed, and no merge to `main`, force-push, or history rewrite was performed.
