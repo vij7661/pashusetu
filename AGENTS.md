@@ -144,7 +144,30 @@ Never use client timestamps to establish commercial priority when the backend is
 Never overwrite an acknowledged/locked weighment to represent a reweigh.
 Never silently mutate a locked agreement.
 
-## 9. QA handoff
+## 9. Agent execution report (mandatory)
+
+At the end of every task execution, update `docs/AGENT_REPORT.md` with a concise machine-readable/human-readable report. This file is the handoff channel to ChatGPT/GitHub review and must be committed and pushed on the current approved non-main branch whenever repository push access is available.
+
+The report MUST contain:
+- task/work item and current objective
+- timestamp
+- branch name
+- status: `PASS`, `BLOCKED`, or `FAILED`
+- commands/checks executed (summarized; do not paste secrets)
+- environment/service status relevant to the task
+- files changed
+- exact automated test/analyze/lint results
+- blocker/error, if any
+- recommended next action
+- commit SHA if code/report changes were committed
+- whether the working tree is clean
+- explicit confirmation that no prohibited/destructive actions were performed
+
+If the task is blocked before any source change, still update and push `docs/AGENT_REPORT.md` unless doing so is itself impossible. Do not make unrelated code changes just to publish the report.
+
+Do not put secrets, tokens, private keys, raw Aadhaar, credentials, or sensitive personal data in the report.
+
+## 10. QA handoff
 
 Development is not complete merely because code compiles.
 
@@ -158,7 +181,7 @@ Before asking for QA:
 
 The human QA owner decides acceptance/rejection of the release candidate.
 
-## 10. When to stop and ask for approval
+## 11. When to stop and ask for approval
 
 Stop and request explicit human approval only for materially risky or irreversible actions, including:
 - destructive commands or data deletion
@@ -174,7 +197,7 @@ Stop and request explicit human approval only for materially risky or irreversib
 
 Do not stop for routine development permissions that are already covered by the approved task and the autonomy policy above.
 
-## 11. Pilot-week priority
+## 12. Pilot-week priority
 
 For the controlled pilot build, prioritize the golden path and pilot blockers over polish:
 
