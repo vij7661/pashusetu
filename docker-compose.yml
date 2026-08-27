@@ -20,6 +20,9 @@ services:
       context: ./backend
     env_file:
       - .env
+    environment:
+      OTP_TEST_MODE: "true"
+      DATABASE_ISOLATED_FOR_QA: "true"
     ports:
       - "8000:8000"
     depends_on:

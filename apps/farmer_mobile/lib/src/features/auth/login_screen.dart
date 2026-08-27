@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'auth_controller.dart';
+import 'mobile_number.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -26,6 +28,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           children: [
             TextField(
                 controller: mobile,
+                keyboardType: TextInputType.phone,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(mobileNumberLength),
+                ],
+                autofillHints: const <String>[],
+                autocorrect: false,
+                enableSuggestions: false,
                 decoration:
                     const InputDecoration(labelText: 'Registered mobile')),
             const SizedBox(height: 12),

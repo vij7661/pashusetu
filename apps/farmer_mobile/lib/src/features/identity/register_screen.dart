@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/localization/app_strings.dart';
 import '../../core/localization/language_provider.dart';
 import '../auth/auth_controller.dart';
+import '../auth/mobile_number.dart';
 import '../providers.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -33,6 +35,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     try {
       final language = ref.read(languageProvider);
       if (step == 0) {
+        if (!isValidMobileNumber(mobile.text)) {
+          setState(
+            () => error = AppStrings.tr(language, 'invalid_mobile_number'),
+          );
+          return;
+        }
         await ref
             .read(authControllerProvider.notifier)
             .requestOtp(mobile.text.trim());
@@ -90,6 +98,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         content = TextField(
           controller: mobile,
           decoration: InputDecoration(labelText: t('mobile_number')),
+          keyboardType: TextInputType.phone,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(mobileNumberLength),
+          ],
+          autofillHints: const <String>[],
+          autocorrect: false,
+          enableSuggestions: false,
         );
       case 1:
         content = TextField(

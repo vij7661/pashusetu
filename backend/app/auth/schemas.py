@@ -2,12 +2,12 @@ from pydantic import BaseModel, Field
 
 
 class OTPRequest(BaseModel):
-    mobile_e164: str = Field(pattern=r"^\+[1-9]\d{7,14}$")
+    mobile_e164: str = Field(pattern=r"^\+91\d{10}$")
     purpose: str = "LOGIN"
 
 
 class OTPVerify(BaseModel):
-    mobile_e164: str = Field(pattern=r"^\+[1-9]\d{7,14}$")
+    mobile_e164: str = Field(pattern=r"^\+91\d{10}$")
     otp: str = Field(min_length=4, max_length=8)
     purpose: str = "LOGIN"
 
