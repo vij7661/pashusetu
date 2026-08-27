@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/localization/app_strings.dart';
 import '../../core/localization/language_provider.dart';
+import '../auth/auth_error_message.dart';
 import '../providers.dart';
 
 class WeighmentAckScreen extends ConsumerStatefulWidget {
@@ -45,12 +46,14 @@ class _WeighmentAckScreenState extends ConsumerState<WeighmentAckScreen> {
             OutlinedButton(
               onPressed: () async {
                 try {
-                  await ref.read(weighmentRepositoryProvider).reject(widget.weighmentId);
+                  await ref
+                      .read(weighmentRepositoryProvider)
+                      .reject(widget.weighmentId);
                   if (!mounted) return;
                   setState(() => message = t('reweigh_required'));
                 } catch (e) {
                   if (!mounted) return;
-                  setState(() => message = e.toString());
+                  setState(() => message = authErrorMessage(e, language));
                 }
               },
               child: Text(t('reject_reweigh')),
@@ -73,7 +76,9 @@ class _WeighmentAckScreenState extends ConsumerState<WeighmentAckScreen> {
                         );
                       } catch (e) {
                         if (!mounted) return;
-                        setState(() => message = e.toString());
+                        setState(
+                          () => message = authErrorMessage(e, language),
+                        );
                       }
                     }
                   : null,

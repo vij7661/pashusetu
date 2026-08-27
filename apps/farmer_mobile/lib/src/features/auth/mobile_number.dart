@@ -22,3 +22,20 @@ class MobileNumberInputFormatter extends TextInputFormatter {
     return newValue;
   }
 }
+
+bool isValidOtp(String value) => RegExp(r'^\d{4,8}$').hasMatch(value);
+
+class OtpInputFormatter extends TextInputFormatter {
+  const OtpInputFormatter();
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.length > 8 || !RegExp(r'^\d*$').hasMatch(newValue.text)) {
+      return oldValue;
+    }
+    return newValue;
+  }
+}

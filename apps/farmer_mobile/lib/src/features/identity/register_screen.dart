@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/localization/app_strings.dart';
 import '../../core/localization/language_provider.dart';
 import '../auth/auth_controller.dart';
+import '../auth/auth_error_message.dart';
 import '../auth/mobile_number.dart';
 import '../providers.dart';
 
@@ -46,11 +47,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         final authState = ref.read(authControllerProvider);
         if (authState.hasError) throw authState.error!;
       } else if (step == 1) {
+        if (!isValidOtp(otp.text)) {
+          setState(() => error = AppStrings.tr(language, 'invalid_otp'));
+          return;
+        }
         await ref
             .read(authControllerProvider.notifier)
             .verifyOtp(mobile.text.trim(), otp.text.trim());
         final authState = ref.read(authControllerProvider);
         if (authState.hasError) throw authState.error!;
+      } else if (step == 3 && name.text.trim().length < 2) {
+        setState(() => error = AppStrings.tr(language, 'invalid_full_name'));
+        return;
       } else if (step == 5) {
         await ref.read(identityRepositoryProvider).createFarmer(
               fullName: name.text.trim(),
@@ -67,11 +75,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         setState(() => step++);
       }
     } catch (e) {
-      final msg = e.toString();
       final language = ref.read(languageProvider);
-      setState(() => error = msg.contains('connection timeout')
-          ? AppStrings.tr(language, 'connection_error')
-          : msg);
+      setState(() => error = authErrorMessage(e, language));
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -107,6 +112,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         content = TextField(
           controller: otp,
           decoration: InputDecoration(labelText: t('otp')),
+          keyboardType: TextInputType.number,
+          inputFormatters: const [OtpInputFormatter()],
+          autofillHints: const <String>[],
         );
       case 2:
         content = DropdownButtonFormField<String>(

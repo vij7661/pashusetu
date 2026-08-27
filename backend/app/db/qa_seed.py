@@ -90,7 +90,6 @@ def seed_qa_database(db) -> None:
     farmers = {}
     for fixture_id, verified in (
         ("FARMER_EN_001", True),
-        ("FARMER_TE_001", False),
         ("FARMER_SUB3_001", True),
     ):
         profile = FarmerProfile(
@@ -170,7 +169,7 @@ def seed_qa_database(db) -> None:
         Goat(
             id=fixture_uuid(QA_UNVERIFIED_GOAT_CODE),
             goat_code=QA_UNVERIFIED_GOAT_CODE,
-            farmer_profile_id=farmers["FARMER_TE_001"].id,
+            farmer_profile_id=farmers["FARMER_EN_001"].id,
             breed="Synthetic Local",
             sex="FEMALE",
             age_months=10,

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../shared/money.dart';
 import '../../core/localization/app_strings.dart';
 import '../../core/localization/language_provider.dart';
+import '../auth/auth_error_message.dart';
 import '../providers.dart';
 
 class ListingHistoryScreen extends ConsumerWidget {
@@ -23,7 +24,9 @@ class ListingHistoryScreen extends ConsumerWidget {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(child: Text(snapshot.error.toString()));
+            return Center(
+              child: Text(authErrorMessage(snapshot.error!, language)),
+            );
           }
           final rows = snapshot.data ?? [];
           if (rows.isEmpty) {

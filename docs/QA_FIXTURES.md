@@ -15,7 +15,7 @@ The command fails closed unless the runtime reports `APP_ENV=qa`, enables both Q
 | Fixture ID | Role | Local mobile | Language | Intended state |
 | --- | --- | --- | --- | --- |
 | `FARMER_EN_001` | Farmer | `6123456789` | English | Verified, three-goat lot, live listing |
-| `FARMER_TE_001` | Farmer | `7234567890` | Telugu | Pending profile, unverified goat |
+| `FARMER_TE_001` | Farmer | `7234567890` | Telugu | Role-only user for fresh profile registration |
 | `FARMER_SUB3_001` | Farmer | `8345678901` | English | Verified, two-goat/sub-3 draft lot |
 | `BUYER_001` | Buyer | `9456789012` | English | Verified synthetic buyer |
 | `OPERATOR_001` | Operator | `6789012345` | English | Active at `QA-CENTRE-001` |
