@@ -2,65 +2,73 @@
 
 ## Current report
 
-- **Task ID:** `ISSUE-4-FARMER-INTEGRATION-002`
-- **Work item:** GitHub Issue #4 — Local PostgreSQL backend + Farmer integration
-- **Objective:** Complete and validate Farmer authentication, registration, authenticated profile retrieval, and local-backend configuration through the running FastAPI/PostgreSQL stack.
-- **Timestamp:** 2026-08-27T12:08:00+05:30
+- **Task ID:** `PILOT-GOLDENPATH-003`
+- **Work item:** Pilot Golden Path — Goat/Lot registration + Operator verification + Farmer acknowledgement
+- **Objective:** Validate livestock creation through trusted Operator weighment and Farmer reject/reweigh or accept/receipt branches.
+- **Timestamp:** 2026-08-27T12:33:04+05:30
 - **Branch:** `feat/issue-4-local-backend-farmer-integration`
 - **Status:** `PASS`
 
+### Gaps fixed
+
+- Operator capture previously advanced without creating or attaching backend verification evidence.
+- Operator UI attempted reweigh before the Farmer had recorded rejection; rejection is now an explicit Farmer action.
+- Weighment mutation/review endpoints did not enforce assigned-Operator or livestock-owner boundaries.
+- Operator project required current Flutter-generated analyzer exclusions and a lockfile for repeatable validation; four current-SDK analyzer findings were corrected.
+
 ### Commands / checks executed
 
-- Inspected Farmer API configuration, API/token repositories, auth controller, registration/login screens, router, backend auth/profile schemas, routers, services, CORS configuration, and existing tests.
-- Ran Farmer `flutter pub get`, `flutter analyze`, and `flutter test` before and after the focused changes.
-- Ran `docker compose config --quiet`, `docker compose ps`, and `docker compose exec -T api alembic upgrade head`.
-- Exercised browser CORS preflight and the live OTP request → OTP verification/token → authenticated `/auth/me` → Farmer creation → authenticated `/identity/farmers/me` path using synthetic development-only data.
-- Ran targeted backend health and Farmer schema tests.
-- Called `http://localhost:8000/health` and inspected the final Git diff.
+- Pulled the approved branch and inspected livestock, weighment, identity, Farmer and Operator contracts.
+- Ran Farmer and Operator `flutter pub get`, `flutter analyze`, and `flutter test`.
+- Ran Docker Compose config/status, Alembic upgrade, focused PostgreSQL integration tests, full backend pytest, focused Ruff, `/health`, diff and secret-pattern checks.
 
 ### Environment / service status
 
-- Docker Compose configuration: valid (exit 0).
-- PostgreSQL `db`: running and healthy on port 5432.
-- API: running on port 8000.
-- Alembic migration: passed (exit 0).
-- API health: HTTP 200 with local service status `ok`.
-- Web CORS preflight from a localhost development origin: HTTP 200 with the origin allowed.
+- Docker Compose configuration valid.
+- PostgreSQL `db` healthy on port 5432; API running on port 8000.
+- Alembic upgrade passed; `/health` returned HTTP 200 and local status `ok`.
+
+### Exact automated results
+
+- Farmer dependency resolution: passed; 12 newer versions remain outside constraints.
+- Farmer analyze: `No issues found! (ran in 14.2s)`.
+- Farmer tests: `7 passed`.
+- Operator dependency resolution: passed; 9 newer versions remain outside constraints.
+- Operator analyze: `No issues found! (ran in 11.3s)`.
+- Operator tests: `2 passed`.
+- Focused PostgreSQL golden-path integration: `1 passed, 1 warning in 4.61s`.
+- Full backend suite: `37 passed, 1 warning in 13.07s`.
+- Focused changed-file Ruff: passed with existing FastAPI `B008` and Windows executable-bit `EXE002` rules excluded.
+- Warning: existing Starlette/httpx TestClient deprecation warning.
+
+### Contract / trust invariants exercised
+
+- Authenticated Farmer created/retrieved an individual goat and created a multi-goat lot linked to it.
+- Registered active Operator/Centre/valid calibrated Scale created the session.
+- Unstable reading lock returned HTTP 409; stable gross/tare/net reading locked successfully.
+- Assigned Operator created and attached synthetic verification-video evidence.
+- A different Farmer was forbidden from acknowledging the record.
+- Owner rejection produced `REJECTED_BY_FARMER`; Operator reweigh created a new session linked by `reweigh_of_id`, while the original locked reading remained unchanged.
+- Reweigh acceptance produced `ACKNOWLEDGED`; receipt generation produced a QR payload and final `VERIFIED` status without returning to the same weighing loop.
+- Synthetic test records ran inside a rolled-back PostgreSQL transaction.
 
 ### Files changed
 
-- `apps/farmer_mobile/lib/src/core/api/api_config.dart` — retained the existing runtime defaults and override while exposing deterministic resolution for regression testing.
-- `apps/farmer_mobile/lib/src/features/identity/register_screen.dart` — prevents onboarding from advancing when the auth controller records an OTP request or verification failure.
-- `apps/farmer_mobile/test/api_config_test.dart` — covers Web localhost, Android emulator host alias, and explicit `API_BASE_URL` override behavior.
-- `docs/AGENT_REPORT.md` — updated this execution handoff report.
-
-### Validation results
-
-- Farmer dependency resolution: passed; 12 newer package versions are outside current constraints.
-- Farmer analyze: `No issues found! (ran in 4.6s)`.
-- Farmer tests: `6 passed`, including 3 API-base regression tests.
-- Targeted backend tests: `5 passed, 1 warning in 3.97s`.
-- Backend warning: existing Starlette deprecation warning for `httpx` through `starlette.testclient`.
-- Live contract: OTP request HTTP 202; OTP verification HTTP 200 with access/refresh tokens; authenticated session role `FARMER`; Farmer creation HTTP 201; authenticated Farmer retrieval HTTP 200 with matching Farmer ID and Telugu preference.
-- Full backend suite was not rerun because no backend source changed; the immediately preceding validated baseline remains `36 passed, 1 warning`.
-- Repository-wide Ruff cleanup was not run because `docs/NEXT_TASK.md` explicitly excludes that separate technical debt.
-
-### Root cause / blocker
-
-The backend and Farmer DTO/path/token contracts already matched. The confirmed client defect was failure propagation during registration: `AuthController` stores failures in `AsyncValue`, but `RegisterScreen.next()` previously advanced after awaiting the controller because it expected an exception. The screen now checks the controller state and retains the current step on failure.
-
-No automated blocker remains. GUI-only rendering and final visible navigation to Home were not claimed as automated E2E coverage.
-
-### Recommended next action
-
-Human QA should run the Farmer app once in Chrome and/or an Android emulator, complete the synthetic development OTP registration flow, and visually confirm the final Home screen and English/Telugu presentation.
+- Farmer localization and weighment acknowledgement repository/screen.
+- Operator auth/lookup/weighment screens, repository, analyzer configuration and generated dependency lockfile.
+- Backend weighment router, schemas and service.
+- `backend/tests/integration/test_livestock_weighment_flow.py`.
+- `docs/AGENT_REPORT.md`.
 
 ### Commit / working tree
 
-- **Implementation commit SHA:** `9756f2f44954477a2319adc15b8fd6bef012f84d`
-- **Report commit SHA:** recorded by the subsequent report commit in Git history.
-- **Working tree clean:** Expected after committing this report.
+- **Implementation commit:** `e39f0c2842d09fdb8bf2becf0a12167b4614433c`
+- **Working tree clean:** Expected after the subsequent report commit.
+
+### Remaining QA / next action
+
+- Human QA should visually exercise camera selection/upload-adapter behavior, Farmer rejection handoff, reweigh lookup, acknowledgement, receipt/QR rendering, and physical print/Bluetooth hardware when available. Automated tests use simulated/development adapters and do not claim physical-hardware or GUI E2E validation.
 
 ### Safety confirmation
 
-No prohibited or destructive actions were performed. No containers, images, databases, Docker volumes, or existing data were deleted. One synthetic development-only Farmer user/profile was created through the normal local API contract; no real Aadhaar, KYC, payment, credential, or personal data was used. No system configuration, business rules, transaction semantics, or unrelated modules were changed, and no merge to `main`, force-push, or history rewrite was performed.
+No prohibited or destructive actions were performed. No databases, schemas, containers, images, volumes, existing data, history, security controls, or business rules were deleted/reset/weakened. No real personal, Aadhaar, KYC, payment, credential, or secret data was used. No merge to `main`, force-push, production deployment, or external paid service action occurred.
