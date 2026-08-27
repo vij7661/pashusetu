@@ -5,9 +5,11 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.agreement.models import Agreement
 from app.audit.models import AuditEvent
 from app.core.security import create_access_token
 from app.db.session import get_db
+from app.disputes.models import Dispute
 from app.identity.models import User, UserRole
 from app.identity.profile_models import BuyerProfile, FarmerProfile
 from app.livestock.models import Goat
@@ -259,8 +261,281 @@ def test_verified_listing_idempotent_bidding_and_single_acceptance(postgres_avai
         assert accepted.status_code == repeated.status_code == 200
         assert conflict.status_code == 409
         assert accepted.json()["accepted_bid_id"] == second.json()["bid_id"]
+        assert accepted.json()["transaction_id"].startswith("TX-")
+        accepted_buyer_bid = client.get(
+            f"/api/v1/bidding/listings/{listing_code}/bids", headers=buyer_two_headers
+        ).json()[0]
+        assert accepted_buyer_bid["transaction_id"] == accepted.json()["transaction_id"]
         assert db.query(Bid).filter_by(listing_id=listing.id, status="ACCEPTED").count() == 1
         assert db.query(Transaction).filter_by(listing_id=listing.id).count() == 1
+        transaction_code = accepted.json()["transaction_id"]
+        agreement = client.post(
+            f"/api/v1/agreement/transactions/{transaction_code}",
+            headers=seller_headers,
+            json={
+                "price_basis": "ORIGIN_VERIFIED_WEIGHT",
+                "pickup_point": "Synthetic origin centre",
+                "final_weighing_point": "Synthetic delivery centre",
+                "tolerance_percent": 1.5,
+                "transport_responsibility": "BUYER",
+                "dispute_rule": "Controlled reweigh and evidence review when outside tolerance.",
+            },
+        )
+        assert agreement.status_code == 201
+        assert agreement.json()["accepted_price_per_kg_paise"] == 49_200
+        assert agreement.json()["agreed_weight_kg"] == 50.0
+        assert agreement.json()["livestock_amount_paise"] == 2_460_000
+        agreement_code = agreement.json()["agreement_id"]
+        for headers in (seller_headers, buyer_two_headers):
+            confirmed = client.post(
+                f"/api/v1/agreement/transactions/{transaction_code}/{agreement_code}/confirm",
+                headers=headers,
+                json={"confirm": True},
+            )
+            assert confirmed.status_code == 200
+        assert confirmed.json()["locked"] is True
+        assert (
+            db.query(Agreement)
+            .filter_by(
+                transaction_id=db.query(Transaction)
+                .filter_by(transaction_code=transaction_code)
+                .one()
+                .id
+            )
+            .count()
+            == 1
+        )
+
+        secured = client.post(
+            f"/api/v1/payments/transactions/{transaction_code}/secure",
+            headers=buyer_two_headers,
+        )
+        assert secured.status_code == 200 and secured.json()["transaction_state"] == "FUNDS_SECURED"
+        assigned = client.post(
+            f"/api/v1/logistics/transactions/{transaction_code}/transport",
+            headers=buyer_two_headers,
+            json={
+                "transporter_name": "Synthetic Transport",
+                "driver_name": "Synthetic Driver",
+                "driver_phone": "+910000000000",
+                "vehicle_number": "TEST-001",
+            },
+        )
+        assert assigned.status_code == 200
+        pickup_payload = {
+            "qr_verified": True,
+            "goat_count": 1,
+            "loading_video_evidence_id": str(uuid4()),
+            "departure_note": "Synthetic pickup",
+            "idempotency_key": f"pickup-{suffix}",
+        }
+        picked_up = client.post(
+            f"/api/v1/logistics/transactions/{transaction_code}/pickup",
+            headers=_headers(operator_user, "OPERATOR"),
+            json=pickup_payload,
+        )
+        pickup_retry = client.post(
+            f"/api/v1/logistics/transactions/{transaction_code}/pickup",
+            headers=_headers(operator_user, "OPERATOR"),
+            json=pickup_payload,
+        )
+        assert picked_up.status_code == pickup_retry.status_code == 200
+        assert picked_up.json()["pickup_id"] == pickup_retry.json()["pickup_id"]
+
+        delivery_weighment = WeighmentSession(
+            weighment_code=f"DW-{suffix}",
+            target_type="GOAT",
+            target_id=verified_goat.id,
+            farmer_profile_id=farmer.id,
+            operator_id=operator.id,
+            centre_id=centre.id,
+            scale_id=scale.id,
+            status="VERIFIED",
+        )
+        db.add(delivery_weighment)
+        db.flush()
+        db.add(
+            WeightReading(
+                weighment_session_id=delivery_weighment.id,
+                sequence_no=1,
+                gross_kg=Decimal("51.000"),
+                tare_kg=Decimal("1.500"),
+                net_kg=Decimal("49.500"),
+                stable=True,
+                locked=True,
+            )
+        )
+        db.commit()
+        delivery_payload = {
+            "qr_verified": True,
+            "goat_count": 1,
+            "delivery_video_evidence_id": str(uuid4()),
+            "delivery_weighment_id": delivery_weighment.weighment_code,
+            "idempotency_key": f"delivery-{suffix}",
+        }
+        delivered = client.post(
+            f"/api/v1/logistics/transactions/{transaction_code}/delivery",
+            headers=_headers(operator_user, "OPERATOR"),
+            json=delivery_payload,
+        )
+        delivery_retry = client.post(
+            f"/api/v1/logistics/transactions/{transaction_code}/delivery",
+            headers=_headers(operator_user, "OPERATOR"),
+            json=delivery_payload,
+        )
+        assert delivered.status_code == delivery_retry.status_code == 200
+        assert delivered.json()["within_tolerance"] is True
+        assert delivered.json()["route"] == "SETTLEMENT"
+        assert (
+            client.get(f"/api/v1/transaction/{transaction_code}", headers=seller_headers).json()[
+                "state"
+            ]
+            == "SETTLEMENT_READY"
+        )
+        outside_goat = Goat(
+            goat_code=f"OG-{suffix}", farmer_profile_id=farmer.id, status="VERIFIED"
+        )
+        db.add(outside_goat)
+        db.flush()
+        outside_origin = WeighmentSession(
+            weighment_code=f"OW-{suffix}",
+            target_type="GOAT",
+            target_id=outside_goat.id,
+            farmer_profile_id=farmer.id,
+            operator_id=operator.id,
+            centre_id=centre.id,
+            scale_id=scale.id,
+            status="VERIFIED",
+        )
+        db.add(outside_origin)
+        db.flush()
+        db.add(
+            WeightReading(
+                weighment_session_id=outside_origin.id,
+                sequence_no=1,
+                gross_kg=Decimal("51.500"),
+                tare_kg=Decimal("1.500"),
+                net_kg=Decimal("50.000"),
+                stable=True,
+                locked=True,
+            )
+        )
+        outside_listing = Listing(
+            listing_code=f"OL-{suffix}",
+            seller_farmer_profile_id=farmer.id,
+            target_type="GOAT",
+            target_id=outside_goat.id,
+            weighment_session_id=outside_origin.id,
+            verified_weight_kg=Decimal("50.000"),
+            pricing_mode="PER_KG",
+            farmer_price_per_kg_paise=40_000,
+            farmer_total_value_paise=2_000_000,
+            sale_type="COMPETITIVE_BIDDING",
+            opens_at=datetime.now(UTC) - timedelta(minutes=1),
+            closes_at=datetime.now(UTC) + timedelta(hours=1),
+            status="OFFER_ACCEPTED",
+        )
+        db.add(outside_listing)
+        db.flush()
+        outside_bid = Bid(
+            bid_code=f"OB-{suffix}",
+            listing_id=outside_listing.id,
+            buyer_profile_id=buyer_one.id,
+            price_per_kg_paise=48_000,
+            total_offer_paise=2_400_000,
+            idempotency_key=f"outside-{suffix}",
+            server_sequence=1,
+            status="ACCEPTED",
+            selected_goat_ids=[],
+            selected_quantity=1,
+            selected_weight_kg=Decimal("50.000"),
+            whole_lot=True,
+        )
+        db.add(outside_bid)
+        db.flush()
+        outside_listing.accepted_bid_id = outside_bid.id
+        outside_tx = Transaction(
+            transaction_code=f"OTX-{suffix}",
+            listing_id=outside_listing.id,
+            farmer_profile_id=farmer.id,
+            buyer_profile_id=buyer_one.id,
+            accepted_bid_id=outside_bid.id,
+            state="IN_TRANSIT",
+        )
+        db.add(outside_tx)
+        db.flush()
+        outside_agreement = Agreement(
+            agreement_code=f"OAGR-{suffix}",
+            transaction_id=outside_tx.id,
+            version=1,
+            accepted_bid_id=outside_bid.id,
+            listing_id=outside_listing.id,
+            farmer_profile_id=farmer.id,
+            buyer_profile_id=buyer_one.id,
+            selected_goat_ids=[],
+            whole_lot=True,
+            accepted_price_per_kg_paise=48_000,
+            agreed_weight_kg=Decimal("50.000"),
+            livestock_amount_paise=2_400_000,
+            price_basis="ORIGIN_VERIFIED_WEIGHT",
+            pickup_point="Synthetic origin centre",
+            final_weighing_point="Synthetic delivery centre",
+            tolerance_basis_points=150,
+            transport_responsibility="BUYER",
+            dispute_rule="Controlled reweigh and evidence review when outside tolerance.",
+            status="LOCKED",
+            locked=True,
+        )
+        db.add(outside_agreement)
+        db.flush()
+        outside_tx.active_agreement_id = outside_agreement.id
+        outside_final = WeighmentSession(
+            weighment_code=f"ODW-{suffix}",
+            target_type="GOAT",
+            target_id=outside_goat.id,
+            farmer_profile_id=farmer.id,
+            operator_id=operator.id,
+            centre_id=centre.id,
+            scale_id=scale.id,
+            status="VERIFIED",
+        )
+        db.add(outside_final)
+        db.flush()
+        db.add(
+            WeightReading(
+                weighment_session_id=outside_final.id,
+                sequence_no=1,
+                gross_kg=Decimal("49.500"),
+                tare_kg=Decimal("1.500"),
+                net_kg=Decimal("48.000"),
+                stable=True,
+                locked=True,
+            )
+        )
+        db.commit()
+        outside_payload = {
+            "qr_verified": True,
+            "goat_count": 1,
+            "delivery_video_evidence_id": str(uuid4()),
+            "delivery_weighment_id": outside_final.weighment_code,
+            "idempotency_key": f"outside-delivery-{suffix}",
+        }
+        outside = client.post(
+            f"/api/v1/logistics/transactions/{outside_tx.transaction_code}/delivery",
+            headers=_headers(operator_user, "OPERATOR"),
+            json=outside_payload,
+        )
+        outside_retry = client.post(
+            f"/api/v1/logistics/transactions/{outside_tx.transaction_code}/delivery",
+            headers=_headers(operator_user, "OPERATOR"),
+            json=outside_payload,
+        )
+        assert outside.status_code == outside_retry.status_code == 200
+        assert outside.json()["within_tolerance"] is False
+        assert outside.json()["route"] == "DISPUTE"
+        assert outside_tx.state == "DISPUTED"
+        assert db.query(Dispute).filter_by(transaction_id=outside_tx.id).count() == 1
+
         events = (
             db.query(AuditEvent)
             .filter_by(aggregate_type="LISTING", aggregate_id=listing.id)

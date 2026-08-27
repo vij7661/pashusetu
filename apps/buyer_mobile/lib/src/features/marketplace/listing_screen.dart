@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../shared/money.dart';
 import '../providers.dart';
 
@@ -60,15 +61,18 @@ class _ListingScreenState extends ConsumerState<ListingScreen> {
               try {
                 final key = 'buyer-${DateTime.now().microsecondsSinceEpoch}';
                 final x = await ref.read(marketplaceRepositoryProvider).bid(
-                  listingId: widget.listingId,
-                  pricePerKgPaise: (rupees * 100).round(),
-                  idempotencyKey: key,
-                  selectedGoatIds: widget.partialEligible
-                      ? widget.availableGoatIds.take(widget.requestedQuantity).toList()
-                      : const [],
-                  wholeLot: !widget.partialEligible ||
-                      widget.requestedQuantity == widget.availableGoatIds.length,
-                );
+                      listingId: widget.listingId,
+                      pricePerKgPaise: (rupees * 100).round(),
+                      idempotencyKey: key,
+                      selectedGoatIds: widget.partialEligible
+                          ? widget.availableGoatIds
+                              .take(widget.requestedQuantity)
+                              .toList()
+                          : const [],
+                      wholeLot: !widget.partialEligible ||
+                          widget.requestedQuantity ==
+                              widget.availableGoatIds.length,
+                    );
                 setState(() {
                   result =
                       'Bid ${x['bid_id']} submitted · ${formatPaise(x['total_offer_paise'] as int)} '
@@ -79,6 +83,10 @@ class _ListingScreenState extends ConsumerState<ListingScreen> {
               }
             },
             child: const Text('Submit Offer'),
+          ),
+          TextButton(
+            onPressed: () => context.go('/listing/${widget.listingId}/bids'),
+            child: const Text('View My Bids'),
           ),
         ]),
       ),

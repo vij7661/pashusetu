@@ -21,6 +21,7 @@ class BidResponse(BaseModel):
     selected_quantity: int
     selected_weight_kg: Decimal | None
     whole_lot: bool
+    transaction_id: str | None = None
 
 
 class BidAcceptanceResponse(BaseModel):
@@ -28,3 +29,4 @@ class BidAcceptanceResponse(BaseModel):
     accepted_bid_id: str
     accepted_server_sequence: int
     status: str
+    transaction_id: str

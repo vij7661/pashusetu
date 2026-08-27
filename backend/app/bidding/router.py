@@ -10,6 +10,7 @@ from app.db.session import get_db
 from app.identity.models import User
 from app.identity.profile_models import BuyerProfile, FarmerProfile
 from app.marketplace.models import Bid, Listing
+from app.transaction.models import Transaction
 from app.transaction.service import create_transaction_from_accepted_bid
 
 router = APIRouter(prefix="/bidding", tags=["bidding"])
@@ -83,6 +84,9 @@ def list_bids(
             selected_quantity=x.selected_quantity,
             selected_weight_kg=x.selected_weight_kg,
             whole_lot=x.whole_lot,
+            transaction_id=db.scalar(
+                select(Transaction.transaction_code).where(Transaction.accepted_bid_id == x.id)
+            ),
         )
         for x in rows
     ]
@@ -96,10 +100,11 @@ def post_accept_bid(
     user: User = Depends(current_user),
 ):
     listing, bid = accept_bid(db, user.id, listing_id, bid_id)
-    create_transaction_from_accepted_bid(db, listing, bid)
+    transaction = create_transaction_from_accepted_bid(db, listing, bid)
     return BidAcceptanceResponse(
         listing_id=listing.listing_code,
         accepted_bid_id=bid.bid_code,
         accepted_server_sequence=bid.server_sequence,
         status=listing.status,
+        transaction_id=transaction.transaction_code,
     )

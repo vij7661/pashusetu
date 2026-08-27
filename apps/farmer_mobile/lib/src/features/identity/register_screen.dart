@@ -22,8 +22,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final village = TextEditingController(text: 'Chityal');
   final mandal = TextEditingController(text: 'Chityal');
   final district = TextEditingController(text: 'Nalgonda');
-  final aadhaar = TextEditingController();
-  final upi = TextEditingController();
   String language = 'te';
   bool busy = false;
   String? error;
@@ -31,26 +29,33 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   String t(String key) => AppStrings.tr(language, key);
 
   Future<void> next() async {
-    setState(() { busy = true; error = null; });
+    setState(() {
+      busy = true;
+      error = null;
+    });
     try {
       if (step == 0) {
-        await ref.read(authControllerProvider.notifier).requestOtp(mobile.text.trim());
+        await ref
+            .read(authControllerProvider.notifier)
+            .requestOtp(mobile.text.trim());
         final authState = ref.read(authControllerProvider);
         if (authState.hasError) throw authState.error!;
       } else if (step == 1) {
-        await ref.read(authControllerProvider.notifier).verifyOtp(mobile.text.trim(), otp.text.trim());
+        await ref
+            .read(authControllerProvider.notifier)
+            .verifyOtp(mobile.text.trim(), otp.text.trim());
         final authState = ref.read(authControllerProvider);
         if (authState.hasError) throw authState.error!;
       } else if (step == 2) {
         await ref.read(languageProvider.notifier).setLanguage(language);
       } else if (step == 5) {
         await ref.read(identityRepositoryProvider).createFarmer(
-          fullName: name.text.trim(),
-          language: language,
-          village: village.text.trim(),
-          mandal: mandal.text.trim(),
-          district: district.text.trim(),
-        );
+              fullName: name.text.trim(),
+              language: language,
+              village: village.text.trim(),
+              mandal: mandal.text.trim(),
+              district: district.text.trim(),
+            );
       }
       if (!mounted) return;
       if (step >= 6) {
@@ -60,9 +65,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       }
     } catch (e) {
       final msg = e.toString();
-      setState(() => error = msg.contains('connection timeout')
-          ? t('connection_error')
-          : msg);
+      setState(() => error =
+          msg.contains('connection timeout') ? t('connection_error') : msg);
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -111,24 +115,30 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         );
       case 3:
         content = Column(children: [
-          TextField(controller: name, decoration: InputDecoration(labelText: t('full_name'))),
+          TextField(
+              controller: name,
+              decoration: InputDecoration(labelText: t('full_name'))),
           const SizedBox(height: 10),
-          TextField(controller: village, decoration: InputDecoration(labelText: t('village'))),
+          TextField(
+              controller: village,
+              decoration: InputDecoration(labelText: t('village'))),
           const SizedBox(height: 10),
-          TextField(controller: mandal, decoration: InputDecoration(labelText: t('mandal'))),
+          TextField(
+              controller: mandal,
+              decoration: InputDecoration(labelText: t('mandal'))),
           const SizedBox(height: 10),
-          TextField(controller: district, decoration: InputDecoration(labelText: t('district'))),
+          TextField(
+              controller: district,
+              decoration: InputDecoration(labelText: t('district'))),
         ]);
       case 4:
         content = Column(children: [
-          TextField(controller: aadhaar, decoration: InputDecoration(labelText: t('aadhaar_number'))),
-          const SizedBox(height: 10),
+          const Icon(Icons.verified_user_outlined, size: 40),
           Text(t('aadhaar_note')),
         ]);
       case 5:
         content = Column(children: [
-          TextField(controller: upi, decoration: InputDecoration(labelText: t('upi_bank'))),
-          const SizedBox(height: 10),
+          const Icon(Icons.account_balance_outlined, size: 40),
           Text(t('payout_note')),
         ]);
       default:
@@ -144,7 +154,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             LinearProgressIndicator(value: (step + 1) / titles.length),
             const SizedBox(height: 20),
             Expanded(child: SingleChildScrollView(child: content)),
-            if (error != null) Text(error!, style: const TextStyle(color: Colors.red)),
+            if (error != null)
+              Text(error!, style: const TextStyle(color: Colors.red)),
             FilledButton(
               onPressed: busy ? null : next,
               child: Text(step == 6 ? t('submit_registration') : t('continue')),

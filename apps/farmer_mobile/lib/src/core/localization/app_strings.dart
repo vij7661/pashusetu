@@ -17,9 +17,11 @@ class AppStrings {
       'mandal': 'Mandal',
       'district': 'District',
       'aadhaar_number': '12-digit Aadhaar number',
-      'aadhaar_note': 'Aadhaar verification will be handled by the selected compliant KYC provider. Raw Aadhaar is not stored in the core backend.',
+      'aadhaar_note':
+          'Aadhaar verification will be handled by the selected compliant KYC provider. Raw Aadhaar is not stored in the core backend.',
       'upi_bank': 'UPI ID or Bank Account',
-      'payout_note': 'Payout details are collected only during new registration.',
+      'payout_note':
+          'Payout details are collected only during new registration.',
       'review_note': 'Review your information before submitting registration.',
       'continue': 'Continue',
       'submit_registration': 'Submit Registration',
@@ -31,9 +33,11 @@ class AppStrings {
       'add_goat_lot': 'Add Goat / Create Lot',
       'add_goat_lot_desc': 'Add an individual goat or a multi-goat lot.',
       'your_listings': 'Your Listings',
+      'no_listings': 'No listings yet.',
       'your_listings_desc': 'View live and historical listings.',
       'create_verified_listing': 'Create Verified Listing',
-      'create_verified_listing_desc': 'Requires a verified and acknowledged weighment.',
+      'create_verified_listing_desc':
+          'Requires a verified and acknowledged weighment.',
       'individual_goat': 'Individual Goat',
       'multiple_goats_lot': 'Multiple Goats / Lot',
       'breed': 'Breed',
@@ -55,7 +59,8 @@ class AppStrings {
       'publish_verified_listing': 'Publish Verified Listing',
       'farmer_acknowledgement': 'Farmer Acknowledgement',
       'verified_weighment': 'Verified weighment',
-      'review_weighment_note': 'Review the operator-created verified weight, Scale ID, centre and evidence before acknowledging.',
+      'review_weighment_note':
+          'Review the operator-created verified weight, Scale ID, centre and evidence before acknowledging.',
       'i_acknowledge': 'I acknowledge',
       'ack_confirm_note': 'I confirm the verified weighment shown to me.',
       'reject_reweigh': 'Reject weight and request reweigh',
@@ -72,14 +77,16 @@ class AppStrings {
       'quantity_mismatch': 'Quantity mismatch',
       'other': 'Other',
       'disputed_amount': 'Disputed amount in paise',
-      'dispute_note': 'Only the disputed amount should be held where supported. Evidence and controlled reweighing determine resolution.',
+      'dispute_note':
+          'Only the disputed amount should be held where supported. Evidence and controlled reweighing determine resolution.',
       'settlement': 'Settlement',
       'final_settlement': 'Final settlement',
       'gross': 'Gross',
       'adjustment': 'Adjustment',
       'platform_fee': 'Platform fee',
       'load_complete_settlement': 'Load / Complete Settlement',
-      'connection_error': 'Unable to connect to PashuSetu. Please check the backend connection and try again.',
+      'connection_error':
+          'Unable to connect to PashuSetu. Please check the backend connection and try again.',
     },
     'te': {
       'mobile_verification': 'మొబైల్ ధృవీకరణ',
@@ -96,7 +103,8 @@ class AppStrings {
       'mandal': 'మండలం',
       'district': 'జిల్లా',
       'aadhaar_number': '12 అంకెల ఆధార్ నంబర్',
-      'aadhaar_note': 'ఆధార్ ధృవీకరణను ఎంపిక చేసిన అనుగుణ KYC సేవ ద్వారా నిర్వహిస్తాము. అసలు ఆధార్ నంబర్‌ను ప్రధాన బ్యాక్‌ఎండ్‌లో నిల్వ చేయము.',
+      'aadhaar_note':
+          'ఆధార్ ధృవీకరణను ఎంపిక చేసిన అనుగుణ KYC సేవ ద్వారా నిర్వహిస్తాము. అసలు ఆధార్ నంబర్‌ను ప్రధాన బ్యాక్‌ఎండ్‌లో నిల్వ చేయము.',
       'upi_bank': 'UPI ఐడి లేదా బ్యాంక్ ఖాతా',
       'payout_note': 'చెల్లింపు వివరాలు కొత్త నమోదు సమయంలో మాత్రమే అడుగుతాము.',
       'review_note': 'నమోదు సమర్పించే ముందు మీ వివరాలను సమీక్షించండి.',
@@ -110,9 +118,11 @@ class AppStrings {
       'add_goat_lot': 'మేకను జోడించండి / లాట్ సృష్టించండి',
       'add_goat_lot_desc': 'ఒక మేకను లేదా అనేక మేకల లాట్‌ను జోడించండి.',
       'your_listings': 'మీ జాబితాలు',
+      'no_listings': 'ఇంకా జాబితాలు లేవు.',
       'your_listings_desc': 'ప్రస్తుత మరియు పాత జాబితాలను చూడండి.',
       'create_verified_listing': 'ధృవీకరించిన జాబితా సృష్టించండి',
-      'create_verified_listing_desc': 'ధృవీకరించిన మరియు రైతు అంగీకరించిన బరువు అవసరం.',
+      'create_verified_listing_desc':
+          'ధృవీకరించిన మరియు రైతు అంగీకరించిన బరువు అవసరం.',
       'individual_goat': 'ఒక్క మేక',
       'multiple_goats_lot': 'అనేక మేకలు / లాట్',
       'breed': 'జాతి',
@@ -134,9 +144,11 @@ class AppStrings {
       'publish_verified_listing': 'ధృవీకరించిన జాబితాను ప్రచురించండి',
       'farmer_acknowledgement': 'రైతు అంగీకారం',
       'verified_weighment': 'ధృవీకరించిన బరువు',
-      'review_weighment_note': 'అంగీకరించే ముందు ఆపరేటర్ నమోదు చేసిన బరువు, స్కేల్ ID, కేంద్రం మరియు ఆధారాలను పరిశీలించండి.',
+      'review_weighment_note':
+          'అంగీకరించే ముందు ఆపరేటర్ నమోదు చేసిన బరువు, స్కేల్ ID, కేంద్రం మరియు ఆధారాలను పరిశీలించండి.',
       'i_acknowledge': 'నేను అంగీకరిస్తున్నాను',
-      'ack_confirm_note': 'నాకు చూపించిన ధృవీకరించిన బరువును నేను నిర్ధారిస్తున్నాను.',
+      'ack_confirm_note':
+          'నాకు చూపించిన ధృవీకరించిన బరువును నేను నిర్ధారిస్తున్నాను.',
       'set_price_listing': 'ధర & జాబితా నియమాలు నిర్ణయించండి',
       'buyer_offers': 'కొనుగోలుదారుల ఆఫర్లు',
       'no_offers': 'ఇంకా ఆఫర్లు లేవు.',
@@ -149,14 +161,16 @@ class AppStrings {
       'quantity_mismatch': 'సంఖ్య సరిపోలలేదు',
       'other': 'ఇతర',
       'disputed_amount': 'వివాదంలో ఉన్న మొత్తం (పైసల్లో)',
-      'dispute_note': 'అవసరమైన సందర్భంలో వివాదంలో ఉన్న మొత్తాన్ని మాత్రమే నిలిపివేయాలి. ఆధారాలు మరియు నియంత్రిత మళ్లీ బరువు ద్వారా పరిష్కారం నిర్ణయించబడుతుంది.',
+      'dispute_note':
+          'అవసరమైన సందర్భంలో వివాదంలో ఉన్న మొత్తాన్ని మాత్రమే నిలిపివేయాలి. ఆధారాలు మరియు నియంత్రిత మళ్లీ బరువు ద్వారా పరిష్కారం నిర్ణయించబడుతుంది.',
       'settlement': 'సెటిల్‌మెంట్',
       'final_settlement': 'చివరి సెటిల్‌మెంట్',
       'gross': 'మొత్తం',
       'adjustment': 'సర్దుబాటు',
       'platform_fee': 'ప్లాట్‌ఫాం ఫీజు',
       'load_complete_settlement': 'సెటిల్‌మెంట్‌ను లోడ్ / పూర్తి చేయండి',
-      'connection_error': 'PashuSetu సర్వర్‌కు కనెక్ట్ కాలేకపోయాం. బ్యాక్‌ఎండ్ కనెక్షన్‌ను తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.',
+      'connection_error':
+          'PashuSetu సర్వర్‌కు కనెక్ట్ కాలేకపోయాం. బ్యాక్‌ఎండ్ కనెక్షన్‌ను తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.',
     },
   };
 

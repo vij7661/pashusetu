@@ -122,7 +122,9 @@ def delivery(
     )
     if not tx:
         raise AppError("TRANSACTION_NOT_FOUND", "Transaction not found.", 404)
-    ws = db.get(WeighmentSession, UUID(p.delivery_weighment_id))
+    ws = db.scalar(
+        select(WeighmentSession).where(WeighmentSession.weighment_code == p.delivery_weighment_id)
+    )
     if not ws or ws.status != "VERIFIED":
         raise AppError("DELIVERY_WEIGHMENT_REQUIRED", "Verified delivery weighment required.", 409)
     operator = db.scalar(
