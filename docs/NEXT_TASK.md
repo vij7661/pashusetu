@@ -1,110 +1,115 @@
 # PashuSetu — Current Agent Task
 
-**Task ID:** `PILOT-GOLDENPATH-003`
+**Task ID:** `PILOT-GOLDENPATH-004`
 
 **Status:** `READY`
 
-**Work item:** Pilot Golden Path — Goat/Lot registration + Operator verification + Farmer acknowledgement
+**Work item:** Pilot Golden Path — Verified listing + Buyer marketplace + bidding + single acceptance
 
-**Current objective:** Complete and validate the next pilot slice from authenticated Farmer livestock creation through Operator verification/weighment and Farmer acknowledgement, using the existing local FastAPI/PostgreSQL stack and simulated/adapted hardware where real Bluetooth/printing hardware is not yet integrated.
+**Current objective:** Complete and validate the next pilot slice from an acknowledged/verified goat or lot becoming a marketplace listing through Buyer discovery, multiple bids, idempotent retries, and exactly one accepted offer, while preserving deterministic trust-layer behavior.
 
 ## Requirements authority
 
 Follow `/AGENTS.md` and the approved SRS/MVP behavior. Preserve these trust rules:
-- Farmer can create an individual goat or multi-goat lot.
-- Listing weight must come from the Mandal Centre verification flow, not Farmer-entered weight.
-- Operator must use registered Centre/Scale context and only lock a stable reading.
-- Locked weighment must preserve gross/tare/net, Scale ID, Operator ID, Centre ID and authoritative server time.
-- Farmer Rejects → fresh controlled reweigh/new weighment history.
-- Farmer Accepts → acknowledgement/receipt path.
-- There must be no normal acknowledgement → same weighing loop.
-- Reweigh/corrections must not overwrite acknowledged/locked weighment history.
+- Only verified/acknowledged livestock or lot can become an active listing.
+- Listing quantity/weight must use the trusted verified weighment, not an unverified client-entered replacement.
+- Farmer may use recommended market price or own asking price only where current approved product behavior supports it; do not redesign pricing in this task.
+- Buyer bids/offers must be server-authoritative.
+- A client-generated idempotency key represents one user Bid intent and must be reused across HTTP retries.
+- Deduplication must occur at the authoritative backend boundary before duplicate commercial effects are appended.
+- Simultaneous/retried bids must not create duplicate bid intents.
+- Acceptance must be concurrency-safe and result in exactly one accepted offer for the listing.
+- Once one offer is accepted, conflicting later accept attempts must fail deterministically and must not silently overwrite the accepted state.
+- Audit/event history must remain sufficient to reconstruct the commercial decision path as supported by the current architecture.
 
-Do not redesign pricing, bidding, payments, KYC, settlement, disputes or unrelated architecture in this task.
+Do not implement real payments, escrow, external notifications, logistics, settlement, disputes, or unrelated architecture in this task.
 
 ## Authorized scope
 
 You MAY make focused changes required for this slice in:
-- `apps/farmer_mobile` livestock/weighment acknowledgement flows
-- `apps/operator_mobile` verification/weighment flows
-- backend livestock/weighment/identity/operator/centre/scale endpoints and schemas only where a confirmed integration defect requires it
-- test fixtures/synthetic local development data required to exercise the flow
-- focused automated tests and local development docs/config
-
-Use simulator/adapter behavior for Bluetooth scale and receipt/print where current repository design already provides it. Do not introduce a real hardware vendor dependency in this task.
+- `apps/farmer_mobile` listing creation / offer review / acceptance flows
+- `apps/buyer_mobile` marketplace / listing detail / bid flows
+- backend marketplace / bidding / audit / related authorization endpoints, schemas, models and services where a confirmed integration defect requires it
+- focused synthetic test fixtures and regression tests
+- local development documentation/config where needed
 
 Do not merge to `main`.
 Do not delete databases/volumes/existing data.
-Do not use real Aadhaar/KYC/payment/personal data.
+Do not use real personal/payment/KYC data.
 
 ## Execute autonomously
 
-1. Pull/inspect the current branch and verify Docker `db` and `api` are healthy; start existing dev services if needed under AGENTS.md.
-2. Run baseline validation for affected Flutter apps:
+1. At task start follow AGENTS.md: inspect working tree, `git pull --ff-only`, then re-read `AGENTS.md` and this task.
+2. Verify Docker `db` and `api` health and run Alembic upgrade if needed.
+3. Run baseline Flutter validation:
    - Farmer: `flutter pub get`, `flutter analyze`, `flutter test`
-   - Operator: `flutter pub get`, `flutter analyze`, `flutter test`
-   Resolve only confirmed compatibility/dependency issues required to make the affected app testable.
-3. Inspect current backend routes/models/services/tests for livestock and weighment plus Farmer/Operator client repositories/screens.
-4. Using safe synthetic development data, prove or implement the authenticated Farmer path for:
-   - create individual goat
-   - create multi-goat lot
-   - retrieve created livestock/lot as required by the client
-5. Prove or implement the Operator verification path for a selected goat/lot:
-   - authenticated/valid Operator + Centre context
-   - registered Scale ID and valid calibration/status checks as currently modeled
-   - capture/ingest simulated stable scale reading
-   - prevent lock of unstable reading
-   - lock weighment and preserve trusted fields
-   - attach/reference verification evidence using the existing development mechanism
-6. Prove or implement Farmer decision behavior against the verified record:
-   - Reject creates/routes to a fresh weighment/reweigh path and preserves original history
-   - Accept creates Farmer acknowledgement and receipt/QR record/payload if supported by current backend
-   - completed acknowledgement does not route back to the same weighing action
-7. Fix only confirmed API/DTO/state/navigation defects that block this approved flow. Do not weaken authorization, evidence, calibration, state, or history rules just to pass a test.
-8. Add focused regression coverage for the core trust invariants, including at minimum:
-   - individual goat and lot creation contracts
-   - unstable reading cannot be locked
-   - accepted/locked weighment fields persist correctly
-   - rejection/reweigh preserves the previous weighment
-   - acceptance/acknowledgement follows the correct branch
-9. Exercise the live local API contract end-to-end as far as practical with synthetic data, in addition to unit/integration tests.
-10. Re-run all relevant validation:
+   - Buyer: `flutter pub get`, `flutter analyze`, `flutter test`
+4. Inspect current verified-weighment, marketplace, bidding, Farmer offer review and Buyer bidding contracts.
+5. Using safe synthetic data, prove or implement the path:
+   - verified/acknowledged goat or lot → active listing
+   - Buyer discovery/listing retrieval
+   - at least two distinct Buyers can submit valid bids
+   - total offer amount shown/calculated from offer-per-kg × trusted lot weight where current product flow uses per-kg pricing
+6. Validate idempotency behavior:
+   - same Buyer + same idempotency key retried multiple times produces one commercial bid intent/effect
+   - duplicate transmission does not append duplicate authoritative bid records/events
+   - different idempotency key represents a new intent only when otherwise valid
+7. Validate ordering/concurrency behavior using server-authoritative sequencing/timestamps already modeled by the backend. Do not use client timestamps for commercial priority.
+8. Validate Farmer acceptance:
+   - Farmer can review offers for own listing only
+   - accept one valid offer
+   - exactly one offer/listing acceptance wins under repeated or concurrent acceptance attempts
+   - conflicting/later acceptance attempts fail cleanly/deterministically
+   - accepted state and winning bid are persisted and retrievable
+9. Preserve append-only/audit semantics supported by the repository; add focused coverage if current code lacks proof of the bid/acceptance decision history.
+10. Fix only confirmed API/DTO/state/navigation/concurrency/idempotency defects required for this approved slice. Do not weaken authorization or determinism to make tests pass.
+11. Add or update focused automated tests covering at minimum:
+   - unverified livestock cannot be listed
+   - verified livestock/lot listing succeeds
+   - multiple Buyers can bid
+   - idempotent retry does not duplicate a bid intent
+   - unauthorized Buyer/Farmer actions are rejected
+   - exactly one offer can be accepted
+   - repeated/concurrent acceptance cannot produce two winners
+12. Exercise the live local API path end-to-end with synthetic data as far as practical.
+13. Re-run relevant validation:
    - Farmer analyze/tests if changed
-   - Operator analyze/tests if changed
+   - Buyer analyze/tests if changed
    - targeted backend tests
-   - full backend pytest suite if backend code changed
+   - full backend pytest suite if backend code changes
    - `/health`
-11. Inspect the final diff and remove unrelated/generated changes.
-12. If all relevant checks pass, commit and push the focused implementation on the approved non-main branch with appropriate focused commit message(s).
-13. Update and push `docs/AGENT_REPORT.md` with this exact Task ID and final status.
-14. If status is `PASS`, follow AGENTS.md automatic task handoff: pull once and execute a different READY Task ID if already published.
+14. Inspect the final diff, secret-pattern scan, and remove unrelated/generated changes.
+15. If all relevant checks pass, commit and push focused implementation changes on the approved non-main branch.
+16. Update and push `docs/AGENT_REPORT.md` with this exact Task ID and final status.
+17. If status is `PASS`, follow the AGENTS.md automatic task handoff rule and execute a different READY Task ID if one is already published.
 
 ## Completion criteria
 
 This task is `PASS` only when actual checks/tests support:
-- Farmer can create individual goat and lot through the backend contract
-- Operator verification can target that livestock/lot
-- trusted scale/centre/operator checks are enforced according to current approved model
-- unstable reading is not lockable
-- stable verified reading can be locked with trusted fields/evidence reference
-- Farmer Reject creates a fresh reweigh path without overwriting original history
-- Farmer Accept creates acknowledgement and receipt/QR representation where supported
-- no normal acknowledgement-to-same-weighment loop exists
+- only verified/acknowledged livestock/lot can become an active listing
+- Buyer marketplace can retrieve the active listing
+- multiple Buyers can place valid bids
+- retrying the same Bid intent with the same idempotency key does not create duplicate commercial effects
+- server authority, not client timestamp, determines commercial sequencing where applicable
+- Farmer can review and accept only offers on own listing
+- exactly one accepted offer exists even under repeated/concurrent accept attempts
+- accepted/winning state is persisted and retrievable
 - affected Flutter analyze/tests pass
 - relevant backend tests pass and local API health remains good
 - no prohibited/destructive action occurred
 
-GUI-only visual behavior may remain for consolidated human QA later; clearly distinguish automated proof from pending visual QA.
+GUI-only presentation may remain for consolidated human QA later; clearly separate automated proof from pending visual QA.
 
 ## Completion report
 
 Report:
 - Task ID and final status
-- root cause(s)/gaps found
-- Farmer test/analyze results
-- Operator test/analyze results
-- exact live/API flow exercised
-- trust-invariant test results
+- root causes/gaps found
+- Farmer analyze/test results
+- Buyer analyze/test results
+- exact listing/bidding/acceptance flow exercised
+- idempotency/concurrency results
+- authorization/audit results
 - backend targeted/full-suite results
 - files changed
 - branch and implementation commit SHA(s)
