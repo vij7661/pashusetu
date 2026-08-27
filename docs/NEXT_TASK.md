@@ -1,52 +1,91 @@
 # PashuSetu — Current Agent Task
 
-**Task ID:** `QA-FARMER-OTP-UX-001`
+**Task ID:** `QA-FARMER-MANUAL-GATE-001`
 
 **Status:** `READY`
 
-**Priority:** QA BLOCKER — execute before unrelated feature work.
+**Priority:** QA BLOCKER — highest priority until Farmer manual-QA gate passes.
 
-**Work item:** Farmer OTP negative-path UX and safe error mapping
+**Work item:** Farmer pre-manual-QA hardening gate — OTP UX + baseline negative/boundary/error review
 
-## Defect observed in manual QA
+## Objective
 
-On the Farmer OTP screen, entering a wrong OTP correctly reaches backend rejection, but the UI exposes the raw transport/exception text:
+Do not add new product features. Close the known OTP exception-leak defect and perform a focused pre-manual-QA baseline review of the Farmer onboarding/auth/profile/form flows so basic validation/error-state defects are caught automatically before the human resumes manual QA.
 
-`DioException [bad response]: null`
-`Error: OTP_INVALID: Invalid OTP.`
+The app may be declared **`PASS — FARMER APP READY FOR MANUAL QA`** only after the gate below is supported by actual automated checks and code inspection. Otherwise publish `BLOCKED` with exact defects.
 
-This is not acceptable user-facing behavior. Expected business validation failures must be rendered as friendly localized UI messages, while technical exception details remain available only to development logs/diagnostics where appropriate.
+## Known blocker to fix first
 
-## Required behavior
+Wrong OTP currently exposes raw technical text such as `DioException [bad response]` and `OTP_INVALID` in the UI. Replace expected auth failures with localized user-friendly messages while preserving backend error codes internally/debug-only.
 
-1. Wrong OTP must keep the user on the OTP screen and show a concise localized message such as `Invalid OTP. Please try again.` in English and the approved Telugu equivalent from localization resources.
-2. Do not display `DioException`, HTTP internals, stack traces, backend exception class names, raw response objects, or duplicated `Error:` prefixes to the user.
-3. Preserve backend error codes internally and map known auth codes to stable domain/UI errors. At minimum inspect and handle `OTP_INVALID`, `OTP_EXPIRED`, already-used/reused OTP, resend/rate-limit states if those codes exist, and generic network/server failure.
-4. Wrong OTP must not authenticate, navigate forward, corrupt the current challenge, or silently reset the form. Preserve the existing backend attempt policy.
-5. Correct QA OTP `4816` for a seeded canonical QA user must still succeed after the fix.
-6. Error text must follow the currently selected locale and must not force a locale change.
-7. Unknown/unexpected failures must show a safe generic localized message (for example `Something went wrong. Please try again.`), while retaining diagnostic details in debug logging only.
-8. Do not weaken OTP security or change the deterministic QA-only OTP contract.
+At minimum handle:
+- wrong OTP;
+- expired OTP;
+- reused/already-used OTP;
+- resend/rate-limit state if present;
+- offline/network timeout;
+- backend 4xx/5xx/unknown response;
+- correct QA OTP `4816` success.
 
-## Tests required
+No raw Dio/HTTP/stack trace/backend exception class/raw JSON may be displayed to a normal user.
 
-Add/adjust focused tests covering:
-- wrong OTP -> localized friendly invalid-OTP message, no raw Dio/exception text, no navigation;
-- expired OTP -> localized expired message;
-- used/reused OTP -> localized safe message;
-- network/server/unknown error -> localized generic message without raw exception leakage;
-- correct seeded QA OTP `4816` -> success path remains green;
-- English and Telugu negative-path rendering;
-- existing OTP attempt/resend semantics remain green.
+## Baseline Farmer readiness checklist
 
-Run Farmer `flutter analyze` and full `flutter test`; run focused auth/backend tests if any backend contract change is actually required. Prefer a Flutter error-mapping/UI fix if the backend is already returning stable codes. Do not redesign auth unnecessarily.
+Review the Farmer screens/contracts currently in the MVP golden path, prioritizing onboarding, language selection, registration/mobile/OTP, Farmer details/profile, goat/lot creation forms, acknowledgement/listing forms, and offer/agreement/status surfaces already implemented. Do not invent missing product features.
 
-## Scope and safety
+For each touched/critical form or action verify as applicable:
 
-Focused Farmer auth repository/controller/UI/localization/tests only, plus backend auth only if a confirmed contract defect exists. Do not modify marketplace rules, QA fixture numbers, QA database isolation, real SMS, KYC, payments, Bluetooth, production deployment, or pilot data.
+1. **Input contracts** — required/empty/null, allowed characters, min/max length/range, trimming, numeric bounds, paste/autofill, exact boundary values.
+2. **Positive path** — valid input performs the intended action once, persists the correct value/state and navigates correctly.
+3. **Negative/business path** — invalid input/business state is blocked with a clear localized message and no unintended API/business side effect.
+4. **Error mapping** — known backend/domain codes map to localized friendly UI text; unexpected/network/server failures use a safe generic localized message; no technical exception leakage.
+5. **Repeated actions** — double tap/click, retry and duplicate submission do not create duplicate commercial or auth effects; buttons/loading state are sensible where implemented.
+6. **Navigation/state** — back/refresh/recreation does not incorrectly skip required onboarding, leak stale QA values, change locale, or corrupt in-progress state.
+7. **Localization** — English and Telugu strings exist for critical validation/error messages touched by this gate.
+8. **Auth/session safety** — invalid/expired auth does not navigate forward; successful auth preserves expected role/session behavior; QA OTP/test mode remains isolated.
+9. **Role/ownership** — existing Farmer-side protected API calls remain authorized correctly; do not weaken backend authorization.
+10. **Data integrity** — UI/API values agree for the fields covered; no debug/generated fixture data is injected into fresh forms.
 
-Follow `AGENTS.md` sync/working-tree safety. Do not repeatedly launch Chrome while fixing. Commit/push the focused patch and update `docs/AGENT_REPORT.md` with this exact Task ID, root cause, files changed, exact test results and whether one human OTP re-check is ready. Stop after PASS/BLOCKED.
+## Specific boundary checks required now
+
+- Mobile: blank, 9 digits, valid 10 digits starting 6/7/8/9, 11 digits/paste, letters/symbols, invalid 0-5 prefix, seeded vs valid-unseeded QA number.
+- OTP: blank/malformed length if applicable, wrong, correct, expired, reused, resend, repeated submit, network/server failure.
+- Language/onboarding: fresh state, English, Telugu, persisted locale, refresh/recreate, locale must not bypass auth/onboarding.
+- Any numeric/count field in existing Farmer goat/lot/listing forms: below minimum / exact minimum / above minimum or max where a rule already exists in SRS/code. Do not invent a new threshold.
+- Required text/select fields in existing Farmer forms: empty and valid cases.
+
+## Automated coverage expectation
+
+Add regression tests for any confirmed defect and enough widget/unit/repository tests to prove the baseline checks above for critical Farmer paths. A defect fixed during this task should normally receive an automated regression test.
+
+Run:
+- Farmer `flutter pub get`
+- Farmer `flutter analyze`
+- Farmer full `flutter test`
+- relevant backend auth/Farmer tests
+- full backend suite if backend source changes
+- non-interactive web build/smoke check where practical
+- isolated QA DB/API health checks as needed
+
+Do not repeatedly launch Chrome during implementation. At most one final interactive launch is allowed only after all automated checks pass and only if no Farmer session is already running.
+
+## Scope discipline
+
+Allowed: focused Farmer UX/validation/error mapping/localization/tests and backend contract fixes only where a confirmed mismatch exists.
+
+Not allowed: new marketplace features, real SMS, KYC/Aadhaar integration, payments, Bluetooth/device work, production/pilot deployment, pilot DB mutation, unrelated refactors, or business-rule invention.
+
+## Completion report
+
+Update `docs/AGENT_REPORT.md` with this exact Task ID and include:
+- exact readiness verdict: `PASS — FARMER APP READY FOR MANUAL QA` or `BLOCKED`;
+- defects found/fixed;
+- checklist areas actually reviewed;
+- exact test/analyze/build results;
+- known untested/manual-only items;
+- branch/commit SHA;
+- QA DB/API health and safety confirmation.
 
 ## Completion criteria
 
-PASS only when expected OTP failures are presented as localized domain messages with no raw Dio/technical exception leakage, correct OTP still succeeds, tests are green, and the Farmer OTP screen is ready for one manual QA re-check.
+PASS only when the known OTP exception leak is fixed; critical Farmer onboarding/auth/form validation and error handling have been reviewed against the baseline above; automated regression is green; no known basic blocker remains in the reviewed Farmer golden path; and remaining work is genuinely human visual/usability QA rather than missing elementary validation/error handling.
