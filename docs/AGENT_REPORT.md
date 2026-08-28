@@ -1,4 +1,78 @@
-# PashuSetu — Farmer Final-Submit QA Evidence
+# PashuSetu — Farmer Add-Goat QA Evidence
+
+- **Task ID:** `QA-FARMER-ADD-GOAT-001` (GitHub #18)
+- **Timestamp:** 2026-08-28T13:14:13+05:30
+- **Branch:** `feat/issue-4-local-backend-farmer-integration`
+- **Status:** `PASS — CANDIDATE READY FOR QA REVIEW`
+- **Implementation commit:** `9a0f5f62856acb109a16cd48234919a1ff34f699`
+- **Objective:** Make successful Individual Goat creation continue to the approved Farmer Home state without duplicate side effects.
+
+## Root cause and sanitized evidence
+
+The API was not failing. Browser/API history showed `POST /api/v1/livestock/goats` returned **201 Created** twice. Database inspection showed the authenticated Farmer's goat count increased twice. The Flutter handler correctly mapped the authoritative returned `goat_id`, but after each success it only rendered `Goat <id>` on the same form and re-enabled the button. There was no post-success navigation or durable completion cue, so the tester remained stuck and could submit again.
+
+The displayed Goat ID was the backend `goat_id` from the 201 response, not a client-generated ID; it did not conflict with server identity. Ownership remained backend-authoritative.
+
+## Fix
+
+- Successful Individual Goat submission now shows a localized success SnackBar containing the persisted backend Goat ID and routes to existing `/home`.
+- Added an internal busy/re-entry guard in addition to disabling the button while awaiting the API.
+- Errors remain on the form through the centralized localized safe mapper.
+- Lot creation deliberately retains its existing on-screen result behavior; regression coverage proves it does not navigate Home.
+- Backend behavior was not weakened or changed. Integration now asserts 201, authenticated retrieval, exactly one matching owned row, and 404 for another Farmer.
+
+## Automated evidence
+
+| Gate | Exact result |
+| --- | --- |
+| Focused Flutter livestock flow | PASS; **3 passed**: success/navigation/single-call, safe failure, Lot non-regression |
+| `flutter pub get` | PASS, exit 0; 13 incompatible-newer-version notices only |
+| `flutter analyze` | PASS; no issues, 8.5s |
+| Full `flutter test` | PASS; **32 passed**, exit 0 |
+| Focused pytest livestock/weighment | PASS; **1 passed**, 1 Starlette warning, 5.11s |
+| Full backend `pytest -q` | PASS; **70 passed**, 1 Starlette warning, 9.10s |
+| Ruff | PASS; focused integration file check/fix clean |
+| Docker configuration | PASS, exit 0 |
+| Migration | PASS; `0010_farmer_kyc_payout (head)` |
+| Guarded QA reset/seed | PASS; 6 users / 2 farmers / 1 buyer / 6 goats / 2 lots / 1 listing |
+| API health | PASS; HTTP 200, environment `qa` |
+| Web build | PASS; `Built build\\web`, 76.0s; existing Cupertino font warning only |
+| Diff/leak scan | PASS; `git diff --check`; no raw Dio/response/stack/log rendering in livestock code |
+
+## Exactly-one/ownership proof
+
+The targeted pytest creates one goat via the same `POST /api/v1/livestock/goats` contract, retrieves the returned ID as the authenticated owner, queries an exact database count of one for that Goat ID and Farmer profile, and proves a different Farmer receives 404. The widget test holds the request pending, verifies the submit button is disabled and repository call count is one, completes the 201-equivalent response, and verifies Home navigation with call count still one.
+
+## Files changed
+
+- `apps/farmer_mobile/lib/src/core/localization/app_strings.dart`
+- `apps/farmer_mobile/lib/src/features/livestock/create_livestock_screen.dart`
+- `apps/farmer_mobile/test/create_livestock_flow_test.dart`
+- `backend/tests/integration/test_livestock_weighment_flow.py`
+- `docs/AGENT_REPORT.md`
+
+## Known gaps / manual required
+
+- A true human Chrome retest remains **MANUAL REQUIRED**. The currently running Chrome process predates this implementation commit and must be relaunched.
+- There is no repository browser-driver E2E harness; widget navigation plus real PostgreSQL/API integration cover the boundary automatically.
+- Android/device validation was not run; web QA is not Android-pilot proof.
+
+## Fresh-Chrome manual retest
+
+1. Run `test farmer app` for a guarded clean QA reset and fresh compiled Chrome session.
+2. Log in as an existing canonical Farmer and open Add Goat / Create Lot.
+3. Keep Individual Goat selected, enter a synthetic breed and sex, then click Add Individual Goat once.
+4. Confirm a friendly localized success message contains a server Goat ID and the app navigates Home.
+5. Re-open Add Goat and test a rapid double click; confirm only one request/created goat and immediate Home after completion.
+6. Confirm the created Goat ID can be retrieved for the same Farmer and is not accessible to another Farmer.
+7. Simulate/offline-check failure where practical; confirm the form remains recoverable and shows no Dio/HTTP/raw JSON/stack text.
+8. Switch to Multiple Goats / Lot, enter a valid quantity, submit, and confirm the existing Lot result remains functional.
+
+No prohibited/destructive action, pilot/production mutation, sensitive-data handling, deployment, merge, force-push, or history rewrite occurred. The isolated QA database was safely reset through its guarded tool. Working tree was clean after the implementation commit; report commit follows. Do not close #18 until independent manual retest passes.
+
+---
+
+# Prior report — Farmer Final-Submit QA Evidence
 
 - **Task ID:** `QA-FARMER-FINAL-SUBMIT-001` (GitHub #16)
 - **Timestamp:** 2026-08-28T12:50:04+05:30
