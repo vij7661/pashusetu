@@ -284,3 +284,49 @@ Rules for Codex:
 - Any feature relying on camera, Bluetooth/BLE, GPS/location, Android permissions, file/device APIs or other native behavior requires Android validation; browser substitutes do not count as final proof.
 - Keep `test farmer app` mapped to Chrome for fast human QA unless the human explicitly requests Android testing.
 - When the human asks for `test farmer android`, `launch farmer android`, or equivalent, prefer a connected Android device; if none is available, use a configured Android emulator when practical. Do not silently fall back to Chrome and call it Android validation.
+
+## 16. Standard human workflow commands
+
+The project uses a small vocabulary of human-facing workflow commands. Treat equivalent capitalization or natural-language variants as the same intent. These commands do not override the safety, approval, source-of-truth, or QA rules above.
+
+### `Codex next task`
+This is the human shorthand for starting the currently published work order. Treat it as equivalent to:
+
+`Read AGENTS.md and execute docs/NEXT_TASK.md. Follow automatic task handoff after PASS.`
+
+Perform the synchronization and task-start procedure in Section 4, execute the READY task, run all required automated gates, publish `AGENT_REPORT.md`, and perform the defined automatic handoff check after PASS.
+
+### `Check Codex`
+Codex itself does not perform the independent ChatGPT review. Ensure `docs/AGENT_REPORT.md`, commit SHA, exact test results, known gaps, and manual-required items are published so the external reviewer can determine PASS/BLOCKED/manual-QA readiness. Do not claim independent acceptance yourself.
+
+### `Test Farmer`
+Equivalent to the Farmer QA launch procedure in Section 14. Start the isolated QA backend and Farmer Flutter Web/Chrome surface for human QA. This is not Android pilot proof.
+
+### `Test Buyer`
+When a repository-supported Buyer QA launcher exists, use it to start the isolated QA backend and Buyer QA surface. Until such a launcher exists, do not invent one or silently substitute Farmer commands; report the missing launcher as the minimum implementation/setup needed.
+
+### `Test Operator`
+When a repository-supported Operator QA launcher exists, use it to start the isolated QA backend and Operator QA surface. Until such a launcher exists, do not invent one; report the missing launcher clearly.
+
+### `Found bug`
+Treat supplied reproduction details/screenshots as a QA defect. Preserve sanitized evidence, classify impact/severity, stop downstream golden-path QA when the defect is a blocker, and follow the current GitHub work order. Do not expose sensitive data in logs/reports. GitHub issue creation/prioritization may be coordinated externally by ChatGPT.
+
+### `QA passed`
+Treat this as human QA acceptance only for the explicitly tested work item/scope. Record/report the manual pass where the current task/workflow requires it. Do not infer that unrelated apps, Android, pilot readiness, or the entire release passed.
+
+### `QA failed`
+Treat this as human rejection of the tested work item. Record the failing behavior/evidence, keep affected downstream QA blocked when appropriate, and do not auto-handoff to unrelated later work.
+
+### `Project status`
+Ensure repository evidence is current and suitable for an external status review: latest task/report, branch/commit, test state, known blockers and manual-required gates. Do not fabricate product status from stale evidence.
+
+### `What next?`
+Use repository dependency order and pilot-week priority to identify the highest-priority unblocked engineering action. Blockers and failed QA take precedence over new feature work. Material product prioritization decisions remain with the human/ChatGPT coordinator.
+
+### `Release check`
+Run/report the applicable release/pilot evidence gates without deploying or merging: automated suites, migrations, security/data-safety checks, known blockers, manual QA status, and Android/native validation requirements. Production/pilot deployment and merge remain explicit-approval actions.
+
+### `Full QA check`
+Before a feature is handed to the human for manual QA, verify and report evidence for the applicable checklist: required/empty/null inputs; type/format and min/max/boundary validation; whitespace/paste/special-character handling; positive and negative/business paths; localized friendly errors; no raw Dio/HTTP/JSON/stack traces; duplicate tap/retry/idempotency; loading/disabled states; timeout/offline/4xx/5xx handling; navigation/back/refresh/state recreation; localization; auth/session/ownership/RBAC; UI/API/DB integrity; basic UX; automated regression for fixed defects; isolated QA data; Flutter analyze/tests/build; and mandatory pytest gates when backend/API behavior is involved.
+
+Automated success alone is not human acceptance. Report `CANDIDATE READY FOR QA REVIEW` with any unproven browser/device behavior explicitly marked `MANUAL REQUIRED`. Only the independent QA coordinator/human may give final manual acceptance.
