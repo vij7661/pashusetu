@@ -1,4 +1,71 @@
-# PashuSetu — Farmer Manual-Gate Evidence Package
+# PashuSetu — Farmer KYC/Payout QA Evidence
+
+- **Task ID:** `QA-FARMER-KYC-PAYOUT-001` (GitHub #14, #15)
+- **Timestamp:** 2026-08-28T12:21:32+05:30
+- **Branch:** `feat/issue-4-local-backend-farmer-integration`
+- **Status:** `PASS — CANDIDATE READY FOR QA REVIEW`
+- **Implementation commit:** `10a897dff191cdaf799b1fa3d9af2e547a91c282`
+- **Objective:** Remove duplicate post-OTP language selection and complete QA-only KYC/payout onboarding. Independent human QA owns final acceptance.
+
+## Root causes and fixes
+
+| Defect | Root cause | Fix/evidence |
+| --- | --- | --- |
+| #15 duplicate language | Registration repeated the language chooser already completed on welcome | Legacy step bypassed. `auth_flow_test.dart` proves OTP goes directly to Farmer Details, preserves English, and completes the full wizard. |
+| #14 payout dead-end | KYC/payout were placeholders and profile POST had no supporting contract | Added actual KYC, UPI/bank, validation, busy guards, masked review/consent, QA verification endpoint, adapters, and atomic profile completion. Integration proves final `201`. |
+
+## Contract and data protection
+
+- New Farmer sequence: welcome language → mobile → OTP → details/location → KYC → one payout method → masked review/consent → Home. Existing Farmer remains OTP → Home.
+- KYC is empty by default and requires exactly 12 digits, trimmed 2–120 character matching QA name, and explicit consent. The QA-only `KycVerificationService` uses the fixture IDs in `docs/QA_FIXTURES.md`, is isolated/fail-closed, and returns `QA_KYC_NOT_FOUND` for unseeded/mismatched input.
+- Payout supports either validated synthetic UPI or Bank holder/matching 6–18 digit accounts/IFSC. Account fields are obscured.
+- Core persistence contains only KYC status, masked last four, provider reference, payout status/method, and masked reference. Database inspection found no raw identifier or bank-account column. API tests assert full inputs are absent from responses. Identity source contains no logging/print call.
+- Fixture mapping: `KYC_FARMER_EN_001` → English/UPI, `KYC_FARMER_TE_001` → Telugu/Bank, `KYC_FARMER_SUB3_001` → sub-3/UPI. Exact official test inputs remain only in the approved QA fixture source/documentation. Expected output is masked (for example `XXXXXXXX8847` and `XXXXXXXX9012`).
+
+## Exact validation
+
+| Gate | Result |
+| --- | --- |
+| `flutter pub get` | PASS, exit 0; 12 newer incompatible-version notices only |
+| `flutter analyze` | PASS, no issues; final focused rerun 106.6s |
+| Full `flutter test` | PASS, **27 passed**, exit 0 |
+| Focused final Flutter | PASS, **7 passed** |
+| Focused backend registration/KYC | PASS, **2 passed**, 1 Starlette warning |
+| Full backend `pytest -q` | PASS, **69 passed**, 1 Starlette warning, 10.37s |
+| Focused Ruff | PASS; existing FastAPI B008/seed UP017 excluded consistently |
+| Alembic | PASS; migration `0010_farmer_kyc_payout` applied |
+| QA reset/seed twice | PASS both; each: 6 users, 2 farmers, 1 buyer, 6 goats, 2 lots, 1 listing |
+| API health | PASS; HTTP 200, environment `qa` |
+| Web build | PASS; `Built build\\web`; Wasm suggestion and existing Cupertino font warning only |
+| Diff/redaction | PASS; diff check clean, no identity logging, response/database masked |
+
+## Changed areas
+
+Farmer registration/localization/error mapping, identity repository, validators and tests; backend identity schemas/router/service/model, QA KYC/payout adapters and migration; QA fixtures/seed, integration/schema tests, and QA documentation.
+
+## Known gaps / manual required
+
+- The already-open Chrome session predates this implementation. Relaunch is required for new UI visuals, back/refresh, keyboard/pointer, and Telugu layout.
+- Wizard draft data is memory-only and not promised to survive full refresh.
+- Android/device validation was not run; web evidence is not Android-pilot proof.
+- Production UIDAI/legal/provider integration, biometrics, real payouts, and real sensitive data remain excluded.
+
+## Manual retest
+
+1. Relaunch using `test farmer app`; choose Telugu once and start New Farmer Registration with the canonical Telugu mobile/OTP from `docs/QA_FIXTURES.md`.
+2. Confirm OTP goes directly to Farmer Details with Telugu preserved and no second language screen.
+3. At KYC, exercise blank/11/13 digits, missing/short name, and missing consent; confirm friendly errors.
+4. Exercise the documented unseeded QA input; confirm safe rejection and no profile/navigation. Then use `KYC_FARMER_TE_001` exactly as documented and continue.
+5. Verify invalid/blank UPI, then Bank blank/mismatch/invalid IFSC. Enter `PAY_FARMER_TE_BANK` from the work order/fixture document.
+6. Confirm review contains only masked KYC/account values; consent and submit. Repeated clicks while busy must not duplicate creation.
+7. Confirm Home opens. Login with existing `FARMER_EN_001`; confirm it skips KYC/payout and goes Home.
+8. Confirm no Dio/backend codes/raw JSON appear; repeat critical visuals in English.
+
+No prohibited/destructive action, pilot/production mutation, real sensitive input, payment call, deployment, merge, force-push, or history rewrite occurred. Working tree was clean after implementation commit; report commit follows. Recommended next action: independent manual QA.
+
+---
+
+# Prior report — Farmer Manual-Gate Evidence Package
 
 - **Task ID:** `QA-FARMER-MANUAL-GATE-001`
 - **Objective:** Remove technical exception leakage, harden implemented Farmer form boundaries, and publish evidence for independent manual-QA review.
