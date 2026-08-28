@@ -1,91 +1,52 @@
 # PashuSetu — Current Agent Task
 
-**Task ID:** `QA-FARMER-FINAL-SUBMIT-001`
+**Task ID:** `QA-FARMER-ADD-GOAT-001`
 
 **Status:** `READY`
 
-**Priority:** QA BLOCKER — highest priority. Stop unrelated work until this is resolved.
+**Priority:** QA BLOCKER — highest priority. Stop unrelated work until resolved.
 
-**Related defect:** GitHub #16 — `BLOCKER: Farmer registration fails on final Review/Submit after KYC and payout`.
+**Related defect:** GitHub #18 — `BLOCKER: Farmer Add Goat flow cannot continue after Individual Goat creation`.
 
 ## Objective
 
-Fix the real browser/UI failure where a valid new-Farmer registration reaches Review Registration with completed QA KYC + payout + consent, but **Submit Registration** returns a generic 4xx-style message and does not navigate to Home.
-
-Do not rely on the previous backend-only `201` integration result as sufficient proof. Reproduce and validate the same path the human tester uses through the Flutter Web client against the isolated `pashusetu_qa` backend.
+Reproduce and fix the current manual-QA blocker on Farmer Flutter Web `/#/livestock/new`: valid Individual Goat data can be entered, but the tester is unable to continue after the Add Individual Goat step.
 
 ## Required investigation
 
-1. Start from a clean, identity-guarded QA reset/seed.
-2. Reproduce the full new-Farmer browser path with the canonical QA fixture.
-3. Capture, in a sanitized developer report only:
-   - final HTTP method + path;
-   - sanitized request JSON shape/field names and non-sensitive values only;
-   - HTTP status;
-   - backend domain/error code;
-   - relevant authoritative registration/profile state before and after submit.
-4. Never print/log raw Aadhaar, full bank account, real/synthetic secret-like sensitive values beyond what is required in approved QA fixture docs. Use masked references.
-5. Compare the actual Flutter repository/API serialization with the payload used by the previously successful backend integration test. Identify the exact mismatch rather than guessing.
-6. Check whether reset/fixture lifecycle, a prior automated test, or a previous manual attempt already created the role-only Farmer profile and is causing conflict/duplicate behavior.
-7. Inspect whether KYC status/provider reference, payout status/method/masked reference, language, profile fields, consent, and auth/user identity are all present in the shape expected by the final profile-completion contract.
-8. Fix the root cause without weakening duplicate-profile protection, idempotency, auth/RBAC, QA isolation, or sensitive-data controls.
+1. Start from the current approved branch and isolated QA environment. Preserve QA data safety.
+2. Reproduce the exact Flutter Web path from an authenticated Farmer to Add Goat / Create Lot.
+3. Inspect the Individual Goat submit button handler, repository/API call, loading/error state, response mapping and post-success navigation.
+4. Capture sanitized evidence only: HTTP method/path, response status/domain code, whether a goat row was created, authenticated Farmer ownership, and returned persisted Goat ID. Do not expose sensitive identity/KYC/payout values.
+5. Determine whether the UI is stuck before API submission, after successful API creation, or because an error is swallowed/poorly surfaced.
+6. Check whether the Goat ID displayed before submission is only a generated display/client value and whether it conflicts with authoritative backend identity/state.
+7. Fix the root cause with the smallest change. Do not weaken authentication, Farmer ownership, idempotency, auditability, or validation.
 
 ## Required behavior after fix
 
-- Canonical QA new Farmer can complete: initial language -> mobile -> OTP -> Farmer Details/Location -> KYC -> Payout -> Review/Consent -> Submit -> Home.
-- Final submit creates/completes exactly one Farmer profile for the authenticated role-only QA user.
-- Repeated/double-click submit cannot create duplicate profiles or duplicate side effects.
-- Successful final response contains only approved masked KYC/payout metadata; no raw Aadhaar/account data is persisted or returned.
-- Existing Farmer login remains OTP -> Home and skips registration-only screens.
-- User-facing failures remain friendly/localized; no raw Dio/backend codes/JSON/stack traces.
+- Valid Individual Goat submission creates exactly one goat owned by the authenticated Farmer.
+- The UI provides a friendly success state and navigates to the correct existing approved next Farmer state/route.
+- The created goat can be retrieved from the backend and appears in Farmer livestock state.
+- Rapid/double submit cannot create duplicate side effects.
+- API/network/business failures remain on a recoverable screen with friendly localized messaging; no Dio exception, raw JSON, HTTP internals or stack trace is rendered.
+- Existing Lot creation behavior must not regress.
 
-## Tests required
+## Mandatory automation / regression
 
-Add/adjust regression coverage that uses the same serialization path as the real Flutter wizard. At minimum:
+Per `AGENTS.md`, pytest is a mandatory backend/API regression gate for applicable changes.
 
-- Flutter repository/controller test asserting exact final submit request shape (sanitized expected fields) and successful navigation/state;
-- backend API/integration test for the exact UI payload;
-- duplicate/repeat submit test proving exactly-one profile/business completion;
-- existing-profile conflict test still rejects safely;
-- KYC/payout masked-state assertions;
-- full new-Farmer QA path after clean reset;
-- existing Farmer shortcut remains green.
+Run targeted tests first, add regression coverage for the defect, then run the full backend pytest suite before PASS. Also run Farmer Flutter repository/widget/navigation tests covering successful Individual Goat submission, failure handling, busy/double-click behavior and navigation. Run full Farmer `flutter test`, `flutter analyze`, and web build.
 
-Where practical, add a non-interactive browser/E2E smoke that exercises the actual final submit boundary. If a true browser E2E cannot be made reliable in the current stack, state `MANUAL REQUIRED` and provide the exact reason; do not claim it passed.
-
-## Validation gate
-
-Run and report exact results for:
-- guarded QA reset/seed (at least twice for deterministic state);
-- migration status;
-- API health;
-- Farmer `flutter pub get`;
-- Farmer `flutter analyze`;
-- full Farmer `flutter test`;
-- focused final-submit/repository tests;
-- relevant backend registration/KYC/payout tests;
-- full backend suite if backend changes;
-- non-interactive web build;
-- `git diff --check`;
-- focused sensitive-data/logging scan.
+If backend/API behavior is involved, prove the persisted goat count/ownership and retrieval using pytest integration coverage. Do not report PASS with a failing test or by weakening/removing an assertion.
 
 ## Evidence handoff
 
-Update `docs/AGENT_REPORT.md` with Task ID `QA-FARMER-FINAL-SUBMIT-001` and either `CANDIDATE READY FOR QA REVIEW` or `BLOCKED`.
+Update `docs/AGENT_REPORT.md` with Task ID `QA-FARMER-ADD-GOAT-001` and status `PASS — CANDIDATE READY FOR QA REVIEW`, `BLOCKED`, or `FAILED`.
 
-The report must include:
-- exact root cause of issue #16;
-- actual sanitized browser/UI request vs expected/successful test request comparison;
-- files/commit changed;
-- exact automated test counts;
-- proof of one-and-only-one profile completion;
-- known gaps/manual-required items;
-- a concise manual retest script beginning from a clean QA reset and ending at Home.
+Report exact root cause, files changed, sanitized request/result evidence, exact Flutter and pytest counts, persisted exactly-one-goat evidence, known gaps, and a concise fresh-Chrome manual retest script.
 
-Do not close GitHub #16 automatically. Human/independent QA closes it only after manual retest passes.
+A true browser human retest remains **MANUAL REQUIRED**. Do not close #18 automatically.
 
 ## Scope/safety
 
-No real UIDAI integration, real Aadhaar, real bank/UPI, payments, Bluetooth, pilot/production DB mutation, deployment, merge to main, force-push, destructive Docker cleanup, or unrelated marketplace work.
-
-Follow `AGENTS.md` sync/working-tree safety, commit/push the focused fix, publish the evidence report, then stop for independent QA review.
+No Buyer/Admin implementation, payment/KYC provider changes, Bluetooth work, pilot/production mutation, deployment, merge to main, force-push, destructive Docker cleanup, or unrelated refactor.
