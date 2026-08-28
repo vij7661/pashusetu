@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+
 import '../../core/api/api_client.dart';
 
 class IdentityRepository {
@@ -5,6 +7,22 @@ class IdentityRepository {
   final ApiClient _api;
 
   Future<Map<String, dynamic>> farmerMe() => _api.get('/identity/farmers/me');
+
+  Future<bool> hasFarmerProfile() async {
+    try {
+      await farmerMe();
+      return true;
+    } on ApiException catch (error) {
+      if (error.code == 'FARMER_PROFILE_NOT_FOUND') return false;
+      rethrow;
+    } on DioException catch (error) {
+      final cause = error.error;
+      if (cause is ApiException && cause.code == 'FARMER_PROFILE_NOT_FOUND') {
+        return false;
+      }
+      rethrow;
+    }
+  }
 
   Future<Map<String, dynamic>> createFarmer({
     required String fullName,

@@ -84,6 +84,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             .verifyOtp(mobile.text.trim(), otp.text.trim());
         final authState = ref.read(authControllerProvider);
         if (authState.hasError) throw authState.error!;
+        if (await ref.read(identityRepositoryProvider).hasFarmerProfile()) {
+          if (mounted) context.go('/home');
+          return;
+        }
       } else if (step == 2 && name.text.trim().length < 2) {
         setState(() => error = AppStrings.tr(language, 'invalid_full_name'));
         return;

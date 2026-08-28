@@ -33,10 +33,16 @@ class FakeAuthRepository extends AuthRepository {
 }
 
 class FakeIdentityRepository extends IdentityRepository {
-  FakeIdentityRepository() : super(ApiClient(TokenStore()));
+  FakeIdentityRepository({this.existingProfile = false})
+      : super(ApiClient(TokenStore()));
+
+  final bool existingProfile;
 
   int verifyKycCalls = 0;
   int createFarmerCalls = 0;
+
+  @override
+  Future<bool> hasFarmerProfile() async => existingProfile;
 
   @override
   Future<Map<String, dynamic>> verifyKyc({
@@ -84,6 +90,40 @@ Future<void> _openEnglishLogin(
 }
 
 void main() {
+  testWidgets('existing Farmer entering registration routes Home after OTP', (
+    tester,
+  ) async {
+    final auth = FakeAuthRepository();
+    final identity = FakeIdentityRepository(existingProfile: true);
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(auth),
+          identityRepositoryProvider.overrideWithValue(identity),
+        ],
+        child: const PashuSetuFarmerApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('English').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('New Farmer Registration'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '6123456789');
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '4816');
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Farmer Dashboard'), findsOneWidget);
+    expect(find.text('Farmer Details'), findsNothing);
+    expect(identity.createFarmerCalls, 0);
+  });
+
   testWidgets('new Farmer OTP skips duplicate language and preserves English', (
     tester,
   ) async {
