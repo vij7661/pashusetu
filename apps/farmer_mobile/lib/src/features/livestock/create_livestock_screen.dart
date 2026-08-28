@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/localization/app_strings.dart';
 import '../../core/localization/language_provider.dart';
@@ -69,6 +70,7 @@ class _CreateLivestockScreenState extends ConsumerState<CreateLivestockScreen> {
             onPressed: busy
                 ? null
                 : () async {
+                    if (busy) return;
                     setState(() => busy = true);
                     try {
                       if (lot) {
@@ -90,7 +92,13 @@ class _CreateLivestockScreenState extends ConsumerState<CreateLivestockScreen> {
                               breed: breed.text.trim(),
                               sex: sex,
                             );
-                        setState(() => result = 'Goat ${x.id}');
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('${t('goat_added_success')} ${x.id}'),
+                          ),
+                        );
+                        context.go('/home');
                       }
                     } catch (e) {
                       setState(() => result = authErrorMessage(e, language));

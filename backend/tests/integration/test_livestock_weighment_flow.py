@@ -1,12 +1,14 @@
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.security import create_access_token
 from app.db.session import get_db
 from app.identity.models import User, UserRole
 from app.identity.profile_models import FarmerProfile
+from app.livestock.models import Goat
 from app.main import app
 from app.weighment.models import (
     MandalCentre,
@@ -76,9 +78,21 @@ def test_livestock_and_weighment_trust_flow(postgres_available):
         )
         assert goat.status_code == 201
         goat_code = goat.json()["goat_id"]
+        retrieved = client.get(f"/api/v1/livestock/goats/{goat_code}", headers=farmer_headers)
+        assert retrieved.status_code == 200
+        assert retrieved.json()["goat_id"] == goat_code
         assert (
-            client.get(f"/api/v1/livestock/goats/{goat_code}", headers=farmer_headers).status_code
-            == 200
+            db.scalar(
+                select(func.count(Goat.id)).where(
+                    Goat.goat_code == goat_code,
+                    Goat.farmer_profile_id == farmer.id,
+                )
+            )
+            == 1
+        )
+        assert (
+            client.get(f"/api/v1/livestock/goats/{goat_code}", headers=other_headers).status_code
+            == 404
         )
         lot = client.post(
             "/api/v1/livestock/lots",
