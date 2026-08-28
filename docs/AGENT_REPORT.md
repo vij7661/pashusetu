@@ -1,4 +1,83 @@
-# PashuSetu — Farmer KYC/Payout QA Evidence
+# PashuSetu — Farmer Final-Submit QA Evidence
+
+- **Task ID:** `QA-FARMER-FINAL-SUBMIT-001` (GitHub #16)
+- **Timestamp:** 2026-08-28T12:50:04+05:30
+- **Branch:** `feat/issue-4-local-backend-farmer-integration`
+- **Status:** `PASS — CANDIDATE READY FOR QA REVIEW`
+- **Implementation commit:** `d82120beba4810c6a8e8a6db8f88479587e125af`
+- **Objective:** Diagnose and fix the real Flutter Web final-submit failure without weakening profile uniqueness or sensitive-data controls.
+
+## Root cause and sanitized reproduction
+
+The actual browser request was `POST /api/v1/identity/farmers`. Its JSON shape matched the successful integration contract: profile/location/language fields plus nested KYC (`aadhaar_number`, matching name, consent) and payout (method plus selected-method fields). The KYC endpoint had already returned 200. Final submit returned **HTTP 409**, domain code **`FARMER_PROFILE_EXISTS`**—not a serialization/schema 4xx.
+
+The decisive mismatch was authenticated identity/state: browser logs showed `FARMER_EN_001` was used through New Farmer Registration. That canonical fixture already had exactly one authoritative Farmer profile before submit, so duplicate protection correctly rejected creation; state remained exactly one profile afterward. A clean database query showed role-only `FARMER_TE_001` had `NO_PROFILE`. The prior 201 integration used that role-only fixture. No raw KYC or account values were captured in this report.
+
+## Fix
+
+- After OTP in New Farmer Registration, Flutter now queries `/identity/farmers/me` through `hasFarmerProfile()`.
+- Existing profile: route directly to Home and make zero profile-creation calls.
+- `FARMER_PROFILE_NOT_FOUND`: continue the new-Farmer details/KYC/payout wizard.
+- Any other API/network error is rethrown to the localized safe error boundary.
+- Backend uniqueness remains unchanged. Exact UI payload integration now proves first submit creates one profile, repeat submit returns 409, and the database contains exactly one profile.
+
+## Request comparison
+
+| Boundary | Method/path | Sanitized shape | Identity/state | Result |
+| --- | --- | --- | --- | --- |
+| Failed browser run | `POST /api/v1/identity/farmers` | profile/location/language + nested KYC consent + selected payout fields | `FARMER_EN_001`, profile already exists | 409 `FARMER_PROFILE_EXISTS`; unchanged one profile |
+| Successful exact-UI integration | same | same keys, captured by `identity_repository_test.dart` and reused by backend integration | `FARMER_TE_001`, role-only/no profile | 201; one masked `QA_VERIFIED`/`QA_CONFIGURED` profile |
+| Repeat submit | same | same | new profile now exists | 409; still exactly one profile |
+
+The successful response asserts masked KYC and payout references only; full inputs are absent. Source scan found no identity logger/print calls. The clean post-suite QA state is `FARMER_EN_001=1 profile`, `FARMER_TE_001=NO_PROFILE`.
+
+## Exact validation
+
+| Gate | Result |
+| --- | --- |
+| Guarded QA reset/seed | PASS twice; each 6 users / 2 farmers / 1 buyer / 6 goats / 2 lots / 1 listing |
+| Migration | PASS; `0010_farmer_kyc_payout (head)` |
+| API health | PASS; HTTP 200, environment `qa` |
+| `flutter pub get` | PASS, exit 0; 13 incompatible-newer-version notices only |
+| `flutter analyze` | PASS; no issues, 7.4s |
+| Full `flutter test` | PASS; **29 passed**, exit 0 |
+| Focused repository/navigation | PASS; **5 passed** |
+| Focused backend registration | PASS; **3 passed**, 1 Starlette warning, 5.74s |
+| Full backend `pytest -q` | PASS; **70 passed**, 1 Starlette warning, 11.19s |
+| Focused Ruff | PASS; file formatted and checks passed |
+| Web build | PASS; `Built build\\web`, 104.7s; existing Cupertino font warning only |
+| Diff/sensitive scan | PASS; `git diff --check`; no identity logging/prints; no raw identifier/account persistence or response |
+
+## Files changed
+
+- `apps/farmer_mobile/lib/src/features/identity/identity_repository.dart`
+- `apps/farmer_mobile/lib/src/features/identity/register_screen.dart`
+- `apps/farmer_mobile/test/auth_flow_test.dart`
+- `apps/farmer_mobile/test/identity_repository_test.dart`
+- `backend/tests/integration/test_qa_farmer_registration.py`
+- `docs/AGENT_REPORT.md`
+
+## Known gaps / manual required
+
+- A true non-interactive browser E2E was not added: the current repository has no browser-driver harness, and introducing one would exceed this focused blocker fix. The repository serialization widget test plus real API integration cover the boundary; fresh Chrome human retest remains **MANUAL REQUIRED**.
+- The currently open Chrome process predates this commit and must be relaunched.
+- Android/device validation was not run; web QA is not Android-pilot proof.
+
+## Manual retest from clean QA state
+
+1. Run `test farmer app` to reset the isolated QA database and open a fresh compiled Chrome session.
+2. Choose Telugu and New Farmer Registration. Use the canonical role-only `FARMER_TE_001` mobile and QA OTP from `docs/QA_FIXTURES.md`.
+3. Complete details, `KYC_FARMER_TE_001`, synthetic Bank payout, masked review, and consent.
+4. Submit once; expect Home. Confirm review/response never exposes complete KYC/account values.
+5. Attempt rapid repeated clicking while busy; expect no duplicate side effect.
+6. After another clean reset, choose New Farmer Registration but authenticate as existing `FARMER_EN_001`; expect immediate Home after OTP, not the registration wizard or a 409 message.
+7. Confirm Existing Farmer Login still goes OTP → Home and no raw Dio/domain/JSON text appears.
+
+No prohibited/destructive action, pilot/production mutation, real sensitive data, payment call, deployment, merge, force-push, or history rewrite occurred. Working tree was clean after implementation commit; report commit follows. Do not close #16 until independent manual retest passes.
+
+---
+
+# Prior report — Farmer KYC/Payout QA Evidence
 
 - **Task ID:** `QA-FARMER-KYC-PAYOUT-001` (GitHub #14, #15)
 - **Timestamp:** 2026-08-28T12:21:32+05:30
