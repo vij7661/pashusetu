@@ -23,4 +23,16 @@ The command fails closed unless the runtime reports `APP_ENV=qa`, enables both Q
 
 Fresh Farmer UI fields remain empty; testers enter a fixture number deliberately. The QA-only deterministic OTP is `4816`. Seeded fixture numbers can request it, while valid unseeded numbers return `QA_TEST_USER_NOT_FOUND` without creating an OTP challenge. Test OTP mode is rejected in pilot/production configuration.
 
+## QA-only KYC and payout fixtures
+
+Only these UIDAI-published developer test identifiers are accepted by the isolated QA adapter. They are never copied into core Farmer rows; successful setup retains only a masked last-four value, QA reference, and status.
+
+| Fixture ID | Test UID | Matching name |
+| --- | --- | --- |
+| `KYC_FARMER_EN_001` | `999941057058` | `Shivshankar Choudhury` |
+| `KYC_FARMER_TE_001` | `999971658847` | `Kumar Agarwal` |
+| `KYC_FARMER_SUB3_001` | `999933119405` | `Fatima Bedi` |
+
+Synthetic payout examples are `farmer.en@pashusetuqa`, bank holder `Kumar Agarwal` with account `123456789012` / IFSC `HDFC0001234`, and `sub3.farmer@pashusetuqa`. No real payout provider or money movement occurs; later output is masked.
+
 Stable business fixture codes include `QA-GOAT-EN-001` through `003`, `QA-GOAT-TE-001`, `QA-GOAT-SUB3-001` and `002`, `QA-LOT-EN-003`, `QA-LOT-SUB3-002`, `QA-WEIGHMENT-001`, and `QA-LISTING-LIVE-001`.

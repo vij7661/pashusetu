@@ -102,7 +102,11 @@ def seed_qa_database(db) -> None:
             district="QA District",
             state="Telangana",
             kyc_status="VERIFIED" if verified else "PENDING",
+            kyc_masked_id="XXXXXXXX7058" if fixture_id == "FARMER_EN_001" else "XXXXXXXX9405",
+            kyc_provider_reference=f"QA-KYC-KYC_{fixture_id}",
             payout_status="VERIFIED" if verified else "PENDING",
+            payout_method="UPI",
+            payout_masked_reference="f***@pashusetuqa",
         )
         db.add(profile)
         farmers[fixture_id] = profile

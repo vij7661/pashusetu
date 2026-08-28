@@ -41,9 +41,30 @@ class AppStrings {
       'mandal': 'Mandal',
       'district': 'District',
       'aadhaar_number': '12-digit Aadhaar number',
+      'name_as_aadhaar': 'Name as per Aadhaar',
+      'kyc_consent':
+          'I consent to submit this test identifier for identity verification.',
+      'invalid_aadhaar': 'Enter exactly 12 Aadhaar digits.',
+      'invalid_kyc_name': 'Enter the name shown on the QA Aadhaar fixture.',
+      'kyc_consent_required': 'Consent is required for identity verification.',
+      'kyc_qa_not_found': 'These QA KYC details could not be verified.',
+      'kyc_verified': 'QA identity verified',
       'aadhaar_note':
           'Aadhaar verification will be handled by the selected compliant KYC provider. Raw Aadhaar is not stored in the core backend.',
       'upi_bank': 'UPI ID or Bank Account',
+      'upi': 'UPI',
+      'bank_account': 'Bank Account',
+      'upi_id': 'UPI ID',
+      'account_holder': 'Account-holder name',
+      'account_number': 'Account number',
+      'confirm_account_number': 'Confirm account number',
+      'ifsc': 'IFSC',
+      'invalid_upi': 'Enter a valid UPI ID.',
+      'invalid_bank': 'Enter valid bank details and matching account numbers.',
+      'registration_consent':
+          'I confirm these are synthetic QA details and consent to registration.',
+      'registration_consent_required':
+          'Confirm the registration consent to continue.',
       'payout_note':
           'Payout details are collected only during new registration.',
       'review_note': 'Review your information before submitting registration.',
@@ -151,9 +172,31 @@ class AppStrings {
       'mandal': 'మండలం',
       'district': 'జిల్లా',
       'aadhaar_number': '12 అంకెల ఆధార్ నంబర్',
+      'name_as_aadhaar': 'ఆధార్‌లో ఉన్న పేరు',
+      'kyc_consent':
+          'గుర్తింపు ధృవీకరణ కోసం ఈ పరీక్ష గుర్తింపును సమర్పించడానికి నేను అంగీకరిస్తున్నాను.',
+      'invalid_aadhaar': 'ఖచ్చితంగా 12 ఆధార్ అంకెలను నమోదు చేయండి.',
+      'invalid_kyc_name': 'QA ఆధార్ నమూనాలో ఉన్న పేరును నమోదు చేయండి.',
+      'kyc_consent_required': 'గుర్తింపు ధృవీకరణకు సమ్మతి అవసరం.',
+      'kyc_qa_not_found': 'ఈ QA KYC వివరాలను ధృవీకరించలేకపోయాము.',
+      'kyc_verified': 'QA గుర్తింపు ధృవీకరించబడింది',
       'aadhaar_note':
           'ఆధార్ ధృవీకరణను ఎంపిక చేసిన అనుగుణ KYC సేవ ద్వారా నిర్వహిస్తాము. అసలు ఆధార్ నంబర్‌ను ప్రధాన బ్యాక్‌ఎండ్‌లో నిల్వ చేయము.',
       'upi_bank': 'UPI ఐడి లేదా బ్యాంక్ ఖాతా',
+      'upi': 'UPI',
+      'bank_account': 'బ్యాంక్ ఖాతా',
+      'upi_id': 'UPI ఐడి',
+      'account_holder': 'ఖాతాదారుని పేరు',
+      'account_number': 'ఖాతా సంఖ్య',
+      'confirm_account_number': 'ఖాతా సంఖ్యను నిర్ధారించండి',
+      'ifsc': 'IFSC',
+      'invalid_upi': 'చెల్లుబాటు అయ్యే UPI ఐడిని నమోదు చేయండి.',
+      'invalid_bank':
+          'సరైన బ్యాంక్ వివరాలు మరియు సరిపోలే ఖాతా సంఖ్యలను నమోదు చేయండి.',
+      'registration_consent':
+          'ఇవి కృత్రిమ QA వివరాలని నిర్ధారించి నమోదుకు అంగీకరిస్తున్నాను.',
+      'registration_consent_required':
+          'కొనసాగడానికి నమోదు సమ్మతిని నిర్ధారించండి.',
       'payout_note': 'చెల్లింపు వివరాలు కొత్త నమోదు సమయంలో మాత్రమే అడుగుతాము.',
       'review_note': 'నమోదు సమర్పించే ముందు మీ వివరాలను సమీక్షించండి.',
       'continue': 'కొనసాగించండి',

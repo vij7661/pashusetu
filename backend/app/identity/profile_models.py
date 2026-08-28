@@ -22,7 +22,11 @@ class FarmerProfile(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     latitude: Mapped[str | None] = mapped_column(String(32))
     longitude: Mapped[str | None] = mapped_column(String(32))
     kyc_status: Mapped[str] = mapped_column(String(20), default="PENDING", nullable=False)
+    kyc_masked_id: Mapped[str | None] = mapped_column(String(20))
+    kyc_provider_reference: Mapped[str | None] = mapped_column(String(80))
     payout_status: Mapped[str] = mapped_column(String(20), default="PENDING", nullable=False)
+    payout_method: Mapped[str | None] = mapped_column(String(20))
+    payout_masked_reference: Mapped[str | None] = mapped_column(String(120))
 
 
 class BuyerProfile(Base, UUIDPrimaryKeyMixin, TimestampMixin):

@@ -1,9 +1,14 @@
-from app.identity.schemas import FarmerProfileCreate, BuyerProfileCreate
+from app.identity.schemas import BuyerProfileCreate, FarmerProfileCreate
 from app.livestock.schemas import GoatCreate, LotCreate
 
 
 def test_supported_farmer_language():
-    payload = FarmerProfileCreate(full_name="Ramesh", preferred_language="te")
+    payload = FarmerProfileCreate(
+        full_name="Ramesh",
+        preferred_language="te",
+        kyc={"aadhaar_number": "999971658847", "name_as_per_aadhaar": "Kumar Agarwal", "consent": True},
+        payout={"method": "UPI", "upi_id": "farmer.qa@pashusetuqa"},
+    )
     assert payload.preferred_language == "te"
 
 

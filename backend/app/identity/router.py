@@ -5,17 +5,35 @@ from sqlalchemy.orm import Session
 from app.auth.dependencies import current_user
 from app.core.errors import AppError
 from app.db.session import get_db
+from app.identity.kyc_provider import KycVerificationService
 from app.identity.models import User
-from app.identity.profile_models import FarmerProfile, BuyerProfile
+from app.identity.profile_models import BuyerProfile, FarmerProfile
 from app.identity.schemas import (
-    FarmerProfileCreate,
-    FarmerProfileResponse,
     BuyerProfileCreate,
     BuyerProfileResponse,
+    FarmerKycSubmission,
+    FarmerProfileCreate,
+    FarmerProfileResponse,
+    KycVerificationResponse,
 )
-from app.identity.service import create_farmer_profile, create_buyer_profile
+from app.identity.service import create_buyer_profile, create_farmer_profile
 
 router = APIRouter(prefix="/identity", tags=["identity"])
+
+
+@router.post("/farmers/kyc/verify", response_model=KycVerificationResponse)
+def verify_farmer_kyc(
+    payload: FarmerKycSubmission,
+    _: User = Depends(current_user),
+):
+    result = KycVerificationService().verify(
+        payload.aadhaar_number, payload.name_as_per_aadhaar, payload.consent
+    )
+    return KycVerificationResponse(
+        status=result.status,
+        masked_id=result.masked_id,
+        provider_reference=result.provider_reference,
+    )
 
 
 @router.post("/farmers", response_model=FarmerProfileResponse, status_code=201)
@@ -33,7 +51,11 @@ def create_farmer(
         district=p.district,
         state=p.state,
         kyc_status=p.kyc_status,
+        kyc_masked_id=p.kyc_masked_id,
+        kyc_provider_reference=p.kyc_provider_reference,
         payout_status=p.payout_status,
+        payout_method=p.payout_method,
+        payout_masked_reference=p.payout_masked_reference,
         preferred_language=user.preferred_language,
     )
 
@@ -54,7 +76,11 @@ def get_farmer_me(
         district=p.district,
         state=p.state,
         kyc_status=p.kyc_status,
+        kyc_masked_id=p.kyc_masked_id,
+        kyc_provider_reference=p.kyc_provider_reference,
         payout_status=p.payout_status,
+        payout_method=p.payout_method,
+        payout_masked_reference=p.payout_masked_reference,
         preferred_language=user.preferred_language,
     )
 

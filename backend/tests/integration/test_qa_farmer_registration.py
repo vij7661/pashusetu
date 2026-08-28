@@ -50,8 +50,43 @@ def test_canonical_role_only_farmer_can_complete_profile_registration():
             "district": "QA District",
             "state": "Telangana",
             "preferred_language": "te",
+            "kyc": {
+                "aadhaar_number": "999971658847",
+                "name_as_per_aadhaar": "Kumar Agarwal",
+                "consent": True,
+            },
+            "payout": {"method": "BANK", "account_holder_name": "Kumar Agarwal", "account_number": "123456789012", "confirm_account_number": "123456789012", "ifsc": "HDFC0001234"},
         },
     )
     assert response.status_code == 201
     assert response.json()["preferred_language"] == "te"
-    assert response.json()["kyc_status"] == "PENDING"
+    body = response.json()
+    assert body["kyc_status"] == "QA_VERIFIED"
+    assert body["kyc_masked_id"] == "XXXXXXXX8847"
+    assert body["payout_status"] == "QA_CONFIGURED"
+    assert body["payout_masked_reference"] == "XXXXXXXX9012"
+    assert "999971658847" not in response.text
+    assert "123456789012" not in response.text
+
+
+def test_unseeded_qa_kyc_fails_closed_without_profile_side_effect():
+    client = TestClient(app)
+    auth_payload = {"mobile_e164": FIXTURE.mobile_e164, "purpose": "LOGIN"}
+    assert client.post("/api/v1/auth/otp/request", json=auth_payload).status_code == 202
+    verified = client.post("/api/v1/auth/otp/verify", json={**auth_payload, "otp": DEV_OTP})
+    token = verified.json()["access_token"]
+    response = client.post(
+        "/api/v1/identity/farmers",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "full_name": "Synthetic Telugu Farmer",
+            "preferred_language": "te",
+            "kyc": {"aadhaar_number": "999999999999", "name_as_per_aadhaar": "Unknown Tester", "consent": True},
+            "payout": {"method": "UPI", "upi_id": "farmer.qa@pashusetuqa"},
+        },
+    )
+    assert response.status_code == 422
+    assert response.json()["code"] == "QA_KYC_NOT_FOUND"
+    with SessionLocal() as db:
+        user = db.scalar(select(User).where(User.mobile_e164 == FIXTURE.mobile_e164))
+        assert db.scalar(select(FarmerProfile).where(FarmerProfile.user_id == user.id)) is None

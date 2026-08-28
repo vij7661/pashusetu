@@ -12,6 +12,8 @@ class IdentityRepository {
     String? village,
     String? mandal,
     String? district,
+    required Map<String, dynamic> kyc,
+    required Map<String, dynamic> payout,
   }) {
     return _api.post('/identity/farmers', body: {
       'full_name': fullName,
@@ -20,6 +22,19 @@ class IdentityRepository {
       'district': district,
       'state': 'Telangana',
       'preferred_language': language,
+      'kyc': kyc,
+      'payout': payout,
     });
   }
+
+  Future<Map<String, dynamic>> verifyKyc({
+    required String aadhaarNumber,
+    required String name,
+    required bool consent,
+  }) =>
+      _api.post('/identity/farmers/kyc/verify', body: {
+        'aadhaar_number': aadhaarNumber,
+        'name_as_per_aadhaar': name,
+        'consent': consent,
+      });
 }

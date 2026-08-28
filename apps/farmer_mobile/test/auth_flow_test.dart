@@ -7,6 +7,8 @@ import 'package:pashusetu_farmer/src/core/api/token_store.dart';
 import 'package:pashusetu_farmer/src/features/auth/auth_controller.dart';
 import 'package:pashusetu_farmer/src/features/auth/auth_models.dart';
 import 'package:pashusetu_farmer/src/features/auth/auth_repository.dart';
+import 'package:pashusetu_farmer/src/features/identity/identity_repository.dart';
+import 'package:pashusetu_farmer/src/features/providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class FakeAuthRepository extends AuthRepository {
@@ -27,6 +29,37 @@ class FakeAuthRepository extends AuthRepository {
       throw const ApiException('OTP_INVALID', 'Invalid OTP.', statusCode: 400);
     }
     return TokenPair(accessToken: 'qa-access', refreshToken: 'qa-refresh');
+  }
+}
+
+class FakeIdentityRepository extends IdentityRepository {
+  FakeIdentityRepository() : super(ApiClient(TokenStore()));
+
+  int verifyKycCalls = 0;
+  int createFarmerCalls = 0;
+
+  @override
+  Future<Map<String, dynamic>> verifyKyc({
+    required String aadhaarNumber,
+    required String name,
+    required bool consent,
+  }) async {
+    verifyKycCalls++;
+    return {'status': 'QA_VERIFIED', 'masked_id': 'XXXXXXXX8847'};
+  }
+
+  @override
+  Future<Map<String, dynamic>> createFarmer({
+    required String fullName,
+    required String language,
+    String? village,
+    String? mandal,
+    String? district,
+    required Map<String, dynamic> kyc,
+    required Map<String, dynamic> payout,
+  }) async {
+    createFarmerCalls++;
+    return {'farmer_id': 'FARMER_TE_001'};
   }
 }
 
@@ -51,6 +84,62 @@ Future<void> _openEnglishLogin(
 }
 
 void main() {
+  testWidgets('new Farmer OTP skips duplicate language and preserves English', (
+    tester,
+  ) async {
+    final repository = FakeAuthRepository();
+    final identity = FakeIdentityRepository();
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(repository),
+          identityRepositoryProvider.overrideWithValue(identity),
+        ],
+        child: const PashuSetuFarmerApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('English').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('New Farmer Registration'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '7234567890');
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '4816');
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Farmer Details'), findsOneWidget);
+    expect(find.text('Choose Language'), findsNothing);
+    expect(find.text('Full name'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, 'Kumar Agarwal');
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    expect(find.text('KYC Verification'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).first, '999971658847');
+    await tester.enterText(find.byType(TextField).last, 'Kumar Agarwal');
+    await tester.tap(find.byType(Checkbox));
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    expect(identity.verifyKycCalls, 1);
+    expect(find.text('Payout Setup'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'farmer.en@pashusetuqa');
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    expect(find.text('Review Registration'), findsOneWidget);
+    expect(find.textContaining('XXXXXXXX8847'), findsOneWidget);
+    await tester.tap(find.byType(Checkbox));
+    await tester.tap(find.text('Submit Registration'));
+    await tester.pumpAndSettle();
+    expect(identity.createFarmerCalls, 1);
+    expect(find.text('Farmer Dashboard'), findsOneWidget);
+  });
+
   testWidgets('invalid mobile and malformed OTP never call auth API', (
     tester,
   ) async {

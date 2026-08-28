@@ -25,6 +25,21 @@ QA_USERS = (
 QA_USERS_BY_ID = {fixture.fixture_id: fixture for fixture in QA_USERS}
 QA_USERS_BY_MOBILE = {fixture.mobile_e164: fixture for fixture in QA_USERS}
 
+
+@dataclass(frozen=True)
+class QAKycFixture:
+    fixture_id: str
+    uid: str
+    name: str
+
+
+QA_KYC_FIXTURES = (
+    QAKycFixture("KYC_FARMER_EN_001", "999941057058", "Shivshankar Choudhury"),
+    QAKycFixture("KYC_FARMER_TE_001", "999971658847", "Kumar Agarwal"),
+    QAKycFixture("KYC_FARMER_SUB3_001", "999933119405", "Fatima Bedi"),
+)
+QA_KYC_FIXTURES_BY_UID = {fixture.uid: fixture for fixture in QA_KYC_FIXTURES}
+
 QA_CENTRE_CODE = "QA-CENTRE-001"
 QA_SCALE_CODE = "QA-SCALE-001"
 QA_VERIFIED_GOAT_CODES = ("QA-GOAT-EN-001", "QA-GOAT-EN-002", "QA-GOAT-EN-003")

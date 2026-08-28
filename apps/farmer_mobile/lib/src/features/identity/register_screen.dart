@@ -8,6 +8,7 @@ import '../auth/auth_controller.dart';
 import '../auth/auth_error_message.dart';
 import '../auth/mobile_number.dart';
 import '../providers.dart';
+import 'onboarding_validation.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -24,8 +25,35 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final village = TextEditingController();
   final mandal = TextEditingController();
   final district = TextEditingController();
+  final aadhaar = TextEditingController();
+  final aadhaarName = TextEditingController();
+  final upi = TextEditingController();
+  final accountHolder = TextEditingController();
+  final account = TextEditingController();
+  final confirmAccount = TextEditingController();
+  final ifsc = TextEditingController();
+  bool kycConsent = false;
+  bool registrationConsent = false;
+  bool kycVerified = false;
+  String payoutMethod = 'UPI';
   bool busy = false;
   String? error;
+
+  Map<String, dynamic> get kycPayload => {
+        'aadhaar_number': aadhaar.text.trim(),
+        'name_as_per_aadhaar': aadhaarName.text.trim(),
+        'consent': kycConsent,
+      };
+
+  Map<String, dynamic> get payoutPayload => payoutMethod == 'UPI'
+      ? {'method': 'UPI', 'upi_id': upi.text.trim()}
+      : {
+          'method': 'BANK',
+          'account_holder_name': accountHolder.text.trim(),
+          'account_number': account.text.trim(),
+          'confirm_account_number': confirmAccount.text.trim(),
+          'ifsc': ifsc.text.trim().toUpperCase(),
+        };
 
   Future<void> next() async {
     setState(() {
@@ -56,20 +84,59 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             .verifyOtp(mobile.text.trim(), otp.text.trim());
         final authState = ref.read(authControllerProvider);
         if (authState.hasError) throw authState.error!;
-      } else if (step == 3 && name.text.trim().length < 2) {
+      } else if (step == 2 && name.text.trim().length < 2) {
         setState(() => error = AppStrings.tr(language, 'invalid_full_name'));
         return;
+      } else if (step == 3) {
+        if (!isValidAadhaar(aadhaar.text)) {
+          setState(() => error = AppStrings.tr(language, 'invalid_aadhaar'));
+          return;
+        }
+        if (!isValidKycName(aadhaarName.text)) {
+          setState(() => error = AppStrings.tr(language, 'invalid_kyc_name'));
+          return;
+        }
+        if (!kycConsent) {
+          setState(
+              () => error = AppStrings.tr(language, 'kyc_consent_required'));
+          return;
+        }
+        await ref.read(identityRepositoryProvider).verifyKyc(
+              aadhaarNumber: aadhaar.text.trim(),
+              name: aadhaarName.text.trim(),
+              consent: kycConsent,
+            );
+        kycVerified = true;
+      } else if (step == 4) {
+        final valid = payoutMethod == 'UPI'
+            ? isValidUpi(upi.text)
+            : isValidKycName(accountHolder.text) &&
+                isValidAccountNumber(account.text) &&
+                account.text.trim() == confirmAccount.text.trim() &&
+                isValidIfsc(ifsc.text);
+        if (!valid) {
+          setState(() => error = AppStrings.tr(language,
+              payoutMethod == 'UPI' ? 'invalid_upi' : 'invalid_bank'));
+          return;
+        }
       } else if (step == 5) {
+        if (!registrationConsent) {
+          setState(() =>
+              error = AppStrings.tr(language, 'registration_consent_required'));
+          return;
+        }
         await ref.read(identityRepositoryProvider).createFarmer(
               fullName: name.text.trim(),
               language: language,
               village: village.text.trim(),
               mandal: mandal.text.trim(),
               district: district.text.trim(),
+              kyc: kycPayload,
+              payout: payoutPayload,
             );
       }
       if (!mounted) return;
-      if (step >= 6) {
+      if (step >= 5) {
         context.go('/home');
       } else {
         setState(() => step++);
@@ -89,7 +156,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final titles = [
       t('mobile_verification'),
       t('enter_otp'),
-      t('choose_language'),
       t('farmer_details'),
       t('kyc_verification'),
       t('payout_setup'),
@@ -116,7 +182,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           inputFormatters: const [OtpInputFormatter()],
           autofillHints: const <String>[],
         );
-      case 2:
+      case -1: // Legacy language chooser bypassed; locale is selected before registration.
         content = DropdownButtonFormField<String>(
           initialValue: language,
           items: const [
@@ -132,7 +198,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             await ref.read(languageProvider.notifier).setLanguage(selected);
           },
         );
-      case 3:
+      case 2:
         content = Column(children: [
           TextField(
               controller: name,
@@ -150,18 +216,98 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               controller: district,
               decoration: InputDecoration(labelText: t('district'))),
         ]);
-      case 4:
+      case 3:
         content = Column(children: [
           const Icon(Icons.verified_user_outlined, size: 40),
+          TextField(
+            controller: aadhaar,
+            decoration: InputDecoration(labelText: t('aadhaar_number')),
+            keyboardType: TextInputType.number,
+            inputFormatters: const [AadhaarInputFormatter()],
+            autofillHints: const <String>[],
+          ),
+          TextField(
+            controller: aadhaarName,
+            decoration: InputDecoration(labelText: t('name_as_aadhaar')),
+          ),
+          CheckboxListTile(
+            value: kycConsent,
+            onChanged: busy
+                ? null
+                : (value) => setState(() => kycConsent = value ?? false),
+            title: Text(t('kyc_consent')),
+            controlAffinity: ListTileControlAffinity.leading,
+          ),
           Text(t('aadhaar_note')),
         ]);
-      case 5:
+      case 4:
         content = Column(children: [
           const Icon(Icons.account_balance_outlined, size: 40),
+          SegmentedButton<String>(
+            segments: [
+              ButtonSegment(value: 'UPI', label: Text(t('upi'))),
+              ButtonSegment(value: 'BANK', label: Text(t('bank_account'))),
+            ],
+            selected: {payoutMethod},
+            onSelectionChanged: busy
+                ? null
+                : (value) => setState(() => payoutMethod = value.first),
+          ),
+          if (payoutMethod == 'UPI')
+            TextField(
+              controller: upi,
+              decoration: InputDecoration(labelText: t('upi_id')),
+              autocorrect: false,
+            )
+          else ...[
+            TextField(
+              controller: accountHolder,
+              decoration: InputDecoration(labelText: t('account_holder')),
+            ),
+            TextField(
+              controller: account,
+              decoration: InputDecoration(labelText: t('account_number')),
+              keyboardType: TextInputType.number,
+              obscureText: true,
+              inputFormatters: const [AccountNumberInputFormatter()],
+              autofillHints: const <String>[],
+            ),
+            TextField(
+              controller: confirmAccount,
+              decoration:
+                  InputDecoration(labelText: t('confirm_account_number')),
+              keyboardType: TextInputType.number,
+              obscureText: true,
+              inputFormatters: const [AccountNumberInputFormatter()],
+              autofillHints: const <String>[],
+            ),
+            TextField(
+              controller: ifsc,
+              decoration: InputDecoration(labelText: t('ifsc')),
+              textCapitalization: TextCapitalization.characters,
+            ),
+          ],
           Text(t('payout_note')),
         ]);
       default:
-        content = Text(t('review_note'));
+        content =
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(t('review_note')),
+          Text('${t('full_name')}: ${name.text.trim()}'),
+          Text(
+              '${t('kyc_verified')}: ${kycVerified ? maskedAadhaar(aadhaar.text) : '-'}'),
+          Text(
+              '${t('upi_bank')}: ${payoutMethod == 'UPI' ? upi.text.trim() : maskedAccount(account.text)}'),
+          CheckboxListTile(
+            value: registrationConsent,
+            onChanged: busy
+                ? null
+                : (value) =>
+                    setState(() => registrationConsent = value ?? false),
+            title: Text(t('registration_consent')),
+            controlAffinity: ListTileControlAffinity.leading,
+          ),
+        ]);
     }
 
     return Scaffold(
@@ -177,7 +323,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               Text(error!, style: const TextStyle(color: Colors.red)),
             FilledButton(
               onPressed: busy ? null : next,
-              child: Text(step == 6 ? t('submit_registration') : t('continue')),
+              child: Text(step == 5 ? t('submit_registration') : t('continue')),
             ),
           ],
         ),
