@@ -116,17 +116,29 @@ flutter analyze
 flutter test
 ```
 
-### Backend
-Prefer the repository's Docker-backed environment when Docker is available. Typical checks include:
+### Backend — pytest regression gate
+
+`pytest` is the mandatory backend/API automation framework for Codex. For every task that changes backend code, API contracts, database behavior, authentication/authorization, business rules, serialization, or any client flow whose correctness depends on backend behavior:
+
+1. Run the smallest relevant targeted pytest tests first for fast feedback.
+2. Add/update pytest regression tests for every confirmed backend/API defect fixed by the task whenever technically applicable.
+3. Run the **full backend pytest suite** before the task may be reported `PASS` or committed as validated.
+4. Prefer the isolated QA/test database and repository Docker-backed environment. Never run automation against pilot/production data.
+5. A failing pytest test blocks task handoff. Do not mark `PASS`, skip the failure, weaken assertions, or delete tests merely to make the suite green.
+6. Report exact pass/fail/skipped counts and relevant warnings in `docs/AGENT_REPORT.md`.
+7. Client-only tasks that cannot affect backend/API behavior may omit the full backend suite only when the report explicitly explains why; when uncertain, run it.
+
+Typical Docker-backed commands include:
 
 ```bash
 docker compose config
 docker compose ps
 docker compose exec api alembic upgrade head
-docker compose exec api pytest
+docker compose exec api pytest -q <targeted-test-path-or-k-expression>
+docker compose exec api pytest -q
 ```
 
-Run targeted tests first when useful, then the relevant full suite before commit.
+The full suite is a **regression gate**, not an unattended infinite background process: Codex runs it automatically as part of each applicable task, waits for completion, records the result, and continues only if green. This avoids consuming resources continuously while still removing the need for the human to trigger API regression manually.
 
 If a required runtime is unavailable, do not fake a pass. Report the blocker clearly.
 
