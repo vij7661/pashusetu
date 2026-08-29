@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/localization/app_strings.dart';
 import '../../core/localization/language_provider.dart';
@@ -15,6 +16,7 @@ class WeighmentAckScreen extends ConsumerStatefulWidget {
 
 class _WeighmentAckScreenState extends ConsumerState<WeighmentAckScreen> {
   bool acknowledged = false;
+  bool submitting = false;
   String? message;
 
   @override
@@ -36,34 +38,51 @@ class _WeighmentAckScreenState extends ConsumerState<WeighmentAckScreen> {
             ),
             CheckboxListTile(
               value: acknowledged,
-              onChanged: (v) => setState(() => acknowledged = v ?? false),
+              onChanged: submitting
+                  ? null
+                  : (value) => setState(() => acknowledged = value ?? false),
               title: Text(t('i_acknowledge')),
               subtitle: Text(t('ack_confirm_note')),
             ),
             if (message != null) Text(message!),
             const Spacer(),
             FilledButton(
-              onPressed: acknowledged
+              onPressed: acknowledged && !submitting
                   ? () async {
+                      setState(() {
+                        submitting = true;
+                        message = null;
+                      });
                       try {
-                        await ref
-                            .read(weighmentRepositoryProvider)
-                            .acknowledge(widget.weighmentId);
-                        final receipt = await ref
-                            .read(weighmentRepositoryProvider)
-                            .createReceipt(widget.weighmentId);
+                        final repository = ref.read(weighmentRepositoryProvider);
+                        await repository.acknowledge(widget.weighmentId);
+                        final receipt = await repository.createReceipt(widget.weighmentId);
                         if (!mounted) return;
-                        setState(
-                          () => message =
-                              '${t('i_acknowledge')} ✓ · ${receipt['receipt_code']}',
+                        final uri = Uri(
+                          path: '/listing/create',
+                          queryParameters: {
+                            'target_type': receipt.targetType,
+                            'target_id': receipt.targetId,
+                            'receipt_code': receipt.receiptCode,
+                          },
                         );
-                      } catch (e) {
+                        context.go(uri.toString());
+                      } catch (error) {
                         if (!mounted) return;
-                        setState(() => message = e.toString());
+                        setState(() {
+                          submitting = false;
+                          message = error.toString();
+                        });
                       }
                     }
                   : null,
-              child: Text(t('set_price_listing')),
+              child: submitting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(t('set_price_listing')),
             ),
           ],
         ),
