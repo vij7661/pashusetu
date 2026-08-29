@@ -30,7 +30,7 @@ class HomeScreen extends ConsumerWidget {
         ),
       ),
       body: FutureBuilder<Map<String, dynamic>>(
-        future: ref.read(identityRepositoryProvider).farmerMe(),
+        future: ref.read(identityRepositoryProvider).farmerDashboard(),
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
@@ -39,21 +39,29 @@ class HomeScreen extends ConsumerWidget {
             return Center(child: Text(snapshot.error.toString()));
           }
 
-          final profile = snapshot.data!;
-          final kycStatus = profile['kyc_status']?.toString() ?? 'KYC_PENDING';
-          final kycVerified = kycStatus == 'KYC_VERIFIED';
+          final dashboard = snapshot.data!;
+          final kycStatus = dashboard['kyc_status']?.toString() ?? 'KYC_PENDING';
+          final transactionEnabled = dashboard['transaction_enabled'] == true;
+          final liveListings = dashboard['live_listings'] as int? ?? 0;
+          final activeOffers = dashboard['active_offers'] as int? ?? 0;
+          final settledPaise = dashboard['settled_amount_paise'] as int? ?? 0;
+          final settledRupees = (settledPaise / 100).toStringAsFixed(0);
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              if (!kycVerified) ...[
-                const Card(
+              if (!transactionEnabled) ...[
+                Card(
                   child: ListTile(
-                    leading: Icon(Icons.verified_user_outlined),
-                    title: Text('KYC verification pending'),
-                    subtitle: Text(
-                      'You can use Home and manage livestock while verification is pending. '
-                      'Creating a market listing is enabled after KYC is verified.',
+                    leading: const Icon(Icons.verified_user_outlined),
+                    title: Text(
+                      kycStatus == 'KYC_ACTION_REQUIRED'
+                          ? 'KYC action required'
+                          : 'KYC verification pending',
+                    ),
+                    subtitle: const Text(
+                      'You can use Home and manage livestock while KYC is incomplete. '
+                      'Transaction actions become available after verification.',
                     ),
                   ),
                 ),
@@ -61,11 +69,17 @@ class HomeScreen extends ConsumerWidget {
               ],
               Row(
                 children: [
-                  Expanded(child: _Kpi(value: '0', label: t('live_listings'))),
+                  Expanded(
+                    child: _Kpi(value: '$liveListings', label: t('live_listings')),
+                  ),
                   const SizedBox(width: 8),
-                  Expanded(child: _Kpi(value: '0', label: t('offers'))),
+                  Expanded(
+                    child: _Kpi(value: '$activeOffers', label: t('offers')),
+                  ),
                   const SizedBox(width: 8),
-                  Expanded(child: _Kpi(value: '₹0', label: t('settled'))),
+                  Expanded(
+                    child: _Kpi(value: '₹$settledRupees', label: t('settled')),
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -86,13 +100,13 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               AppCard(
-                onTap: kycVerified ? () => context.go('/listing/create') : null,
+                onTap: transactionEnabled ? () => context.go('/listing/create') : null,
                 child: ListTile(
-                  enabled: kycVerified,
+                  enabled: transactionEnabled,
                   leading: const Icon(Icons.sell_outlined),
                   title: Text(t('create_verified_listing')),
                   subtitle: Text(
-                    kycVerified
+                    transactionEnabled
                         ? t('create_verified_listing_desc')
                         : 'Available after KYC verification',
                   ),
