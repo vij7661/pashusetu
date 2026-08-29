@@ -2,6 +2,7 @@
 
 These are test identities, not production data. Raw Aadhaar is intentionally absent.
 """
+
 from hashlib import sha256
 
 OTP_SEED = "pashusetu-dev-otp-v1"
@@ -33,7 +34,7 @@ _LANGUAGES = ["te", "hi", "en", "mr", "ta", "ml"]
 
 
 def development_otp(mobile_e164: str) -> str:
-    digest = sha256(f"{OTP_SEED}:{mobile_e164}".encode("utf-8")).hexdigest()
+    digest = sha256(f"{OTP_SEED}:{mobile_e164}".encode()).hexdigest()
     value = int(digest[:8], 16) % (10**OTP_LENGTH)
     return f"{value:0{OTP_LENGTH}d}"
 
