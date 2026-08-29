@@ -82,6 +82,71 @@ def calculate_total_paise(weight_kg: Decimal, price_per_kg_paise: int) -> int:
     return int(total.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
 
+def _validate_reference_window(valid_from: datetime, valid_to: datetime | None) -> None:
+    if valid_to is not None and valid_to <= valid_from:
+        raise AppError("INVALID_REFERENCE_WINDOW", "Reference price expiry must be after its start.", 400)
+
+
+def create_market_reference(
+    db: Session,
+    market_code: str,
+    breed: str | None,
+    price_per_kg_paise: int,
+    source_label: str,
+    valid_from: datetime,
+    valid_to: datetime | None,
+) -> MarketPriceRecommendation:
+    _validate_reference_window(valid_from, valid_to)
+    reference = MarketPriceRecommendation(
+        market_code=market_code.strip().upper(),
+        breed=breed.strip() if breed else None,
+        price_per_kg_paise=price_per_kg_paise,
+        source_label=source_label.strip(),
+        valid_from=valid_from,
+        valid_to=valid_to,
+    )
+    db.add(reference)
+    db.commit()
+    db.refresh(reference)
+    return reference
+
+
+def version_market_reference(
+    db: Session,
+    recommendation_id: UUID,
+    effective_from: datetime,
+    valid_to: datetime | None,
+    market_code: str | None = None,
+    breed: str | None = None,
+    price_per_kg_paise: int | None = None,
+    source_label: str | None = None,
+) -> MarketPriceRecommendation:
+    current = db.get(MarketPriceRecommendation, recommendation_id)
+    if current is None:
+        raise AppError("RECOMMENDATION_NOT_FOUND", "Market reference price not found.", 404)
+    if effective_from <= current.valid_from:
+        raise AppError(
+            "INVALID_REFERENCE_VERSION_TIME",
+            "Edited reference must become effective after the original reference start.",
+            400,
+        )
+    _validate_reference_window(effective_from, valid_to)
+
+    current.valid_to = effective_from
+    replacement = MarketPriceRecommendation(
+        market_code=(market_code or current.market_code).strip().upper(),
+        breed=current.breed if breed is None else (breed.strip() or None),
+        price_per_kg_paise=price_per_kg_paise or current.price_per_kg_paise,
+        source_label=(source_label or current.source_label).strip(),
+        valid_from=effective_from,
+        valid_to=valid_to,
+    )
+    db.add(replacement)
+    db.commit()
+    db.refresh(replacement)
+    return replacement
+
+
 def create_listing(
     db: Session,
     user_id: UUID,
