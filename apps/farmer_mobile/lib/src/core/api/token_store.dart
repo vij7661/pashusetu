@@ -13,6 +13,12 @@ class TokenStore {
     await prefs.setString(_refreshKey, refreshToken);
   }
 
+  Future<void> saveRegistrationToken(String registrationToken) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_accessKey, registrationToken);
+    await prefs.remove(_refreshKey);
+  }
+
   Future<String?> accessToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_accessKey);
