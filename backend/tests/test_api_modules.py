@@ -7,7 +7,11 @@ def test_expected_api_modules_are_exposed():
     The old test required temporary /_status scaffold endpoints even after the
     modules gained real routes. That no longer represented the product contract.
     """
-    paths = {route.path for route in app.routes if route.path.startswith("/api/v1/")}
+    paths = {
+        path
+        for route in app.routes
+        if (path := getattr(route, "path", "")).startswith("/api/v1/")
+    }
     for module in [
         "livestock",
         "weighment",
