@@ -72,6 +72,7 @@ jobs:
           app/agreement/schemas.py
           app/agreement/service.py
           app/payments/router.py
+          app/payments/schemas.py
           app/disputes/router.py
           app/logistics/router.py
           tests/test_farmer_registration_contract.py
