@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/localization/app_strings.dart';
+import '../../core/localization/kyc_status_strings.dart';
 import '../../core/localization/language_provider.dart';
 import '../../shared/app_card.dart';
 import '../providers.dart';
@@ -14,6 +15,7 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final language = ref.watch(languageProvider);
     String t(String key) => AppStrings.tr(language, key);
+    String kyc(String key) => KycStatusStrings.tr(language, key);
 
     return Scaffold(
       appBar: AppBar(
@@ -42,7 +44,7 @@ class HomeScreen extends ConsumerWidget {
           final dashboard = snapshot.data!;
           final kycStatus = dashboard['kyc_status']?.toString();
           if (kycStatus == null || kycStatus.isEmpty) {
-            return Center(child: Text(t('dashboard_state_error')));
+            return Center(child: Text(kyc('dashboard_state_error')));
           }
 
           final transactionEnabled = dashboard['transaction_enabled'] == true;
@@ -54,13 +56,13 @@ class HomeScreen extends ConsumerWidget {
           String kycTitle() {
             switch (kycStatus) {
               case 'KYC_ACTION_REQUIRED':
-                return t('kyc_action_required');
+                return kyc('action_required');
               case 'KYC_REJECTED':
-                return t('kyc_rejected');
+                return kyc('rejected');
               case 'KYC_PENDING':
-                return t('kyc_pending');
+                return kyc('pending');
               default:
-                return t('kyc_incomplete');
+                return kyc('incomplete');
             }
           }
 
@@ -72,7 +74,7 @@ class HomeScreen extends ConsumerWidget {
                   child: ListTile(
                     leading: const Icon(Icons.verified_user_outlined),
                     title: Text(kycTitle()),
-                    subtitle: Text(t('kyc_transaction_note')),
+                    subtitle: Text(kyc('transaction_note')),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -118,7 +120,7 @@ class HomeScreen extends ConsumerWidget {
                   subtitle: Text(
                     transactionEnabled
                         ? t('create_verified_listing_desc')
-                        : t('available_after_kyc'),
+                        : kyc('available_after_kyc'),
                   ),
                 ),
               ),
