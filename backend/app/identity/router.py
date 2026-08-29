@@ -10,6 +10,7 @@ from app.identity.profile_models import BuyerProfile, FarmerProfile, FarmerRegis
 from app.identity.schemas import (
     BuyerProfileCreate,
     BuyerProfileResponse,
+    FarmerDashboardResponse,
     FarmerKYCSubmit,
     FarmerProfileCreate,
     FarmerProfileResponse,
@@ -21,6 +22,7 @@ from app.identity.service import (
     complete_farmer_registration_kyc,
     create_buyer_profile,
     create_farmer_profile,
+    farmer_dashboard,
     save_farmer_registration_details,
 )
 
@@ -119,6 +121,14 @@ def get_farmer_me(
         payout_status=p.payout_status,
         preferred_language=user.preferred_language,
     )
+
+
+@router.get("/farmers/me/dashboard", response_model=FarmerDashboardResponse)
+def get_farmer_dashboard(
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    return FarmerDashboardResponse(**farmer_dashboard(db, user))
 
 
 @router.post("/buyers", response_model=BuyerProfileResponse, status_code=201)
