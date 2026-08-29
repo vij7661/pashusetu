@@ -10,14 +10,36 @@ from app.db.session import get_db
 from app.identity.models import User
 from app.marketplace.models import Listing, MarketPriceRecommendation
 from app.marketplace.schemas import (
+    ListingContextResponse,
     ListingCreate,
     ListingResponse,
     ListingSearchResult,
     MarketRecommendationResponse,
 )
-from app.marketplace.service import create_listing
+from app.marketplace.service import create_listing, get_listing_context
 
 router = APIRouter(prefix="/marketplace", tags=["marketplace"])
+
+
+@router.get("/listing-context", response_model=ListingContextResponse)
+def listing_context(
+    target_type: str = Query(..., pattern="^(GOAT|LOT)$"),
+    target_id: str = Query(..., min_length=1),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_farmer_kyc_verified),
+):
+    verified_weight, market_code = get_listing_context(
+        db,
+        user.id,
+        target_type,
+        target_id,
+    )
+    return ListingContextResponse(
+        target_type=target_type,
+        target_id=target_id,
+        verified_weight_kg=verified_weight,
+        market_code=market_code,
+    )
 
 
 @router.get("/recommendations", response_model=list[MarketRecommendationResponse])
