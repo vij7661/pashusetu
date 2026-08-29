@@ -1,4 +1,5 @@
 import '../../core/api/api_client.dart';
+import 'transaction_models.dart';
 
 class TransactionRepository {
   TransactionRepository(this._api);
@@ -7,11 +8,15 @@ class TransactionRepository {
   Future<Map<String, dynamic>> createFromListing(String listingId) =>
       _api.post('/transaction/from-listing/$listingId');
 
-  Future<Map<String, dynamic>> transaction(String id) =>
-      _api.get('/transaction/$id');
+  Future<TransactionView> transaction(String id) async {
+    final json = await _api.get('/transaction/$id');
+    return TransactionView.fromJson(json);
+  }
 
-  Future<Map<String, dynamic>> settlement(String transactionId) =>
-      _api.get('/payments/transactions/$transactionId/settlement');
+  Future<SettlementView> settlement(String transactionId) async {
+    final json = await _api.get('/payments/transactions/$transactionId/settlement');
+    return SettlementView.fromJson(json);
+  }
 
   Future<Map<String, dynamic>> createAgreement({
     required String transactionId,
