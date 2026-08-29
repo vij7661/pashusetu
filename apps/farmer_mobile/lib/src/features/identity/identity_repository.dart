@@ -8,6 +8,9 @@ class IdentityRepository {
 
   Future<Map<String, dynamic>> farmerMe() => _api.get('/identity/farmers/me');
 
+  Future<Map<String, dynamic>> farmerDashboard() =>
+      _api.get('/identity/farmers/me/dashboard');
+
   Future<Map<String, dynamic>> registrationStatus() =>
       _api.get('/identity/farmer-registration/status');
 
