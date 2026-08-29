@@ -57,7 +57,7 @@ class _WeighmentAckScreenState extends ConsumerState<WeighmentAckScreen> {
                         final repository = ref.read(weighmentRepositoryProvider);
                         await repository.acknowledge(widget.weighmentId);
                         final receipt = await repository.createReceipt(widget.weighmentId);
-                        if (!mounted) return;
+                        if (!context.mounted) return;
                         final uri = Uri(
                           path: '/listing/create',
                           queryParameters: {
