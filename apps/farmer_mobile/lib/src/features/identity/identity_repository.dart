@@ -1,5 +1,6 @@
 import '../../core/api/api_client.dart';
 import '../../core/api/token_store.dart';
+import 'farmer_dashboard.dart';
 
 class IdentityRepository {
   IdentityRepository(this._api, this._tokenStore);
@@ -8,8 +9,10 @@ class IdentityRepository {
 
   Future<Map<String, dynamic>> farmerMe() => _api.get('/identity/farmers/me');
 
-  Future<Map<String, dynamic>> farmerDashboard() =>
-      _api.get('/identity/farmers/me/dashboard');
+  Future<FarmerDashboard> farmerDashboard() async {
+    final json = await _api.get('/identity/farmers/me/dashboard');
+    return FarmerDashboard.fromJson(json);
+  }
 
   Future<Map<String, dynamic>> registrationStatus() =>
       _api.get('/identity/farmer-registration/status');
