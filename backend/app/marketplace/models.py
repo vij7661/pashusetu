@@ -38,6 +38,8 @@ class Listing(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     recommendation_id: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("market_price_recommendations.id", ondelete="SET NULL")
     )
+    farmer_acknowledged_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False)
+    farmer_acknowledgement_version: Mapped[str] = mapped_column(String(40), nullable=False)
     sale_type: Mapped[str] = mapped_column(String(30), default="COMPETITIVE_BIDDING", nullable=False)
     opens_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False)
     closes_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False)
