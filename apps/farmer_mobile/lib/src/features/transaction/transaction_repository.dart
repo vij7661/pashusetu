@@ -17,13 +17,9 @@ class TransactionRepository {
     required double tolerancePercent,
   }) {
     return _api.post('/agreement/transactions/$transactionId', body: {
-      'price_basis': 'DELIVERY_ADJUSTED_NET_KG',
       'pickup_point': pickupPoint,
       'final_weighing_point': finalWeighingPoint,
       'tolerance_percent': tolerancePercent,
-      'transport_responsibility': 'BUYER',
-      'dispute_rule':
-          'Controlled reweigh, independent verified scale if unresolved, then evidence review.',
     });
   }
 
