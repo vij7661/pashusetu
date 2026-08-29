@@ -70,7 +70,7 @@ The backend defines the scale contract but does not pretend to speak a specific 
 - offline queue and sync rules for the Operator app
 
 ## Marketplace handoff
-A verified Farmer acknowledgement creates a receipt whose target identity is carried directly into the Farmer pricing screen. The listing screen still revalidates the verified weighment context with the backend before publication; navigation context is convenience, not authority.
+A verified Farmer acknowledgement creates a receipt whose target identity is carried directly into the Farmer pricing screen. The listing screen still revalidates the target's current verified weighment context with the backend before publication. Route/query data is convenience only and is never treated as trust evidence.
 
 TD-4 marketplace behavior includes:
 - verified listing eligibility
