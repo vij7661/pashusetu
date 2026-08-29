@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.audit.service import append_event
 from app.core.errors import AppError
 from app.identity.profile_models import FarmerProfile
 from app.livestock.models import Goat, Lot
@@ -95,6 +96,7 @@ def create_market_reference(
     source_label: str,
     valid_from: datetime,
     valid_to: datetime | None,
+    actor_user_id: UUID | None = None,
 ) -> MarketPriceRecommendation:
     _validate_reference_window(valid_from, valid_to)
     reference = MarketPriceRecommendation(
@@ -106,6 +108,23 @@ def create_market_reference(
         valid_to=valid_to,
     )
     db.add(reference)
+    db.flush()
+    append_event(
+        db,
+        "MARKET_REFERENCE",
+        reference.id,
+        "MARKET_REFERENCE_CREATED",
+        actor_user_id=actor_user_id,
+        payload={
+            "market_code": reference.market_code,
+            "breed": reference.breed,
+            "price_per_kg_paise": reference.price_per_kg_paise,
+            "source_label": reference.source_label,
+            "valid_from": reference.valid_from.isoformat(),
+            "valid_to": reference.valid_to.isoformat() if reference.valid_to else None,
+        },
+        commit=False,
+    )
     db.commit()
     db.refresh(reference)
     return reference
@@ -120,6 +139,7 @@ def version_market_reference(
     breed: str | None = None,
     price_per_kg_paise: int | None = None,
     source_label: str | None = None,
+    actor_user_id: UUID | None = None,
 ) -> MarketPriceRecommendation:
     current = db.get(MarketPriceRecommendation, recommendation_id)
     if current is None:
@@ -142,6 +162,36 @@ def version_market_reference(
         valid_to=valid_to,
     )
     db.add(replacement)
+    db.flush()
+    append_event(
+        db,
+        "MARKET_REFERENCE",
+        current.id,
+        "MARKET_REFERENCE_SUPERSEDED",
+        actor_user_id=actor_user_id,
+        payload={
+            "replacement_reference_id": str(replacement.id),
+            "effective_from": effective_from.isoformat(),
+        },
+        commit=False,
+    )
+    append_event(
+        db,
+        "MARKET_REFERENCE",
+        replacement.id,
+        "MARKET_REFERENCE_VERSION_CREATED",
+        actor_user_id=actor_user_id,
+        payload={
+            "previous_reference_id": str(current.id),
+            "market_code": replacement.market_code,
+            "breed": replacement.breed,
+            "price_per_kg_paise": replacement.price_per_kg_paise,
+            "source_label": replacement.source_label,
+            "valid_from": replacement.valid_from.isoformat(),
+            "valid_to": replacement.valid_to.isoformat() if replacement.valid_to else None,
+        },
+        commit=False,
+    )
     db.commit()
     db.refresh(replacement)
     return replacement
