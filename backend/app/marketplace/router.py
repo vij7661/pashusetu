@@ -28,6 +28,7 @@ from app.marketplace.service import (
 )
 
 router = APIRouter(prefix="/marketplace", tags=["marketplace"])
+admin_required = require_roles(Role.ADMIN)
 
 
 def _admin_reference_response(row: MarketPriceRecommendation, now: datetime) -> AdminMarketReferenceResponse:
@@ -92,7 +93,7 @@ def recommendations(
 def admin_references(
     market_code: str | None = None,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(Role.ADMIN)),
+    user: User = Depends(admin_required),
 ):
     stmt = select(MarketPriceRecommendation)
     if market_code:
@@ -106,7 +107,7 @@ def admin_references(
 def admin_create_reference(
     payload: AdminMarketReferenceCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(Role.ADMIN)),
+    user: User = Depends(admin_required),
 ):
     row = create_market_reference(
         db,
@@ -126,7 +127,7 @@ def admin_edit_reference(
     recommendation_id: UUID,
     payload: AdminMarketReferenceEdit,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(Role.ADMIN)),
+    user: User = Depends(admin_required),
 ):
     row = version_market_reference(
         db,
