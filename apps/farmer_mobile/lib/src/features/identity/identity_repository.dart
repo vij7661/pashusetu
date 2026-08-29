@@ -1,13 +1,17 @@
 import '../../core/api/api_client.dart';
 import '../../core/api/token_store.dart';
 import 'farmer_dashboard.dart';
+import 'farmer_profile.dart';
 
 class IdentityRepository {
   IdentityRepository(this._api, this._tokenStore);
   final ApiClient _api;
   final TokenStore _tokenStore;
 
-  Future<Map<String, dynamic>> farmerMe() => _api.get('/identity/farmers/me');
+  Future<FarmerProfile> farmerMe() async {
+    final json = await _api.get('/identity/farmers/me');
+    return FarmerProfile.fromJson(json);
+  }
 
   Future<FarmerDashboard> farmerDashboard() async {
     final json = await _api.get('/identity/farmers/me/dashboard');
