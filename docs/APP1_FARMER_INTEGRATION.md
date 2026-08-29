@@ -9,6 +9,10 @@ For pilot agreements, the Farmer app submits only transaction-specific inputs th
 
 The Farmer app must also never prefill fabricated operational facts such as a mandal centre, buyer scale identifier, verified weight, market price or transaction tolerance. Those values must come from the relevant authoritative service or explicit Farmer/operator input.
 
+Settlement display is read-only in the Farmer app. Viewing or refreshing settlement details must call the settlement GET endpoint and must never create a settlement as a side effect. Settlement creation remains a distinct backend mutation with transaction-state enforcement.
+
+Shipment UI must not infer that pickup, transit, delivery, weighment or evidence milestones happened merely because those steps exist in the workflow. Until verified event data is returned by the backend, the Farmer app shows only the authoritative transaction state.
+
 ## Implemented connection map
 
 | Farmer UI | Backend |
@@ -25,6 +29,7 @@ The Farmer app must also never prefill fabricated operational facts such as a ma
 | Accept offer | `POST /bidding/listings/{id}/accept/{bid}` |
 | Transaction | `GET /transaction/{id}` |
 | Agreement | `/agreement/transactions/*` |
+| Settlement status | `GET /payments/transactions/{id}/settlement` |
 | Dispute | `/disputes/transactions/*` |
 
 ## Remaining provider-dependent UI
