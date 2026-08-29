@@ -48,7 +48,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 controller: otp,
                 keyboardType: TextInputType.number,
                 maxLength: farmerOtpLength,
-                inputFormatters: const [
+                inputFormatters: [
                   FilteringTextInputFormatter.digitsOnly,
                   LengthLimitingTextInputFormatter(farmerOtpLength),
                 ],
