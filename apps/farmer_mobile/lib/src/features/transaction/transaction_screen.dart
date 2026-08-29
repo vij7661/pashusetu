@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers.dart';
+import 'transaction_models.dart';
 
 class TransactionScreen extends ConsumerWidget {
   const TransactionScreen({super.key, required this.transactionId});
@@ -11,7 +12,7 @@ class TransactionScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(title: const Text('Transaction')),
-      body: FutureBuilder<Map<String, dynamic>>(
+      body: FutureBuilder<TransactionView>(
         future: ref.read(transactionRepositoryProvider).transaction(transactionId),
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
@@ -24,13 +25,13 @@ class TransactionScreen extends ConsumerWidget {
             children: [
               Card(
                 child: ListTile(
-                  title: Text(tx['transaction_id'].toString()),
-                  subtitle: Text('State: ${tx['state']}'),
+                  title: Text(tx.id),
+                  subtitle: Text('State: ${tx.state}'),
                 ),
               ),
               const Text(
-                'Farmer and Buyer apps render this authoritative backend transaction state. '
-                'They do not maintain independent transaction status.',
+                'This screen renders the authoritative backend transaction state. '
+                'The app does not maintain an independent transaction status.',
               ),
             ],
           );
