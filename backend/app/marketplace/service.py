@@ -11,6 +11,8 @@ from app.livestock.models import Goat, Lot
 from app.marketplace.models import Listing, MarketPriceRecommendation
 from app.weighment.models import WeighmentSession, WeightReading
 
+PILOT_MARKET_CODE = "HYDERABAD"
+
 
 def _farmer_for_user(db: Session, user_id: UUID) -> FarmerProfile:
     farmer = db.scalar(select(FarmerProfile).where(FarmerProfile.user_id == user_id))
@@ -61,6 +63,18 @@ def _verified_weighment(db: Session, target_type: str, target_id: UUID) -> tuple
     if not reading:
         raise AppError("LOCKED_READING_REQUIRED", "Locked weighment reading not found.", 500)
     return session, reading.net_kg
+
+
+def get_listing_context(
+    db: Session,
+    user_id: UUID,
+    target_type: str,
+    target_code: str,
+) -> tuple[Decimal, str]:
+    farmer = _farmer_for_user(db, user_id)
+    target = _target_for_farmer(db, farmer, target_type, target_code)
+    _, verified_weight = _verified_weighment(db, target_type, target.id)
+    return verified_weight, PILOT_MARKET_CODE
 
 
 def calculate_total_paise(weight_kg: Decimal, price_per_kg_paise: int) -> int:
