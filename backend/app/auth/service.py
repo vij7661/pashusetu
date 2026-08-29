@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from uuid import uuid4
 
@@ -20,14 +20,12 @@ DEVELOPMENT_ENVS = {"local", "test", "development"}
 
 
 def _hash_otp(otp: str) -> str:
-    return sha256(otp.encode("utf-8")).hexdigest()
+    return sha256(otp.encode()).hexdigest()
 
 
 def _development_otp(mobile_e164: str) -> str:
     settings = get_settings()
-    digest = sha256(
-        f"{settings.development_otp_seed}:{mobile_e164}".encode("utf-8")
-    ).hexdigest()
+    digest = sha256(f"{settings.development_otp_seed}:{mobile_e164}".encode()).hexdigest()
     value = int(digest[:8], 16) % (10**OTP_LENGTH)
     return f"{value:0{OTP_LENGTH}d}"
 
@@ -46,7 +44,7 @@ def request_otp(db: Session, mobile_e164: str, purpose: str) -> None:
         mobile_e164=mobile_e164,
         purpose=purpose,
         otp_hash=_hash_otp(otp),
-        expires_at=datetime.now(timezone.utc) + timedelta(seconds=settings.otp_ttl_seconds),
+        expires_at=datetime.now(UTC) + timedelta(seconds=settings.otp_ttl_seconds),
     )
     db.add(challenge)
     db.commit()
@@ -66,7 +64,7 @@ def _consume_valid_otp(db: Session, mobile_e164: str, otp: str, purpose: str) ->
     )
     if not challenge:
         raise AppError("OTP_NOT_FOUND", "No active OTP challenge.", 400)
-    if challenge.expires_at < datetime.now(timezone.utc):
+    if challenge.expires_at < datetime.now(UTC):
         raise AppError("OTP_EXPIRED", "OTP has expired.", 400)
     if challenge.attempts >= settings.otp_max_attempts:
         raise AppError("OTP_ATTEMPTS_EXCEEDED", "Too many OTP attempts.", 429)
