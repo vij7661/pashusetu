@@ -34,6 +34,7 @@ class MarketplaceRepository {
       'target_type': targetType,
       'target_id': targetId,
       'farmer_price_per_kg_paise': pricePerKgPaise,
+      'farmer_acknowledged': true,
       'sale_type': 'COMPETITIVE_BIDDING',
       'opens_at': opensAt.toUtc().toIso8601String(),
       'closes_at': closesAt.toUtc().toIso8601String(),
