@@ -135,10 +135,10 @@ def version_market_reference(
     recommendation_id: UUID,
     effective_from: datetime,
     valid_to: datetime | None,
-    market_code: str | None = None,
-    breed: str | None = None,
-    price_per_kg_paise: int | None = None,
-    source_label: str | None = None,
+    market_code: str,
+    breed: str | None,
+    price_per_kg_paise: int,
+    source_label: str,
     actor_user_id: UUID | None = None,
 ) -> MarketPriceRecommendation:
     current = db.get(MarketPriceRecommendation, recommendation_id)
@@ -154,10 +154,10 @@ def version_market_reference(
 
     current.valid_to = effective_from
     replacement = MarketPriceRecommendation(
-        market_code=(market_code or current.market_code).strip().upper(),
-        breed=current.breed if breed is None else (breed.strip() or None),
-        price_per_kg_paise=price_per_kg_paise or current.price_per_kg_paise,
-        source_label=(source_label or current.source_label).strip(),
+        market_code=market_code.strip().upper(),
+        breed=breed.strip() if breed else None,
+        price_per_kg_paise=price_per_kg_paise,
+        source_label=source_label.strip(),
         valid_from=effective_from,
         valid_to=valid_to,
     )
