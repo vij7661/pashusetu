@@ -63,6 +63,15 @@ class FarmerProfileResponse(BaseModel):
     preferred_language: str
 
 
+class FarmerDashboardResponse(BaseModel):
+    farmer_id: str
+    kyc_status: str
+    transaction_enabled: bool
+    live_listings: int
+    active_offers: int
+    settled_amount_paise: int
+
+
 class BuyerProfileCreate(BaseModel):
     business_name: str = Field(min_length=2, max_length=160)
     contact_person: str | None = None
