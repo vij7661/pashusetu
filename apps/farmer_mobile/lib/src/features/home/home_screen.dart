@@ -47,11 +47,11 @@ class HomeScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             children: [
               if (!kycVerified) ...[
-                Card(
+                const Card(
                   child: ListTile(
-                    leading: const Icon(Icons.verified_user_outlined),
-                    title: const Text('KYC verification pending'),
-                    subtitle: const Text(
+                    leading: Icon(Icons.verified_user_outlined),
+                    title: Text('KYC verification pending'),
+                    subtitle: Text(
                       'You can use Home and manage livestock while verification is pending. '
                       'Creating a market listing is enabled after KYC is verified.',
                     ),
