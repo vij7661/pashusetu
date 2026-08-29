@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/localization/app_strings.dart';
@@ -14,11 +15,40 @@ class CreateLivestockScreen extends ConsumerStatefulWidget {
 
 class _CreateLivestockScreenState extends ConsumerState<CreateLivestockScreen> {
   bool lot = false;
-  final breed = TextEditingController(text: 'Sirohi');
-  final quantity = TextEditingController(text: '1');
-  String sex = 'MALE';
+  final breed = TextEditingController();
+  final quantity = TextEditingController();
+  String sex = 'UNKNOWN';
   bool busy = false;
   String? result;
+
+  bool get canSubmit {
+    if (breed.text.trim().isEmpty) return false;
+    if (!lot) return true;
+    final parsedQuantity = int.tryParse(quantity.text.trim());
+    return parsedQuantity != null && parsedQuantity > 0;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    breed.addListener(_refreshValidation);
+    quantity.addListener(_refreshValidation);
+  }
+
+  void _refreshValidation() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    breed
+      ..removeListener(_refreshValidation)
+      ..dispose();
+    quantity
+      ..removeListener(_refreshValidation)
+      ..dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,38 +66,47 @@ class _CreateLivestockScreenState extends ConsumerState<CreateLivestockScreen> {
               ButtonSegment(value: true, label: Text(t('multiple_goats_lot'))),
             ],
             selected: {lot},
-            onSelectionChanged: (v) => setState(() => lot = v.first),
+            onSelectionChanged: (v) => setState(() {
+              lot = v.first;
+              result = null;
+            }),
           ),
           const SizedBox(height: 16),
-          TextField(controller: breed, decoration: InputDecoration(labelText: t('breed'))),
+          TextField(
+            controller: breed,
+            decoration: InputDecoration(labelText: t('breed')),
+            textCapitalization: TextCapitalization.words,
+          ),
           const SizedBox(height: 10),
           if (lot)
             TextField(
               controller: quantity,
               keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: InputDecoration(labelText: t('quantity')),
             )
           else
             DropdownButtonFormField<String>(
               initialValue: sex,
               items: [
+                DropdownMenuItem(value: 'UNKNOWN', child: Text(t('unknown'))),
                 DropdownMenuItem(value: 'MALE', child: Text(t('male'))),
                 DropdownMenuItem(value: 'FEMALE', child: Text(t('female'))),
-                DropdownMenuItem(value: 'UNKNOWN', child: Text(t('unknown'))),
               ],
-              onChanged: (v) => setState(() => sex = v ?? 'MALE'),
+              onChanged: (v) => setState(() => sex = v ?? 'UNKNOWN'),
             ),
           const Spacer(),
           if (result != null) Text(result!),
           FilledButton(
-            onPressed: busy
+            onPressed: busy || !canSubmit
                 ? null
                 : () async {
                     setState(() => busy = true);
                     try {
                       if (lot) {
+                        final parsedQuantity = int.parse(quantity.text.trim());
                         final x = await ref.read(livestockRepositoryProvider).createLot(
-                          quantity: int.parse(quantity.text),
+                          quantity: parsedQuantity,
                           breedSummary: breed.text.trim(),
                         );
                         setState(() => result = 'Lot ${x.id}');
