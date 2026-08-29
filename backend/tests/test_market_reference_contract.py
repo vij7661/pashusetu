@@ -9,7 +9,12 @@ from sqlalchemy import delete, select
 from app.audit.models import AuditEvent
 from app.db.session import SessionLocal
 from app.marketplace.models import MarketPriceRecommendation
-from app.marketplace.router import admin_create_reference, admin_edit_reference, admin_references, admin_required
+from app.marketplace.router import (
+    admin_create_reference,
+    admin_edit_reference,
+    admin_references,
+    admin_required,
+)
 from app.marketplace.schemas import AdminMarketReferenceCreate, AdminMarketReferenceEdit
 from app.marketplace.service import create_market_reference, version_market_reference
 
