@@ -41,6 +41,8 @@ class MarketRecommendationResponse(BaseModel):
     breed: str | None
     price_per_kg_paise: int
     source_label: str
+    valid_from: datetime
+    valid_to: datetime | None
 
 
 class _MarketReferenceFields(BaseModel):
