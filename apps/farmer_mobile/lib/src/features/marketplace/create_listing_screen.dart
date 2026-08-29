@@ -9,7 +9,16 @@ import '../providers.dart';
 const defaultListingWindow = Duration(hours: 8);
 
 class CreateListingScreen extends ConsumerStatefulWidget {
-  const CreateListingScreen({super.key});
+  const CreateListingScreen({
+    super.key,
+    this.initialTargetType,
+    this.initialTargetId,
+    this.receiptCode,
+  });
+
+  final String? initialTargetType;
+  final String? initialTargetId;
+  final String? receiptCode;
 
   @override
   ConsumerState<CreateListingScreen> createState() => _CreateListingScreenState();
@@ -29,6 +38,22 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
   bool loadingContext = false;
   bool publishing = false;
   String? result;
+
+  bool get targetLocked =>
+      widget.initialTargetId?.trim().isNotEmpty == true &&
+      (widget.initialTargetType == 'GOAT' || widget.initialTargetType == 'LOT');
+
+  @override
+  void initState() {
+    super.initState();
+    if (targetLocked) {
+      targetType = widget.initialTargetType!;
+      targetId.text = widget.initialTargetId!.trim();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) loadContext();
+      });
+    }
+  }
 
   int get totalPaise {
     final weight = verifiedWeightKg ?? 0;
@@ -138,18 +163,21 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
               DropdownMenuItem(value: 'GOAT', child: Text(t('individual_goat'))),
               DropdownMenuItem(value: 'LOT', child: Text(t('multiple_goats_lot'))),
             ],
-            onChanged: (v) {
-              final value = v ?? 'LOT';
-              if (value != targetType) {
-                targetType = value;
-                invalidateContext();
-              }
-            },
+            onChanged: targetLocked
+                ? null
+                : (value) {
+                    final next = value ?? 'LOT';
+                    if (next != targetType) {
+                      targetType = next;
+                      invalidateContext();
+                    }
+                  },
           ),
           const SizedBox(height: 10),
           TextField(
             controller: targetId,
-            onChanged: (_) => invalidateContext(),
+            enabled: !targetLocked,
+            onChanged: targetLocked ? null : (_) => invalidateContext(),
             decoration: InputDecoration(labelText: t('goat_id_lot_id')),
           ),
           const SizedBox(height: 10),
@@ -218,7 +246,7 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
             value: acknowledged,
             onChanged: verifiedWeightKg == null
                 ? null
-                : (v) => setState(() => acknowledged = v ?? false),
+                : (value) => setState(() => acknowledged = value ?? false),
             title: Text(t('ack_verified_weighment')),
           ),
           if (result != null) Text(result!),
@@ -238,8 +266,7 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
                             pricePerKgPaise:
                                 (double.parse(price.text) * 100).round(),
                             opensAt: DateTime.now(),
-                            closesAt:
-                                DateTime.now().add(defaultListingWindow),
+                            closesAt: DateTime.now().add(defaultListingWindow),
                             recommendationId: selectedRecommendationId,
                           );
                       if (mounted) {
