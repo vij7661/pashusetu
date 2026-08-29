@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -26,7 +26,7 @@ def recommendations(
     db: Session = Depends(get_db),
     user: User = Depends(current_user),
 ):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rows = db.scalars(
         select(MarketPriceRecommendation).where(
             MarketPriceRecommendation.market_code == market_code,
