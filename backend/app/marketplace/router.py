@@ -5,20 +5,43 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import current_user, require_farmer_kyc_verified
+from app.auth.dependencies import current_user, require_farmer_kyc_verified, require_roles
+from app.core.enums import Role
 from app.db.session import get_db
 from app.identity.models import User
 from app.marketplace.models import Listing, MarketPriceRecommendation
 from app.marketplace.schemas import (
+    AdminMarketReferenceCreate,
+    AdminMarketReferenceEdit,
+    AdminMarketReferenceResponse,
     ListingContextResponse,
     ListingCreate,
     ListingResponse,
     ListingSearchResult,
     MarketRecommendationResponse,
 )
-from app.marketplace.service import create_listing, get_listing_context
+from app.marketplace.service import (
+    create_listing,
+    create_market_reference,
+    get_listing_context,
+    version_market_reference,
+)
 
 router = APIRouter(prefix="/marketplace", tags=["marketplace"])
+
+
+def _admin_reference_response(row: MarketPriceRecommendation, now: datetime) -> AdminMarketReferenceResponse:
+    return AdminMarketReferenceResponse(
+        recommendation_id=str(row.id),
+        market_code=row.market_code,
+        breed=row.breed,
+        price_per_kg_paise=row.price_per_kg_paise,
+        source_label=row.source_label,
+        valid_from=row.valid_from,
+        valid_to=row.valid_to,
+        created_at=row.created_at,
+        active=row.valid_from <= now and (row.valid_to is None or row.valid_to > now),
+    )
 
 
 @router.get("/listing-context", response_model=ListingContextResponse)
@@ -66,6 +89,58 @@ def recommendations(
         for x in rows
         if x.valid_to is None or x.valid_to > now
     ]
+
+
+@router.get("/admin/references", response_model=list[AdminMarketReferenceResponse])
+def admin_references(
+    market_code: str | None = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.ADMIN)),
+):
+    stmt = select(MarketPriceRecommendation)
+    if market_code:
+        stmt = stmt.where(MarketPriceRecommendation.market_code == market_code.strip().upper())
+    rows = db.scalars(stmt.order_by(MarketPriceRecommendation.valid_from.desc())).all()
+    now = datetime.now(UTC)
+    return [_admin_reference_response(row, now) for row in rows]
+
+
+@router.post("/admin/references", response_model=AdminMarketReferenceResponse, status_code=201)
+def admin_create_reference(
+    payload: AdminMarketReferenceCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.ADMIN)),
+):
+    row = create_market_reference(
+        db,
+        payload.market_code,
+        payload.breed,
+        payload.price_per_kg_paise,
+        payload.source_label,
+        payload.valid_from,
+        payload.valid_to,
+    )
+    return _admin_reference_response(row, datetime.now(UTC))
+
+
+@router.put("/admin/references/{recommendation_id}", response_model=AdminMarketReferenceResponse)
+def admin_edit_reference(
+    recommendation_id: UUID,
+    payload: AdminMarketReferenceEdit,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.ADMIN)),
+):
+    row = version_market_reference(
+        db,
+        recommendation_id,
+        payload.effective_from,
+        payload.valid_to,
+        payload.market_code,
+        payload.breed,
+        payload.price_per_kg_paise,
+        payload.source_label,
+    )
+    return _admin_reference_response(row, datetime.now(UTC))
 
 
 @router.post("/listings", response_model=ListingResponse, status_code=201)
