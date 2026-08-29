@@ -46,13 +46,13 @@ There is **no path from Farmer Acknowledgement back to the scale** after accepta
 
 ## Authorization boundary
 
-The API now separates the two actors at the trust boundary:
+The API separates the two actors at the trust boundary:
 
 - **Operator mutations:** create session, append readings, lock a reading, attach verification evidence and create reweigh sessions.
 - **Farmer mutations:** acknowledge the verified weighment and request its receipt.
 - For Farmer mutations, the server resolves the Goat/Lot owner and verifies it matches the authenticated Farmer profile. Client-supplied ownership is never trusted.
 
-Role checks alone are not considered sufficient for Operator-side authorization. A later hardening slice must also enforce that the Operator is permitted to act for the session's assigned centre/operator relationship.
+Role checks alone are not sufficient for Operator-side authorization. Production hardening must additionally enforce that the Operator is permitted to mutate that specific session and centre.
 
 ## Evidence
 TD-3 reuses `EvidenceAsset` introduced in TD-2. A development evidence asset can be associated with the weighment and marked as `WEIGHMENT_VIDEO`.
