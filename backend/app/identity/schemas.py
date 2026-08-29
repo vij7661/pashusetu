@@ -2,6 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.identity.constants import PILOT_FARMER_STATE
+
 SupportedLanguage = Literal["te", "hi", "en", "mr", "ta", "ml"]
 
 
@@ -10,7 +12,7 @@ class FarmerRegistrationDetails(BaseModel):
     village: str | None = None
     mandal: str | None = None
     district: str | None = None
-    state: str | None = "Telangana"
+    state: str | None = PILOT_FARMER_STATE
     preferred_language: SupportedLanguage = "te"
 
 
@@ -45,7 +47,7 @@ class FarmerProfileCreate(BaseModel):
     village: str | None = None
     mandal: str | None = None
     district: str | None = None
-    state: str | None = "Telangana"
+    state: str | None = PILOT_FARMER_STATE
     latitude: float | None = None
     longitude: float | None = None
     preferred_language: SupportedLanguage = "te"
