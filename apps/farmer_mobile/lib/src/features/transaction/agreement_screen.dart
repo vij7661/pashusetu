@@ -12,12 +12,34 @@ class AgreementScreen extends ConsumerStatefulWidget {
 }
 
 class _AgreementScreenState extends ConsumerState<AgreementScreen> {
-  final pickup = TextEditingController(text: 'Chityal Mandal Centre');
-  final finalScale = TextEditingController(text: 'Buyer Verified Scale HYD-17');
-  final tolerance = TextEditingController(text: '1.5');
+  final pickup = TextEditingController();
+  final finalScale = TextEditingController();
+  final tolerance = TextEditingController();
   String? agreementId;
+  String? transportResponsibility;
+  String? disputeRule;
+  String? priceBasis;
   bool confirmed = false;
+  bool submitting = false;
   String? message;
+
+  bool get canCreate {
+    final toleranceValue = double.tryParse(tolerance.text);
+    return !submitting &&
+        pickup.text.trim().length >= 3 &&
+        finalScale.text.trim().length >= 3 &&
+        toleranceValue != null &&
+        toleranceValue > 0 &&
+        toleranceValue <= 10;
+  }
+
+  @override
+  void dispose() {
+    pickup.dispose();
+    finalScale.dispose();
+    tolerance.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,55 +48,113 @@ class _AgreementScreenState extends ConsumerState<AgreementScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          TextField(controller: pickup, decoration: const InputDecoration(labelText: 'Pickup point')),
+          TextField(
+            controller: pickup,
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(labelText: 'Pickup point'),
+          ),
           const SizedBox(height: 10),
-          TextField(controller: finalScale, decoration: const InputDecoration(labelText: 'Final weighing point')),
+          TextField(
+            controller: finalScale,
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(labelText: 'Final weighing point'),
+          ),
           const SizedBox(height: 10),
-          TextField(controller: tolerance, decoration: const InputDecoration(labelText: 'Allowed tolerance %')),
+          TextField(
+            controller: tolerance,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(labelText: 'Allowed tolerance %'),
+          ),
           const SizedBox(height: 12),
-          const Card(
-            child: ListTile(
-              title: Text('Transport responsibility'),
-              subtitle: Text('Buyer'),
+          if (agreementId != null) ...[
+            Card(
+              child: ListTile(
+                title: const Text('Price basis'),
+                subtitle: Text(priceBasis ?? '—'),
+              ),
             ),
-          ),
-          const Card(
-            child: ListTile(
-              title: Text('Dispute rule'),
-              subtitle: Text('Controlled reweigh → independent verified scale → evidence review'),
+            Card(
+              child: ListTile(
+                title: const Text('Transport responsibility'),
+                subtitle: Text(transportResponsibility ?? '—'),
+              ),
             ),
-          ),
+            Card(
+              child: ListTile(
+                title: const Text('Dispute rule'),
+                subtitle: Text(disputeRule ?? '—'),
+              ),
+            ),
+          ],
           if (message != null) Text(message!),
           FilledButton(
             onPressed: agreementId == null
-                ? () async {
-                    try {
-                      final result = await ref.read(transactionRepositoryProvider).createAgreement(
-                        transactionId: widget.transactionId,
-                        pickupPoint: pickup.text.trim(),
-                        finalWeighingPoint: finalScale.text.trim(),
-                        tolerancePercent: double.parse(tolerance.text),
-                      );
-                      setState(() => agreementId = result['agreement_id'] as String);
-                    } catch (e) {
-                      setState(() => message = e.toString());
-                    }
-                  }
-                : () async {
-                    try {
-                      await ref.read(transactionRepositoryProvider).confirmAgreement(
-                        widget.transactionId,
-                        agreementId!,
-                      );
-                      setState(() {
-                        confirmed = true;
-                        message = 'Farmer confirmed agreement. Waiting for buyer confirmation if not yet complete.';
-                      });
-                    } catch (e) {
-                      setState(() => message = e.toString());
-                    }
-                  },
-            child: Text(agreementId == null ? 'Create Agreement' : 'Confirm Agreement'),
+                ? (canCreate
+                    ? () async {
+                        setState(() {
+                          submitting = true;
+                          message = null;
+                        });
+                        try {
+                          final result = await ref
+                              .read(transactionRepositoryProvider)
+                              .createAgreement(
+                                transactionId: widget.transactionId,
+                                pickupPoint: pickup.text.trim(),
+                                finalWeighingPoint: finalScale.text.trim(),
+                                tolerancePercent: double.parse(tolerance.text),
+                              );
+                          if (!mounted) return;
+                          setState(() {
+                            agreementId = result['agreement_id'] as String;
+                            priceBasis = result['price_basis']?.toString();
+                            transportResponsibility =
+                                result['transport_responsibility']?.toString();
+                            disputeRule = result['dispute_rule']?.toString();
+                            submitting = false;
+                          });
+                        } catch (error) {
+                          if (!mounted) return;
+                          setState(() {
+                            submitting = false;
+                            message = error.toString();
+                          });
+                        }
+                      }
+                    : null)
+                : (!submitting && !confirmed
+                    ? () async {
+                        setState(() {
+                          submitting = true;
+                          message = null;
+                        });
+                        try {
+                          await ref
+                              .read(transactionRepositoryProvider)
+                              .confirmAgreement(widget.transactionId, agreementId!);
+                          if (!mounted) return;
+                          setState(() {
+                            submitting = false;
+                            confirmed = true;
+                            message =
+                                'Farmer confirmed agreement. Waiting for buyer confirmation if not yet complete.';
+                          });
+                        } catch (error) {
+                          if (!mounted) return;
+                          setState(() {
+                            submitting = false;
+                            message = error.toString();
+                          });
+                        }
+                      }
+                    : null),
+            child: submitting
+                ? const SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(agreementId == null ? 'Create Agreement' : 'Confirm Agreement'),
           ),
           if (confirmed) const Text('✓ Farmer confirmation recorded'),
         ],
