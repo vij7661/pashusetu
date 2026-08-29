@@ -9,6 +9,7 @@ class ListingCreate(BaseModel):
     target_type: Literal["GOAT", "LOT"]
     target_id: str
     farmer_price_per_kg_paise: int = Field(gt=0)
+    farmer_acknowledged: Literal[True]
     sale_type: Literal["COMPETITIVE_BIDDING", "FIXED_PRICE"] = "COMPETITIVE_BIDDING"
     opens_at: datetime
     closes_at: datetime
@@ -29,6 +30,8 @@ class ListingResponse(BaseModel):
     verified_weight_kg: Decimal
     farmer_price_per_kg_paise: int
     farmer_total_value_paise: int
+    farmer_acknowledged_at: datetime
+    farmer_acknowledgement_version: str
     sale_type: str
     opens_at: datetime
     closes_at: datetime
