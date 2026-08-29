@@ -40,7 +40,10 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: alembic upgrade head
       - name: Legacy backend regression
-        run: pytest -q --ignore=tests/test_farmer_registration_contract.py
+        run: >-
+          pytest -q
+          --ignore=tests/test_farmer_registration_contract.py
+          --ignore=tests/test_farmer_kyc_enforcement.py
       - name: Farmer OTP and fixture contract
         run: >-
           pytest -q
@@ -50,5 +53,21 @@ jobs:
         run: >-
           pytest -q
           tests/test_farmer_registration_contract.py::test_registration_resumes_and_farmer_id_is_created_only_after_kyc_submission
-      - run: ruff check app tests
+      - name: Farmer KYC transaction boundary
+        run: pytest -q tests/test_farmer_kyc_enforcement.py
+      - name: Farmer-change static analysis
+        run: >-
+          ruff check
+          app/auth
+          app/identity
+          app/bidding/router.py
+          app/marketplace/router.py
+          app/transaction/router.py
+          app/agreement/router.py
+          app/payments/router.py
+          app/disputes/router.py
+          app/logistics/router.py
+          tests/test_farmer_registration_contract.py
+          tests/test_farmer_kyc_enforcement.py
+          tests/fixtures/farmer_positive_v2.py
       - run: python scripts/export_openapi.py
