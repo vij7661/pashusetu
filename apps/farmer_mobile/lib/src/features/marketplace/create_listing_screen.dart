@@ -22,6 +22,8 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
   double? verifiedWeightKg;
   int? recommendationPaise;
   String? recommendationId;
+  String? referenceSource;
+  DateTime? referenceValidFrom;
   String? selectedRecommendationId;
   bool acknowledged = false;
   bool loadingContext = false;
@@ -44,11 +46,21 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
         pricePerKg > 0;
   }
 
+  String referenceDateLabel() {
+    final date = referenceValidFrom?.toLocal();
+    if (date == null) return '';
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}-$month-$day';
+  }
+
   void invalidateContext() {
     setState(() {
       verifiedWeightKg = null;
       recommendationPaise = null;
       recommendationId = null;
+      referenceSource = null;
+      referenceValidFrom = null;
       selectedRecommendationId = null;
       acknowledged = false;
       result = null;
@@ -62,6 +74,8 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
       verifiedWeightKg = null;
       recommendationPaise = null;
       recommendationId = null;
+      referenceSource = null;
+      referenceValidFrom = null;
       selectedRecommendationId = null;
       acknowledged = false;
       result = null;
@@ -79,8 +93,11 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
       setState(() {
         verifiedWeightKg = weight;
         if (rows.isNotEmpty) {
-          recommendationPaise = rows.first['price_per_kg_paise'] as int;
-          recommendationId = rows.first['recommendation_id'].toString();
+          final reference = rows.first;
+          recommendationPaise = reference['price_per_kg_paise'] as int;
+          recommendationId = reference['recommendation_id'].toString();
+          referenceSource = reference['source_label'].toString();
+          referenceValidFrom = DateTime.tryParse(reference['valid_from'].toString());
         }
       });
     } catch (e) {
@@ -104,6 +121,11 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
     final weightLabel = verifiedWeightKg == null
         ? '—'
         : '${verifiedWeightKg!.toStringAsFixed(3)} kg';
+    final referenceDetails = recommendationPaise == null
+        ? t('no_recommendation')
+        : '${formatPaise(recommendationPaise!)}/kg\n'
+            '${t('reference_source')}: ${referenceSource ?? '—'}\n'
+            '${t('reference_effective_date')}: ${referenceDateLabel()}';
 
     return Scaffold(
       appBar: AppBar(title: Text(t('price_listing_rules'))),
@@ -157,11 +179,8 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
           Card(
             child: ListTile(
               title: Text(t('market_recommendation')),
-              subtitle: Text(
-                recommendationPaise == null
-                    ? t('no_recommendation')
-                    : '${formatPaise(recommendationPaise!)}/kg',
-              ),
+              subtitle: Text(referenceDetails),
+              isThreeLine: recommendationPaise != null,
               trailing: recommendationPaise == null
                   ? null
                   : TextButton(
