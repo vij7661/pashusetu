@@ -6,6 +6,7 @@ import '../../core/localization/app_strings.dart';
 import '../../core/localization/kyc_status_strings.dart';
 import '../../core/localization/language_provider.dart';
 import '../../shared/app_card.dart';
+import '../identity/farmer_dashboard.dart';
 import '../providers.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -31,30 +32,22 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
       ),
-      body: FutureBuilder<Map<String, dynamic>>(
+      body: FutureBuilder<FarmerDashboard>(
         future: ref.read(identityRepositoryProvider).farmerDashboard(),
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (snapshot.hasError) {
-            return Center(child: Text(snapshot.error.toString()));
-          }
-
-          final dashboard = snapshot.data!;
-          final kycStatus = dashboard['kyc_status']?.toString();
-          if (kycStatus == null || kycStatus.isEmpty) {
+          if (snapshot.hasError || !snapshot.hasData) {
             return Center(child: Text(kyc('dashboard_state_error')));
           }
 
-          final transactionEnabled = dashboard['transaction_enabled'] == true;
-          final liveListings = dashboard['live_listings'] as int? ?? 0;
-          final activeOffers = dashboard['active_offers'] as int? ?? 0;
-          final settledPaise = dashboard['settled_amount_paise'] as int? ?? 0;
-          final settledRupees = (settledPaise / 100).toStringAsFixed(0);
+          final dashboard = snapshot.data!;
+          final settledRupees =
+              (dashboard.settledAmountPaise / 100).toStringAsFixed(0);
 
           String kycTitle() {
-            switch (kycStatus) {
+            switch (dashboard.kycStatus) {
               case 'KYC_ACTION_REQUIRED':
                 return kyc('action_required');
               case 'KYC_REJECTED':
@@ -69,7 +62,7 @@ class HomeScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              if (!transactionEnabled) ...[
+              if (!dashboard.transactionEnabled) ...[
                 Card(
                   child: ListTile(
                     leading: const Icon(Icons.verified_user_outlined),
@@ -82,11 +75,17 @@ class HomeScreen extends ConsumerWidget {
               Row(
                 children: [
                   Expanded(
-                    child: _Kpi(value: '$liveListings', label: t('live_listings')),
+                    child: _Kpi(
+                      value: '${dashboard.liveListings}',
+                      label: t('live_listings'),
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: _Kpi(value: '$activeOffers', label: t('offers')),
+                    child: _Kpi(
+                      value: '${dashboard.activeOffers}',
+                      label: t('offers'),
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -112,13 +111,15 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               AppCard(
-                onTap: transactionEnabled ? () => context.go('/listing/create') : null,
+                onTap: dashboard.transactionEnabled
+                    ? () => context.go('/listing/create')
+                    : null,
                 child: ListTile(
-                  enabled: transactionEnabled,
+                  enabled: dashboard.transactionEnabled,
                   leading: const Icon(Icons.sell_outlined),
                   title: Text(t('create_verified_listing')),
                   subtitle: Text(
-                    transactionEnabled
+                    dashboard.transactionEnabled
                         ? t('create_verified_listing_desc')
                         : kyc('available_after_kyc'),
                   ),
