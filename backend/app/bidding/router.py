@@ -3,12 +3,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import current_user, require_farmer_kyc_verified
+from app.bidding.schemas import BidAcceptanceResponse, BidCreate, BidResponse
+from app.bidding.service import accept_bid, submit_bid
 from app.core.errors import AppError
 from app.db.session import get_db
 from app.identity.models import User
 from app.marketplace.models import Bid, Listing
-from app.bidding.schemas import BidAcceptanceResponse, BidCreate, BidResponse
-from app.bidding.service import accept_bid, submit_bid
 from app.transaction.service import create_transaction_from_accepted_bid
 
 router = APIRouter(prefix="/bidding", tags=["bidding"])
