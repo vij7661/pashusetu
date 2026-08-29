@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import current_user
+from app.auth.dependencies import current_user, require_farmer_kyc_verified
 from app.db.session import get_db
 from app.identity.models import User
 from app.marketplace.models import Listing, MarketPriceRecommendation
@@ -50,7 +50,7 @@ def recommendations(
 def post_listing(
     payload: ListingCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(current_user),
+    user: User = Depends(require_farmer_kyc_verified),
 ):
     listing = create_listing(
         db,
