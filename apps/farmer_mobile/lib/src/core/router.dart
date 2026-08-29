@@ -34,7 +34,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
       GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
       GoRoute(path: '/livestock/new', builder: (_, __) => const CreateLivestockScreen()),
-      GoRoute(path: '/listing/create', builder: (_, __) => const CreateListingScreen()),
+      GoRoute(
+        path: '/listing/create',
+        builder: (_, state) => CreateListingScreen(
+          initialTargetType: state.uri.queryParameters['target_type'],
+          initialTargetId: state.uri.queryParameters['target_id'],
+          receiptCode: state.uri.queryParameters['receipt_code'],
+        ),
+      ),
       GoRoute(path: '/listings', builder: (_, __) => const ListingHistoryScreen()),
       GoRoute(
         path: '/weighment/:weighmentId/ack',
