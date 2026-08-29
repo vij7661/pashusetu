@@ -8,7 +8,12 @@ from app.core.errors import AppError
 from app.db.session import get_db
 from app.identity.models import User
 from app.logistics.models import DeliveryRecord, PickupRecord, TransportAssignment
-from app.logistics.schemas import DeliveryRequest, PickupRequest, ToleranceResult, TransportAssignRequest
+from app.logistics.schemas import (
+    DeliveryRequest,
+    PickupRequest,
+    ToleranceResult,
+    TransportAssignRequest,
+)
 from app.logistics.service import evaluate_delivery
 from app.transaction.service import transaction_for_party, transition_transaction
 from app.weighment.models import WeighmentSession
