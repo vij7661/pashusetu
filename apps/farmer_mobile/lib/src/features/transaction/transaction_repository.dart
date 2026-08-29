@@ -10,6 +10,9 @@ class TransactionRepository {
   Future<Map<String, dynamic>> transaction(String id) =>
       _api.get('/transaction/$id');
 
+  Future<Map<String, dynamic>> settlement(String transactionId) =>
+      _api.get('/payments/transactions/$transactionId/settlement');
+
   Future<Map<String, dynamic>> createAgreement({
     required String transactionId,
     required String pickupPoint,
