@@ -2,13 +2,13 @@ from fastapi import APIRouter, Depends, Header
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import current_user
+from app.auth.dependencies import current_user, require_farmer_kyc_verified
 from app.core.errors import AppError
 from app.db.session import get_db
 from app.identity.models import User
-from app.marketplace.models import Listing, Bid
-from app.bidding.schemas import BidCreate, BidResponse, BidAcceptanceResponse
-from app.bidding.service import submit_bid, accept_bid
+from app.marketplace.models import Bid, Listing
+from app.bidding.schemas import BidAcceptanceResponse, BidCreate, BidResponse
+from app.bidding.service import accept_bid, submit_bid
 from app.transaction.service import create_transaction_from_accepted_bid
 
 router = APIRouter(prefix="/bidding", tags=["bidding"])
@@ -74,7 +74,7 @@ def post_accept_bid(
     listing_id: str,
     bid_id: str,
     db: Session = Depends(get_db),
-    user: User = Depends(current_user),
+    user: User = Depends(require_farmer_kyc_verified),
 ):
     listing, bid = accept_bid(db, user.id, listing_id, bid_id)
     create_transaction_from_accepted_bid(db, listing, bid)
