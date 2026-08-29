@@ -1,6 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -12,6 +13,13 @@ class ListingCreate(BaseModel):
     opens_at: datetime
     closes_at: datetime
     recommendation_id: str | None = None
+
+
+class ListingContextResponse(BaseModel):
+    target_type: str
+    target_id: str
+    verified_weight_kg: Decimal
+    market_code: str
 
 
 class ListingResponse(BaseModel):
