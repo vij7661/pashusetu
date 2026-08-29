@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
-from decimal import Decimal, ROUND_HALF_UP
+from datetime import UTC, datetime
+from decimal import ROUND_HALF_UP, Decimal
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
@@ -80,7 +80,7 @@ def get_listing_context(
 
 def calculate_total_paise(weight_kg: Decimal, price_per_kg_paise: int) -> int:
     total = weight_kg * Decimal(price_per_kg_paise)
-    return int(total.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    return int(total.quantize(Decimal(1), rounding=ROUND_HALF_UP))
 
 
 def _validate_reference_window(valid_from: datetime, valid_to: datetime | None) -> None:
@@ -242,7 +242,7 @@ def create_listing(
 
 
 def close_listing_if_expired(db: Session, listing: Listing) -> Listing:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if listing.status == "PUBLISHED" and now >= listing.closes_at:
         listing.status = "CLOSED"
         db.commit()
