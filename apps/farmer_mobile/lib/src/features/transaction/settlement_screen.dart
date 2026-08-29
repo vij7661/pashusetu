@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/localization/app_strings.dart';
 import '../../core/localization/language_provider.dart';
-import '../../core/providers.dart';
 import '../../shared/money.dart';
+import '../providers.dart';
 
 class SettlementScreen extends ConsumerStatefulWidget {
   const SettlementScreen({super.key, required this.transactionId});
@@ -17,6 +17,30 @@ class SettlementScreen extends ConsumerStatefulWidget {
 class _SettlementScreenState extends ConsumerState<SettlementScreen> {
   Map<String, dynamic>? result;
   String? error;
+  bool loading = false;
+
+  Future<void> loadSettlement() async {
+    if (loading) return;
+    setState(() {
+      loading = true;
+      error = null;
+    });
+    try {
+      final settlement = await ref
+          .read(transactionRepositoryProvider)
+          .settlement(widget.transactionId);
+      if (!mounted) return;
+      setState(() => result = settlement);
+    } catch (exception) {
+      if (!mounted) return;
+      setState(() {
+        result = null;
+        error = exception.toString();
+      });
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,19 +72,13 @@ class _SettlementScreenState extends ConsumerState<SettlementScreen> {
               Text(error!, style: const TextStyle(color: Colors.red)),
             const Spacer(),
             FilledButton(
-              onPressed: () async {
-                try {
-                  final x = await ref.read(apiClientProvider).post(
-                        '/payments/transactions/${widget.transactionId}/settle',
-                      );
-                  if (!mounted) return;
-                  setState(() => result = x);
-                } catch (e) {
-                  if (!mounted) return;
-                  setState(() => error = e.toString());
-                }
-              },
-              child: Text(t('load_complete_settlement')),
+              onPressed: loading ? null : loadSettlement,
+              child: loading
+                  ? const SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(t('load_complete_settlement')),
             ),
           ],
         ),
