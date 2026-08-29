@@ -26,7 +26,6 @@ class IdentityRepository {
       'village': village,
       'mandal': mandal,
       'district': district,
-      'state': 'Telangana',
       'preferred_language': language,
     });
   }
