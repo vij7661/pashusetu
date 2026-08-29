@@ -18,19 +18,27 @@ class ShipmentScreen extends ConsumerWidget {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) return Center(child: Text(snapshot.error.toString()));
-          final state = snapshot.data?['state']?.toString() ?? '-';
+
+          final state = snapshot.data?['state']?.toString();
+          if (state == null || state.isEmpty) {
+            return const Center(child: Text('Transaction state is unavailable.'));
+          }
+
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Card(child: ListTile(title: const Text('Transaction State'), subtitle: Text(state))),
-              const ListTile(leading: Icon(Icons.verified), title: Text('Origin weighment verified')),
-              const ListTile(leading: Icon(Icons.qr_code), title: Text('Pickup QR verification')),
-              const ListTile(leading: Icon(Icons.videocam), title: Text('Loading evidence')),
-              const ListTile(leading: Icon(Icons.local_shipping), title: Text('In transit')),
-              const ListTile(leading: Icon(Icons.scale), title: Text('Delivery weighment')),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.local_shipping_outlined),
+                  title: const Text('Authoritative transaction state'),
+                  subtitle: Text(state),
+                ),
+              ),
+              const SizedBox(height: 12),
               const Text(
-                'This screen renders the authoritative backend transaction state. '
-                'Detailed transporter/location data will be added when the provider/API is finalized.',
+                'Shipment milestones are shown only when the backend provides verified '
+                'pickup, transit, delivery, weighment, or evidence events. This screen '
+                'does not infer completed milestones from static UI steps.',
               ),
             ],
           );
