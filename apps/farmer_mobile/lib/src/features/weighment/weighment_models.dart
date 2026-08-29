@@ -24,3 +24,33 @@ class WeighmentView {
         centreCode: json['centre_code'] as String,
       );
 }
+
+class WeighmentReceipt {
+  WeighmentReceipt({
+    required this.receiptId,
+    required this.receiptCode,
+    required this.printStatus,
+    required this.targetType,
+    required this.targetId,
+  });
+
+  final String receiptId;
+  final String receiptCode;
+  final String printStatus;
+  final String targetType;
+  final String targetId;
+
+  factory WeighmentReceipt.fromJson(Map<String, dynamic> json) {
+    final targetType = json['target_type'] as String;
+    if (targetType != 'GOAT' && targetType != 'LOT') {
+      throw const FormatException('Invalid weighment receipt target type');
+    }
+    return WeighmentReceipt(
+      receiptId: json['receipt_id'] as String,
+      receiptCode: json['receipt_code'] as String,
+      printStatus: json['print_status'] as String,
+      targetType: targetType,
+      targetId: json['target_id'] as String,
+    );
+  }
+}
