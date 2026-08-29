@@ -5,6 +5,7 @@ import '../../core/localization/app_strings.dart';
 import '../../core/localization/language_provider.dart';
 import '../../shared/money.dart';
 import '../providers.dart';
+import 'transaction_models.dart';
 
 class SettlementScreen extends ConsumerStatefulWidget {
   const SettlementScreen({super.key, required this.transactionId});
@@ -15,7 +16,7 @@ class SettlementScreen extends ConsumerStatefulWidget {
 }
 
 class _SettlementScreenState extends ConsumerState<SettlementScreen> {
-  Map<String, dynamic>? result;
+  SettlementView? result;
   String? error;
   bool loading = false;
 
@@ -58,12 +59,12 @@ class _SettlementScreenState extends ConsumerState<SettlementScreen> {
                 child: ListTile(
                   title: Text(t('final_settlement')),
                   subtitle: Text(
-                    '${t('gross')} ${formatPaise(result!['gross_amount_paise'] as int)}\n'
-                    '${t('adjustment')} ${formatPaise(result!['adjustment_paise'] as int)}\n'
-                    '${t('platform_fee')} ${formatPaise(result!['platform_fee_paise'] as int)}',
+                    '${t('gross')} ${formatPaise(result!.grossAmountPaise)}\n'
+                    '${t('adjustment')} ${formatPaise(result!.adjustmentPaise)}\n'
+                    '${t('platform_fee')} ${formatPaise(result!.platformFeePaise)}',
                   ),
                   trailing: Text(
-                    formatPaise(result!['final_amount_paise'] as int),
+                    formatPaise(result!.finalAmountPaise),
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
