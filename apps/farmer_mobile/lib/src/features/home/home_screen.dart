@@ -40,12 +40,29 @@ class HomeScreen extends ConsumerWidget {
           }
 
           final dashboard = snapshot.data!;
-          final kycStatus = dashboard['kyc_status']?.toString() ?? 'KYC_PENDING';
+          final kycStatus = dashboard['kyc_status']?.toString();
+          if (kycStatus == null || kycStatus.isEmpty) {
+            return Center(child: Text(t('dashboard_state_error')));
+          }
+
           final transactionEnabled = dashboard['transaction_enabled'] == true;
           final liveListings = dashboard['live_listings'] as int? ?? 0;
           final activeOffers = dashboard['active_offers'] as int? ?? 0;
           final settledPaise = dashboard['settled_amount_paise'] as int? ?? 0;
           final settledRupees = (settledPaise / 100).toStringAsFixed(0);
+
+          String kycTitle() {
+            switch (kycStatus) {
+              case 'KYC_ACTION_REQUIRED':
+                return t('kyc_action_required');
+              case 'KYC_REJECTED':
+                return t('kyc_rejected');
+              case 'KYC_PENDING':
+                return t('kyc_pending');
+              default:
+                return t('kyc_incomplete');
+            }
+          }
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -54,15 +71,8 @@ class HomeScreen extends ConsumerWidget {
                 Card(
                   child: ListTile(
                     leading: const Icon(Icons.verified_user_outlined),
-                    title: Text(
-                      kycStatus == 'KYC_ACTION_REQUIRED'
-                          ? 'KYC action required'
-                          : 'KYC verification pending',
-                    ),
-                    subtitle: const Text(
-                      'You can use Home and manage livestock while KYC is incomplete. '
-                      'Transaction actions become available after verification.',
-                    ),
+                    title: Text(kycTitle()),
+                    subtitle: Text(t('kyc_transaction_note')),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -108,7 +118,7 @@ class HomeScreen extends ConsumerWidget {
                   subtitle: Text(
                     transactionEnabled
                         ? t('create_verified_listing_desc')
-                        : 'Available after KYC verification',
+                        : t('available_after_kyc'),
                   ),
                 ),
               ),
