@@ -44,6 +44,22 @@ def _session_by_code(db: Session, code: str) -> WeighmentSession:
     return session
 
 
+def _target_for_session(db: Session, session: WeighmentSession) -> Goat | Lot:
+    if session.target_type == "GOAT":
+        target = db.get(Goat, session.target_id)
+    elif session.target_type == "LOT":
+        target = db.get(Lot, session.target_id)
+    else:
+        target = None
+    if target is None:
+        raise AppError("WEIGHMENT_TARGET_NOT_FOUND", "Weighment target not found.", 404)
+    return target
+
+
+def _target_code(target: Goat | Lot) -> str:
+    return target.goat_code if isinstance(target, Goat) else target.lot_code
+
+
 def _session_response(db: Session, session: WeighmentSession) -> WeighmentSessionResponse:
     operator = db.get(OperatorProfile, session.operator_id)
     centre = db.get(MandalCentre, session.centre_id)
@@ -60,23 +76,15 @@ def _session_response(db: Session, session: WeighmentSession) -> WeighmentSessio
     )
 
 
-def _require_farmer_session_owner(db: Session, session: WeighmentSession, user: User) -> FarmerProfile:
+def _require_farmer_session_owner(db: Session, session: WeighmentSession, user: User) -> Goat | Lot:
     farmer = db.scalar(select(FarmerProfile).where(FarmerProfile.user_id == user.id))
     if not farmer:
         raise AppError("FARMER_PROFILE_REQUIRED", "Farmer profile is required.", 409)
 
-    if session.target_type == "GOAT":
-        target = db.get(Goat, session.target_id)
-    elif session.target_type == "LOT":
-        target = db.get(Lot, session.target_id)
-    else:
-        target = None
-
-    if target is None:
-        raise AppError("WEIGHMENT_TARGET_NOT_FOUND", "Weighment target not found.", 404)
+    target = _target_for_session(db, session)
     if target.farmer_profile_id != farmer.id:
         raise AppError("WEIGHMENT_FORBIDDEN", "This weighment does not belong to the current Farmer.", 403)
-    return farmer
+    return target
 
 
 @router.post("/sessions", response_model=WeighmentSessionResponse, status_code=201)
@@ -167,13 +175,15 @@ def post_receipt(
     user: User = Depends(farmer_required),
 ):
     session = _session_by_code(db, weighment_id)
-    _require_farmer_session_owner(db, session, user)
+    target = _require_farmer_session_owner(db, session, user)
     receipt = create_receipt(db, session)
     return ReceiptResponse(
         receipt_id=str(receipt.id),
         receipt_code=receipt.receipt_code,
         qr_payload=receipt.qr_payload,
         print_status=receipt.print_status,
+        target_type=session.target_type,
+        target_id=_target_code(target),
     )
 
 
@@ -188,22 +198,12 @@ def post_reweigh(
     if previous.status not in {"REJECTED_BY_FARMER", "DISPUTED"}:
         raise AppError("REWEIGH_NOT_ALLOWED", "Reweigh is not allowed in the current state.", 409)
 
-    if previous.target_type == "GOAT":
-        target = db.get(Goat, previous.target_id)
-        if target is None:
-            raise AppError("WEIGHMENT_TARGET_NOT_FOUND", "Goat not found.", 404)
-        target_code = target.goat_code
-    else:
-        target = db.get(Lot, previous.target_id)
-        if target is None:
-            raise AppError("WEIGHMENT_TARGET_NOT_FOUND", "Lot not found.", 404)
-        target_code = target.lot_code
-
+    target = _target_for_session(db, previous)
     session = start_weighment(
         db,
         operator_user_id=user.id,
         target_type=previous.target_type,
-        target_code=target_code,
+        target_code=_target_code(target),
         scale_code=payload.scale_code,
         reweigh_of=previous,
     )
