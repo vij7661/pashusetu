@@ -8,12 +8,14 @@ import Disputes from "./pages/Disputes";
 import Payments from "./pages/Payments";
 import Audit from "./pages/Audit";
 import Operators from "./pages/Operators";
+import ReferencePrices from "./pages/ReferencePrices";
 import Login from "./pages/Login";
 
 const nav = [
   ["/", "Dashboard"],
   ["/users", "Users / KYC"],
   ["/centres", "Centres / Scales"],
+  ["/reference-prices", "Reference Prices"],
   ["/transactions", "Transactions"],
   ["/bids", "Bidding Audit"],
   ["/disputes", "Disputes"],
@@ -47,6 +49,7 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/users" element={<Users />} />
           <Route path="/centres" element={<Centres />} />
+          <Route path="/reference-prices" element={<ReferencePrices />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/bids" element={<Bids />} />
           <Route path="/disputes" element={<Disputes />} />
