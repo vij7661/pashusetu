@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers.dart';
+import 'transaction_models.dart';
 
 class ShipmentScreen extends ConsumerWidget {
   const ShipmentScreen({super.key, required this.transactionId});
@@ -11,7 +12,7 @@ class ShipmentScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(title: const Text('Pickup & Delivery Tracking')),
-      body: FutureBuilder<Map<String, dynamic>>(
+      body: FutureBuilder<TransactionView>(
         future: ref.read(transactionRepositoryProvider).transaction(transactionId),
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
@@ -19,11 +20,7 @@ class ShipmentScreen extends ConsumerWidget {
           }
           if (snapshot.hasError) return Center(child: Text(snapshot.error.toString()));
 
-          final state = snapshot.data?['state']?.toString();
-          if (state == null || state.isEmpty) {
-            return const Center(child: Text('Transaction state is unavailable.'));
-          }
-
+          final transaction = snapshot.data!;
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -31,7 +28,7 @@ class ShipmentScreen extends ConsumerWidget {
                 child: ListTile(
                   leading: const Icon(Icons.local_shipping_outlined),
                   title: const Text('Authoritative transaction state'),
-                  subtitle: Text(state),
+                  subtitle: Text(transaction.state),
                 ),
               ),
               const SizedBox(height: 12),
