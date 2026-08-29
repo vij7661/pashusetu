@@ -1,16 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/providers.dart';
+import 'disputes/dispute_repository.dart';
+import 'evidence/evidence_service.dart';
 import 'identity/identity_repository.dart';
 import 'livestock/livestock_repository.dart';
 import 'marketplace/marketplace_repository.dart';
 import 'transaction/transaction_repository.dart';
-import 'disputes/dispute_repository.dart';
 import 'weighment/weighment_repository.dart';
-import 'evidence/evidence_service.dart';
 
 final identityRepositoryProvider = Provider(
-  (ref) => IdentityRepository(ref.watch(apiClientProvider)),
+  (ref) => IdentityRepository(
+    ref.watch(apiClientProvider),
+    ref.watch(tokenStoreProvider),
+  ),
 );
 final livestockRepositoryProvider = Provider(
   (ref) => LivestockRepository(ref.watch(apiClientProvider)),
