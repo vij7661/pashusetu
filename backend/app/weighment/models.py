@@ -1,7 +1,16 @@
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -18,13 +27,18 @@ class MandalCentre(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     district: Mapped[str | None] = mapped_column(String(120))
     state: Mapped[str | None] = mapped_column(String(120), default="Telangana")
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    latitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
+    longitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
 
 
 class OperatorProfile(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "operator_profiles"
 
     user_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False
+        PGUUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
     )
     operator_code: Mapped[str] = mapped_column(String(30), unique=True, index=True, nullable=False)
     full_name: Mapped[str] = mapped_column(String(120), nullable=False)
@@ -61,7 +75,9 @@ class WeighmentSession(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         PGUUID(as_uuid=True), ForeignKey("farmer_profiles.id", ondelete="RESTRICT"), nullable=False
     )
     operator_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("operator_profiles.id", ondelete="RESTRICT"), nullable=False
+        PGUUID(as_uuid=True),
+        ForeignKey("operator_profiles.id", ondelete="RESTRICT"),
+        nullable=False,
     )
     centre_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("mandal_centres.id", ondelete="RESTRICT"), nullable=False
@@ -79,7 +95,10 @@ class WeightReading(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "weight_readings"
 
     weighment_session_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("weighment_sessions.id", ondelete="CASCADE"), nullable=False, index=True
+        PGUUID(as_uuid=True),
+        ForeignKey("weighment_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     sequence_no: Mapped[int] = mapped_column(Integer, nullable=False)
     gross_kg: Mapped[Decimal] = mapped_column(Numeric(10, 3), nullable=False)
@@ -91,12 +110,12 @@ class WeightReading(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
 class FarmerWeighmentAcknowledgement(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "farmer_weighment_acknowledgements"
-    __table_args__ = (
-        UniqueConstraint("weighment_session_id", name="uq_weighment_ack"),
-    )
+    __table_args__ = (UniqueConstraint("weighment_session_id", name="uq_weighment_ack"),)
 
     weighment_session_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("weighment_sessions.id", ondelete="CASCADE"), nullable=False
+        PGUUID(as_uuid=True),
+        ForeignKey("weighment_sessions.id", ondelete="CASCADE"),
+        nullable=False,
     )
     farmer_profile_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("farmer_profiles.id", ondelete="RESTRICT"), nullable=False
@@ -109,7 +128,10 @@ class WeighmentReceipt(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "weighment_receipts"
 
     weighment_session_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("weighment_sessions.id", ondelete="CASCADE"), unique=True, nullable=False
+        PGUUID(as_uuid=True),
+        ForeignKey("weighment_sessions.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
     )
     receipt_code: Mapped[str] = mapped_column(String(40), unique=True, index=True, nullable=False)
     qr_payload: Mapped[str] = mapped_column(Text, nullable=False)

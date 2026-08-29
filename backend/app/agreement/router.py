@@ -3,8 +3,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agreement.models import Agreement, AgreementConfirmation
-from app.agreement.schemas import AgreementCreate, AgreementConfirmRequest, AgreementResponse
-from app.agreement.service import create_agreement, confirm_agreement
+from app.agreement.schemas import AgreementConfirmRequest, AgreementCreate, AgreementResponse
+from app.agreement.service import confirm_agreement, create_agreement
 from app.auth.dependencies import current_user
 from app.core.errors import AppError
 from app.db.session import get_db
@@ -35,6 +35,15 @@ def _agreement_response(db: Session, tx: Transaction, agreement: Agreement) -> A
         buyer_confirmed=buyer_confirmed,
         locked=agreement.locked,
         status=agreement.status,
+        accepted_bid_id=str(agreement.accepted_bid_id),
+        listing_id=str(agreement.listing_id),
+        farmer_profile_id=str(agreement.farmer_profile_id),
+        buyer_profile_id=str(agreement.buyer_profile_id),
+        selected_goat_ids=[str(x) for x in (agreement.selected_goat_ids or [])],
+        whole_lot=bool(agreement.whole_lot),
+        accepted_price_per_kg_paise=agreement.accepted_price_per_kg_paise,
+        agreed_weight_kg=float(agreement.agreed_weight_kg),
+        livestock_amount_paise=agreement.livestock_amount_paise,
     )
 
 
@@ -50,7 +59,9 @@ def post_agreement(
     return _agreement_response(db, tx, agreement)
 
 
-@router.post("/transactions/{transaction_id}/{agreement_id}/confirm", response_model=AgreementResponse)
+@router.post(
+    "/transactions/{transaction_id}/{agreement_id}/confirm", response_model=AgreementResponse
+)
 def post_confirm(
     transaction_id: str,
     agreement_id: str,

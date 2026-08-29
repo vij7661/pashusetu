@@ -26,10 +26,21 @@ The mobile client still does not pretend to provide:
 Those require provider/hardware choices and remain behind the backend adapter architecture.
 
 ## Run
+Android emulator:
+
 ```bash
 flutter pub get
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1
 ```
+
+Chrome QA from this directory:
+
+```bash
+flutter pub get
+flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000/api/v1
+```
+
+Run the Chrome command from `apps/farmer_mobile` (not the repository root), so Flutter can find this app's `pubspec.yaml` and web scaffold.
 
 Backend:
 ```bash

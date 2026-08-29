@@ -3,12 +3,12 @@ from uuid import UUID, uuid4
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.audit.service import append_event
 from app.core.errors import AppError
 from app.disputes.models import Dispute, Settlement
 from app.marketplace.models import Bid
 from app.transaction.models import Transaction
 from app.transaction.service import transition_transaction
-from app.audit.service import append_event
 
 
 def create_settlement(
@@ -21,7 +21,7 @@ def create_settlement(
     if existing:
         return existing
 
-    if tx.state not in {"SETTLED", "RESOLVED"}:
+    if tx.state not in {"SETTLEMENT_READY", "SETTLED", "RESOLVED"}:
         raise AppError("SETTLEMENT_NOT_ALLOWED", "Transaction is not ready for settlement.", 409)
 
     bid = db.get(Bid, tx.accepted_bid_id)
@@ -50,7 +50,11 @@ def create_settlement(
         transition_transaction(db, tx, "SETTLED")
 
     append_event(
-        db, "TRANSACTION", tx.id, "SETTLEMENT_COMPLETED", actor_user_id,
+        db,
+        "TRANSACTION",
+        tx.id,
+        "SETTLEMENT_COMPLETED",
+        actor_user_id,
         payload={
             "settlement_id": settlement.settlement_code,
             "gross_amount_paise": gross,

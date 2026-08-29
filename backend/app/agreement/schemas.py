@@ -1,5 +1,6 @@
 from typing import Literal
-from pydantic import BaseModel, Field
+
+from pydantic import BaseModel, Field, field_validator
 
 
 class AgreementCreate(BaseModel):
@@ -9,6 +10,13 @@ class AgreementCreate(BaseModel):
     tolerance_percent: float = Field(gt=0, le=10)
     transport_responsibility: Literal["FARMER", "BUYER", "PLATFORM"]
     dispute_rule: str = Field(min_length=10, max_length=2000)
+
+    @field_validator("tolerance_percent")
+    @classmethod
+    def approved_pilot_tolerance(cls, value: float) -> float:
+        if value != 1.5:
+            raise ValueError("pilot tolerance must be the approved 1.5 percent")
+        return value
 
 
 class AgreementResponse(BaseModel):
@@ -25,6 +33,15 @@ class AgreementResponse(BaseModel):
     buyer_confirmed: bool
     locked: bool
     status: str
+    accepted_bid_id: str
+    listing_id: str
+    farmer_profile_id: str
+    buyer_profile_id: str
+    selected_goat_ids: list[str]
+    whole_lot: bool
+    accepted_price_per_kg_paise: int
+    agreed_weight_kg: float
+    livestock_amount_paise: int
 
 
 class AgreementConfirmRequest(BaseModel):

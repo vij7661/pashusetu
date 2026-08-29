@@ -3,12 +3,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import current_user
+from app.bidding.schemas import BidAcceptanceResponse, BidCreate, BidResponse
+from app.bidding.service import accept_bid, submit_bid
 from app.core.errors import AppError
 from app.db.session import get_db
 from app.identity.models import User
-from app.marketplace.models import Listing, Bid
-from app.bidding.schemas import BidCreate, BidResponse, BidAcceptanceResponse
-from app.bidding.service import submit_bid, accept_bid
+from app.identity.profile_models import BuyerProfile, FarmerProfile
+from app.marketplace.models import Bid, Listing
+from app.transaction.models import Transaction
 from app.transaction.service import create_transaction_from_accepted_bid
 
 router = APIRouter(prefix="/bidding", tags=["bidding"])
@@ -28,6 +30,8 @@ def post_bid(
         listing_id,
         payload.price_per_kg_paise,
         idempotency_key,
+        payload.selected_goat_ids,
+        payload.whole_lot,
     )
     listing = db.get(Listing, bid.listing_id)
     return BidResponse(
@@ -38,6 +42,10 @@ def post_bid(
         server_sequence=bid.server_sequence,
         status=bid.status,
         reject_reason=bid.reject_reason,
+        selected_goat_ids=[str(x) for x in bid.selected_goat_ids],
+        selected_quantity=bid.selected_quantity,
+        selected_weight_kg=bid.selected_weight_kg,
+        whole_lot=bid.whole_lot,
     )
 
 
@@ -50,9 +58,17 @@ def list_bids(
     listing = db.scalar(select(Listing).where(Listing.listing_code == listing_id))
     if not listing:
         raise AppError("LISTING_NOT_FOUND", "Listing not found.", 404)
+    farmer = db.scalar(select(FarmerProfile).where(FarmerProfile.user_id == user.id))
+    buyer = db.scalar(select(BuyerProfile).where(BuyerProfile.user_id == user.id))
+    if farmer and listing.seller_farmer_profile_id == farmer.id:
+        bid_filter = Bid.listing_id == listing.id
+    elif buyer:
+        bid_filter = (Bid.listing_id == listing.id) & (Bid.buyer_profile_id == buyer.id)
+    else:
+        raise AppError("FORBIDDEN", "Only the seller or bidding Buyer may review offers.", 403)
     rows = db.scalars(
         select(Bid)
-        .where(Bid.listing_id == listing.id)
+        .where(bid_filter)
         .order_by(Bid.price_per_kg_paise.desc(), Bid.server_sequence.asc())
     ).all()
     return [
@@ -64,6 +80,13 @@ def list_bids(
             server_sequence=x.server_sequence,
             status=x.status,
             reject_reason=x.reject_reason,
+            selected_goat_ids=[str(value) for value in x.selected_goat_ids],
+            selected_quantity=x.selected_quantity,
+            selected_weight_kg=x.selected_weight_kg,
+            whole_lot=x.whole_lot,
+            transaction_id=db.scalar(
+                select(Transaction.transaction_code).where(Transaction.accepted_bid_id == x.id)
+            ),
         )
         for x in rows
     ]
@@ -77,10 +100,11 @@ def post_accept_bid(
     user: User = Depends(current_user),
 ):
     listing, bid = accept_bid(db, user.id, listing_id, bid_id)
-    create_transaction_from_accepted_bid(db, listing, bid)
+    transaction = create_transaction_from_accepted_bid(db, listing, bid)
     return BidAcceptanceResponse(
         listing_id=listing.listing_code,
         accepted_bid_id=bid.bid_code,
         accepted_server_sequence=bid.server_sequence,
         status=listing.status,
+        transaction_id=transaction.transaction_code,
     )

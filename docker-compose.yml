@@ -20,18 +20,51 @@ services:
       context: ./backend
     env_file:
       - .env
+    environment:
+      APP_ENV: qa
+      DATABASE_URL: postgresql+psycopg://pashusetu:pashusetu@db_qa:5432/pashusetu_qa
+      OTP_TEST_MODE: "true"
+      DATABASE_ISOLATED_FOR_QA: "true"
     ports:
       - "8000:8000"
     depends_on:
-      db:
+      db_qa:
         condition: service_healthy
     volumes:
       - ./backend:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
-volumes:
-  pashusetu_pg:
+  db_qa:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: pashusetu_qa
+      POSTGRES_USER: pashusetu
+      POSTGRES_PASSWORD: pashusetu
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pashusetu -d pashusetu_qa"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - pashusetu_qa_pg:/var/lib/postgresql/data
 
+  qa_seed:
+    build:
+      context: ./backend
+    profiles: ["qa-tools"]
+    environment:
+      APP_ENV: qa
+      DATABASE_URL: postgresql+psycopg://pashusetu:pashusetu@db_qa:5432/pashusetu_qa
+      OTP_TEST_MODE: "true"
+      DATABASE_ISOLATED_FOR_QA: "true"
+    depends_on:
+      db_qa:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: python -m app.db.qa_seed reset-seed
 
   db_test:
     image: postgres:16
@@ -41,3 +74,7 @@ volumes:
       POSTGRES_PASSWORD: pashusetu
     ports:
       - "5433:5432"
+
+volumes:
+  pashusetu_pg:
+  pashusetu_qa_pg:

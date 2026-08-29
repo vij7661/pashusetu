@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/localization/app_strings.dart';
 import '../../core/localization/language_provider.dart';
 import '../../core/providers.dart';
+import '../auth/auth_error_message.dart';
 import '../../shared/money.dart';
 
 class SettlementScreen extends ConsumerStatefulWidget {
@@ -57,7 +58,7 @@ class _SettlementScreenState extends ConsumerState<SettlementScreen> {
                   setState(() => result = x);
                 } catch (e) {
                   if (!mounted) return;
-                  setState(() => error = e.toString());
+                  setState(() => error = authErrorMessage(e, language));
                 }
               },
               child: Text(t('load_complete_settlement')),

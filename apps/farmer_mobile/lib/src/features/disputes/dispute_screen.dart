@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/localization/app_strings.dart';
 import '../../core/localization/language_provider.dart';
+import '../../shared/numeric_validation.dart';
+import '../auth/auth_error_message.dart';
 import '../providers.dart';
 
 class DisputeScreen extends ConsumerStatefulWidget {
@@ -15,7 +17,7 @@ class DisputeScreen extends ConsumerStatefulWidget {
 
 class _DisputeScreenState extends ConsumerState<DisputeScreen> {
   String reason = 'WEIGHT_DIFFERENCE';
-  final amount = TextEditingController(text: '0');
+  final amount = TextEditingController();
   String? result;
 
   @override
@@ -56,6 +58,7 @@ class _DisputeScreenState extends ConsumerState<DisputeScreen> {
             TextField(
               controller: amount,
               keyboardType: TextInputType.number,
+              inputFormatters: const [RejectingDigitsFormatter()],
               decoration: InputDecoration(labelText: t('disputed_amount')),
             ),
             const SizedBox(height: 12),
@@ -64,17 +67,21 @@ class _DisputeScreenState extends ConsumerState<DisputeScreen> {
             if (result != null) Text(result!),
             FilledButton(
               onPressed: () async {
+                if (!isValidNonNegativeAmount(amount.text)) {
+                  setState(() => result = t('invalid_disputed_amount'));
+                  return;
+                }
                 try {
                   final x = await ref.read(disputeRepositoryProvider).open(
                         transactionId: widget.transactionId,
                         reason: reason,
-                        disputedAmountPaise: int.tryParse(amount.text) ?? 0,
+                        disputedAmountPaise: int.parse(amount.text),
                       );
                   if (!mounted) return;
                   setState(() => result = '${x['dispute_id']}');
                 } catch (e) {
                   if (!mounted) return;
-                  setState(() => result = e.toString());
+                  setState(() => result = authErrorMessage(e, language));
                 }
               },
               child: Text(t('open_dispute')),

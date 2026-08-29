@@ -10,9 +10,11 @@ from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 class Transaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "transactions"
 
-    transaction_code: Mapped[str] = mapped_column(String(40), unique=True, index=True, nullable=False)
+    transaction_code: Mapped[str] = mapped_column(
+        String(40), unique=True, index=True, nullable=False
+    )
     listing_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("listings.id", ondelete="RESTRICT"), unique=True, nullable=False
+        PGUUID(as_uuid=True), ForeignKey("listings.id", ondelete="RESTRICT"), nullable=False
     )
     farmer_profile_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("farmer_profiles.id", ondelete="RESTRICT"), nullable=False

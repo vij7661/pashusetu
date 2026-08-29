@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from uuid import UUID, uuid4
 
 from sqlalchemy import func, select
@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.agreement.models import Agreement, AgreementConfirmation
 from app.agreement.schemas import AgreementCreate
 from app.core.errors import AppError
-from app.identity.profile_models import FarmerProfile, BuyerProfile
+from app.identity.profile_models import BuyerProfile, FarmerProfile
 from app.marketplace.models import Bid, Listing
 from app.transaction.models import Transaction
 from app.transaction.service import transition_transaction
@@ -31,19 +31,32 @@ def create_agreement(
     user_id: UUID,
     payload: AgreementCreate,
 ) -> Agreement:
+    tx = db.scalar(select(Transaction).where(Transaction.id == tx.id).with_for_update())
     role = _role_for_user(db, tx, user_id)
     if role != "FARMER":
         raise AppError("FARMER_ONLY", "Farmer creates the initial agreement proposal.", 403)
     if tx.state not in {"OFFER_ACCEPTED", "AGREEMENT_PENDING"}:
-        raise AppError("AGREEMENT_NOT_ALLOWED", "Agreement cannot be created in current state.", 409)
+        raise AppError(
+            "AGREEMENT_NOT_ALLOWED", "Agreement cannot be created in current state.", 409
+        )
 
     accepted_bid = db.get(Bid, tx.accepted_bid_id)
     if not accepted_bid:
         raise AppError("ACCEPTED_BID_NOT_FOUND", "Accepted bid not found.", 500)
+    listing = db.get(Listing, tx.listing_id)
+    if not listing or accepted_bid.listing_id != listing.id or accepted_bid.status != "ACCEPTED":
+        raise AppError("ACCEPTED_BID_INVALID", "Accepted bid does not match the transaction.", 409)
+    agreed_weight = accepted_bid.selected_weight_kg or listing.verified_weight_kg
+    livestock_amount = int(
+        (Decimal(accepted_bid.price_per_kg_paise) * Decimal(agreed_weight)).quantize(
+            Decimal(1), rounding=ROUND_HALF_UP
+        )
+    )
 
     next_version = db.scalar(
-        select(func.coalesce(func.max(Agreement.version), 0) + 1)
-        .where(Agreement.transaction_id == tx.id)
+        select(func.coalesce(func.max(Agreement.version), 0) + 1).where(
+            Agreement.transaction_id == tx.id
+        )
     )
 
     agreement = Agreement(
@@ -51,10 +64,18 @@ def create_agreement(
         transaction_id=tx.id,
         version=next_version,
         accepted_bid_id=accepted_bid.id,
+        listing_id=listing.id,
+        farmer_profile_id=tx.farmer_profile_id,
+        buyer_profile_id=tx.buyer_profile_id,
+        selected_goat_ids=list(accepted_bid.selected_goat_ids),
+        whole_lot=accepted_bid.whole_lot,
+        accepted_price_per_kg_paise=accepted_bid.price_per_kg_paise,
+        agreed_weight_kg=agreed_weight,
+        livestock_amount_paise=livestock_amount,
         price_basis=payload.price_basis,
         pickup_point=payload.pickup_point,
         final_weighing_point=payload.final_weighing_point,
-        tolerance_basis_points=int(Decimal(str(payload.tolerance_percent)) * Decimal("100")),
+        tolerance_basis_points=int(Decimal(str(payload.tolerance_percent)) * Decimal(100)),
         transport_responsibility=payload.transport_responsibility,
         dispute_rule=payload.dispute_rule,
         status="PENDING_CONFIRMATION",
@@ -82,7 +103,9 @@ def confirm_agreement(
     if agreement.locked:
         return agreement
     if tx.state != "AGREEMENT_PENDING":
-        raise AppError("AGREEMENT_NOT_PENDING", "Transaction is not awaiting agreement confirmation.", 409)
+        raise AppError(
+            "AGREEMENT_NOT_PENDING", "Transaction is not awaiting agreement confirmation.", 409
+        )
 
     role = _role_for_user(db, tx, user_id)
     existing = db.scalar(

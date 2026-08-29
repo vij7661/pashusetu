@@ -5,9 +5,11 @@ from sqlalchemy.orm import Session
 
 from app.core.enums import Role
 from app.core.errors import AppError
+from app.identity.kyc_provider import KycVerificationService
 from app.identity.models import User, UserRole
-from app.identity.profile_models import FarmerProfile, BuyerProfile
-from app.identity.schemas import FarmerProfileCreate, BuyerProfileCreate
+from app.identity.payout_provider import PayoutDetailsService
+from app.identity.profile_models import BuyerProfile, FarmerProfile
+from app.identity.schemas import BuyerProfileCreate, FarmerProfileCreate
 
 
 def _ensure_role(db: Session, user: User, role: Role) -> None:
@@ -23,6 +25,10 @@ def create_farmer_profile(db: Session, user: User, payload: FarmerProfileCreate)
     if existing:
         raise AppError("FARMER_PROFILE_EXISTS", "Farmer profile already exists.", 409)
 
+    kyc = KycVerificationService().verify(
+        payload.kyc.aadhaar_number, payload.kyc.name_as_per_aadhaar, payload.kyc.consent
+    )
+    payout = PayoutDetailsService().setup(payload.payout)
     user.preferred_language = payload.preferred_language
     _ensure_role(db, user, Role.FARMER)
 
@@ -36,6 +42,12 @@ def create_farmer_profile(db: Session, user: User, payload: FarmerProfileCreate)
         state=payload.state,
         latitude=str(payload.latitude) if payload.latitude is not None else None,
         longitude=str(payload.longitude) if payload.longitude is not None else None,
+        kyc_status=kyc.status,
+        kyc_masked_id=kyc.masked_id,
+        kyc_provider_reference=kyc.provider_reference,
+        payout_status=payout.status,
+        payout_method=payout.method,
+        payout_masked_reference=payout.masked_reference,
     )
     db.add(profile)
     db.commit()

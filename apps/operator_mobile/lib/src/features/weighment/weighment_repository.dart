@@ -47,6 +47,17 @@ class WeighmentRepository {
     });
   }
 
+  Future<Map<String, dynamic>> createVideoEvidence({
+    required String weighmentId,
+    required String fileName,
+    required String mimeType,
+  }) {
+    return _api.post('/weighment/sessions/$weighmentId/verification-evidence', body: {
+      'file_name': fileName,
+      'mime_type': mimeType,
+    });
+  }
+
   Future<Map<String, dynamic>> reweigh({
     required String weighmentId,
     required String scaleCode,

@@ -19,6 +19,7 @@ def test_shared_state_machine_contains_approved_states():
         "DELIVERED",
         "DELIVERY_VERIFICATION",
         "TOLERANCE_CHECK",
+        "SETTLEMENT_READY",
         "SETTLED",
         "DISPUTED",
         "RESOLVED",

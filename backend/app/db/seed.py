@@ -1,12 +1,10 @@
-from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from uuid import uuid4
 
 from sqlalchemy import select
 
 from app.db.session import SessionLocal
 from app.identity.models import User, UserRole
-from app.identity.profile_models import FarmerProfile, BuyerProfile
+from app.identity.profile_models import BuyerProfile, FarmerProfile
 from app.weighment.models import MandalCentre, OperatorProfile, ScaleDevice
 
 
@@ -24,6 +22,8 @@ def run_seed():
             mandal="Chityal",
             district="Nalgonda",
             state="Telangana",
+            latitude=Decimal("17.232100"),
+            longitude=Decimal("79.137400"),
         )
         db.add(centre)
         db.flush()
@@ -34,11 +34,13 @@ def run_seed():
         db.add_all([farmer_user, buyer_user, operator_user])
         db.flush()
 
-        db.add_all([
-            UserRole(user_id=farmer_user.id, role="FARMER"),
-            UserRole(user_id=buyer_user.id, role="BUYER"),
-            UserRole(user_id=operator_user.id, role="OPERATOR"),
-        ])
+        db.add_all(
+            [
+                UserRole(user_id=farmer_user.id, role="FARMER"),
+                UserRole(user_id=buyer_user.id, role="BUYER"),
+                UserRole(user_id=operator_user.id, role="OPERATOR"),
+            ]
+        )
 
         db.add(
             FarmerProfile(

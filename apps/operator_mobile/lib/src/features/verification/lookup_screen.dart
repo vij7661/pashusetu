@@ -26,7 +26,7 @@ class _LookupScreenState extends State<LookupScreen> {
           ),
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
-            value: targetType,
+            initialValue: targetType,
             items: const [
               DropdownMenuItem(value: 'GOAT', child: Text('Individual Goat')),
               DropdownMenuItem(value: 'LOT', child: Text('Goat Lot')),

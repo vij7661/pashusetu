@@ -114,7 +114,8 @@ class _LiveWeighmentScreenState extends ConsumerState<LiveWeighmentScreen> {
                             weighmentId: weighmentId!,
                             readingId: readingId!,
                           );
-                      if (mounted) context.go('/weighment/$weighmentId/video');
+                      if (!context.mounted) return;
+                      context.go('/weighment/$weighmentId/video');
                     } catch (e) {
                       setState(() => message = e.toString());
                     }

@@ -23,7 +23,7 @@ class _DisputeScreenState extends ConsumerState<DisputeScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(children: [
           DropdownButtonFormField<String>(
-            value: reason,
+            initialValue: reason,
             items: const [
               DropdownMenuItem(value: 'WEIGHT_DIFFERENCE', child: Text('Weight difference')),
               DropdownMenuItem(value: 'WRONG_ANIMAL', child: Text('Wrong animal')),

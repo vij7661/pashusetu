@@ -1,15 +1,15 @@
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
+from app.auth.providers import DevelopmentOTPProvider
 from app.core.config import get_settings
 from app.core.enums import Role
 from app.core.errors import AppError
 from app.core.security import create_access_token, create_refresh_token
 from app.identity.models import OTPChallenge, User, UserRole
-from app.auth.providers import DevelopmentOTPProvider
 
 DEV_OTP = "4816"
 
@@ -20,6 +20,26 @@ def _hash_otp(otp: str) -> str:
 
 def request_otp(db: Session, mobile_e164: str, purpose: str) -> None:
     settings = get_settings()
+    if not settings.otp_test_mode:
+        raise AppError("OTP_PROVIDER_UNAVAILABLE", "OTP service is not configured.", 503)
+
+    user = db.scalar(select(User).where(User.mobile_e164 == mobile_e164))
+    if user is None:
+        raise AppError(
+            "QA_TEST_USER_NOT_FOUND",
+            "Mobile number not registered for QA testing.",
+            404,
+        )
+
+    db.execute(
+        update(OTPChallenge)
+        .where(
+            OTPChallenge.mobile_e164 == mobile_e164,
+            OTPChallenge.purpose == purpose,
+            OTPChallenge.consumed.is_(False),
+        )
+        .values(consumed=True)
+    )
     challenge = OTPChallenge(
         mobile_e164=mobile_e164,
         purpose=purpose,
