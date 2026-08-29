@@ -83,6 +83,8 @@ def recommendations(
             breed=x.breed,
             price_per_kg_paise=x.price_per_kg_paise,
             source_label=x.source_label,
+            valid_from=x.valid_from,
+            valid_to=x.valid_to,
         )
         for x in rows
         if x.valid_to is None or x.valid_to > now
