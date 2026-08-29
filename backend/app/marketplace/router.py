@@ -51,12 +51,7 @@ def listing_context(
     db: Session = Depends(get_db),
     user: User = Depends(require_farmer_kyc_verified),
 ):
-    verified_weight, market_code = get_listing_context(
-        db,
-        user.id,
-        target_type,
-        target_id,
-    )
+    verified_weight, market_code = get_listing_context(db, user.id, target_type, target_id)
     return ListingContextResponse(
         target_type=target_type,
         target_id=target_id,
@@ -73,10 +68,12 @@ def recommendations(
 ):
     now = datetime.now(UTC)
     rows = db.scalars(
-        select(MarketPriceRecommendation).where(
-            MarketPriceRecommendation.market_code == market_code,
+        select(MarketPriceRecommendation)
+        .where(
+            MarketPriceRecommendation.market_code == market_code.strip().upper(),
             MarketPriceRecommendation.valid_from <= now,
         )
+        .order_by(MarketPriceRecommendation.valid_from.desc())
     ).all()
     return [
         MarketRecommendationResponse(
