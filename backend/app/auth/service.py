@@ -16,6 +16,7 @@ from app.identity.profile_models import FarmerProfile, FarmerRegistration
 OTP_LENGTH = 4
 FARMER_LOGIN_PURPOSE = "FARMER_LOGIN"
 FARMER_REGISTRATION_PURPOSE = "FARMER_REGISTRATION"
+DEVELOPMENT_ENVS = {"local", "test", "development"}
 
 
 def _hash_otp(otp: str) -> str:
@@ -23,16 +24,23 @@ def _hash_otp(otp: str) -> str:
 
 
 def _development_otp(mobile_e164: str) -> str:
-    # Development-only deterministic OTP tied to this mobile number. This avoids
-    # a universal OTP while keeping local/manual testing reproducible.
     settings = get_settings()
-    digest = sha256(f"{settings.jwt_secret}:{mobile_e164}".encode("utf-8")).hexdigest()
+    digest = sha256(
+        f"{settings.development_otp_seed}:{mobile_e164}".encode("utf-8")
+    ).hexdigest()
     value = int(digest[:8], 16) % (10**OTP_LENGTH)
     return f"{value:0{OTP_LENGTH}d}"
 
 
 def request_otp(db: Session, mobile_e164: str, purpose: str) -> None:
     settings = get_settings()
+    if settings.app_env.lower() not in DEVELOPMENT_ENVS:
+        raise AppError(
+            "OTP_PROVIDER_NOT_CONFIGURED",
+            "A production OTP provider must be configured before pilot/production use.",
+            503,
+        )
+
     otp = _development_otp(mobile_e164)
     challenge = OTPChallenge(
         mobile_e164=mobile_e164,
@@ -69,7 +77,7 @@ def _consume_valid_otp(db: Session, mobile_e164: str, otp: str, purpose: str) ->
         raise AppError("OTP_INVALID", "Invalid OTP.", 400)
 
     challenge.consumed = True
-    db.flush()
+    db.commit()
 
 
 def verify_otp(db: Session, mobile_e164: str, otp: str, purpose: str) -> tuple[User, list[str]]:
@@ -78,11 +86,9 @@ def verify_otp(db: Session, mobile_e164: str, otp: str, purpose: str) -> tuple[U
     user = db.scalar(select(User).where(User.mobile_e164 == mobile_e164))
     if purpose == FARMER_LOGIN_PURPOSE:
         if user is None:
-            db.rollback()
             raise AppError("FARMER_NOT_REGISTERED", "No registered farmer account for this mobile.", 404)
         profile = db.scalar(select(FarmerProfile).where(FarmerProfile.user_id == user.id))
         if profile is None:
-            db.rollback()
             raise AppError("FARMER_NOT_REGISTERED", "No registered farmer account for this mobile.", 404)
     elif user is None:
         # Preserve the legacy generic LOGIN behavior for non-Farmer clients until
@@ -107,7 +113,6 @@ def verify_farmer_registration_otp(
     if existing_user is not None:
         profile = db.scalar(select(FarmerProfile).where(FarmerProfile.user_id == existing_user.id))
         if profile is not None:
-            db.rollback()
             raise AppError(
                 "FARMER_ALREADY_REGISTERED",
                 "This mobile already belongs to a registered farmer. Use Existing Farmer login.",
@@ -127,7 +132,6 @@ def verify_farmer_registration_otp(
         db.flush()
 
     if registration.user_id is not None:
-        db.rollback()
         raise AppError(
             "FARMER_ALREADY_REGISTERED",
             "Registration has already been converted to a farmer account.",
