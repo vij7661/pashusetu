@@ -65,6 +65,8 @@ jobs:
           app/marketplace/router.py
           app/marketplace/schemas.py
           app/marketplace/service.py
+          app/weighment/router.py
+          app/weighment/schemas.py
           app/transaction/router.py
           app/agreement/router.py
           app/payments/router.py
@@ -74,5 +76,6 @@ jobs:
           tests/test_farmer_kyc_enforcement.py
           tests/test_market_reference_contract.py
           tests/test_listing_acknowledgement_contract.py
+          tests/test_weighment_authorization_contract.py
           tests/fixtures/farmer_positive_v2.py
       - run: python scripts/export_openapi.py
