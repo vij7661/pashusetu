@@ -166,7 +166,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           controller: otp,
           keyboardType: TextInputType.number,
           maxLength: farmerOtpLength,
-          inputFormatters: const [
+          inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,
             LengthLimitingTextInputFormatter(farmerOtpLength),
           ],
@@ -205,7 +205,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               controller: aadhaar,
               keyboardType: TextInputType.number,
               maxLength: aadhaarLength,
-              inputFormatters: const [
+              inputFormatters: [
                 FilteringTextInputFormatter.digitsOnly,
                 LengthLimitingTextInputFormatter(aadhaarLength),
               ],
