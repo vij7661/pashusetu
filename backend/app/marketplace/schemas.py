@@ -43,48 +43,38 @@ class MarketRecommendationResponse(BaseModel):
     source_label: str
 
 
-class AdminMarketReferenceCreate(BaseModel):
+class _MarketReferenceFields(BaseModel):
     market_code: str = Field(min_length=2, max_length=40)
     breed: str | None = Field(default=None, max_length=80)
     price_per_kg_paise: int = Field(gt=0)
     source_label: str = Field(min_length=3, max_length=160)
-    valid_from: datetime
     valid_to: datetime | None = None
+
+    @field_validator("market_code", "source_label", mode="before")
+    @classmethod
+    def trim_required_text(cls, value: str) -> str:
+        return value.strip() if isinstance(value, str) else value
 
     @field_validator("market_code")
     @classmethod
     def normalize_market_code(cls, value: str) -> str:
-        return value.strip().upper()
+        return value.upper()
 
-    @field_validator("breed", "source_label")
+    @field_validator("breed", mode="before")
     @classmethod
-    def trim_text(cls, value: str | None) -> str | None:
+    def trim_optional_breed(cls, value: str | None) -> str | None:
         if value is None:
             return None
         cleaned = value.strip()
         return cleaned or None
 
 
-class AdminMarketReferenceEdit(BaseModel):
-    market_code: str | None = Field(default=None, min_length=2, max_length=40)
-    breed: str | None = Field(default=None, max_length=80)
-    price_per_kg_paise: int | None = Field(default=None, gt=0)
-    source_label: str | None = Field(default=None, min_length=3, max_length=160)
+class AdminMarketReferenceCreate(_MarketReferenceFields):
+    valid_from: datetime
+
+
+class AdminMarketReferenceEdit(_MarketReferenceFields):
     effective_from: datetime
-    valid_to: datetime | None = None
-
-    @field_validator("market_code")
-    @classmethod
-    def normalize_market_code(cls, value: str | None) -> str | None:
-        return value.strip().upper() if value is not None else None
-
-    @field_validator("breed", "source_label")
-    @classmethod
-    def trim_text(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        cleaned = value.strip()
-        return cleaned or None
 
 
 class AdminMarketReferenceResponse(BaseModel):
