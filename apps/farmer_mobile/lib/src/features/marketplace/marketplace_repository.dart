@@ -5,6 +5,16 @@ class MarketplaceRepository {
   MarketplaceRepository(this._api);
   final ApiClient _api;
 
+  Future<Map<String, dynamic>> listingContext({
+    required String targetType,
+    required String targetId,
+  }) {
+    return _api.get('/marketplace/listing-context', query: {
+      'target_type': targetType,
+      'target_id': targetId,
+    });
+  }
+
   Future<List<Map<String, dynamic>>> recommendations(String marketCode) async {
     final rows = await _api.getList('/marketplace/recommendations', query: {
       'market_code': marketCode,
