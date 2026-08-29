@@ -57,7 +57,7 @@ class _WeighmentAckScreenState extends ConsumerState<WeighmentAckScreen> {
                         final repository = ref.read(weighmentRepositoryProvider);
                         await repository.acknowledge(widget.weighmentId);
                         final receipt = await repository.createReceipt(widget.weighmentId);
-                        if (!context.mounted) return;
+                        if (!mounted) return;
                         final uri = Uri(
                           path: '/listing/create',
                           queryParameters: {
@@ -66,7 +66,7 @@ class _WeighmentAckScreenState extends ConsumerState<WeighmentAckScreen> {
                             'receipt_code': receipt.receiptCode,
                           },
                         );
-                        context.go(uri.toString());
+                        this.context.go(uri.toString());
                       } catch (error) {
                         if (!mounted) return;
                         setState(() {
