@@ -1,14 +1,17 @@
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.auth.service import tokens_for
 from app.core.enums import Role
 from app.core.errors import AppError
+from app.disputes.models import Settlement
 from app.identity.models import User, UserRole
 from app.identity.profile_models import BuyerProfile, FarmerProfile, FarmerRegistration
 from app.identity.schemas import BuyerProfileCreate, FarmerProfileCreate, FarmerRegistrationDetails
+from app.marketplace.models import Bid, Listing
+from app.transaction.models import Transaction
 
 
 def _ensure_role(db: Session, user: User, role: Role) -> None:
@@ -107,6 +110,46 @@ def complete_farmer_registration_kyc(
     db.refresh(profile)
     db.refresh(registration)
     return profile, tokens_for(user, [r.role for r in user.roles])
+
+
+def farmer_dashboard(db: Session, user: User) -> dict:
+    profile = db.scalar(select(FarmerProfile).where(FarmerProfile.user_id == user.id))
+    if profile is None:
+        raise AppError("FARMER_PROFILE_NOT_FOUND", "Farmer profile not found.", 404)
+
+    live_listings = db.scalar(
+        select(func.count(Listing.id)).where(
+            Listing.seller_farmer_profile_id == profile.id,
+            Listing.status == "PUBLISHED",
+        )
+    ) or 0
+
+    active_offers = db.scalar(
+        select(func.count(Bid.id))
+        .join(Listing, Bid.listing_id == Listing.id)
+        .where(
+            Listing.seller_farmer_profile_id == profile.id,
+            Bid.status == "ACTIVE",
+        )
+    ) or 0
+
+    settled_amount_paise = db.scalar(
+        select(func.coalesce(func.sum(Settlement.final_amount_paise), 0))
+        .join(Transaction, Settlement.transaction_id == Transaction.id)
+        .where(
+            Transaction.farmer_profile_id == profile.id,
+            Settlement.status == "COMPLETED",
+        )
+    ) or 0
+
+    return {
+        "farmer_id": profile.farmer_code,
+        "kyc_status": profile.kyc_status,
+        "transaction_enabled": profile.kyc_status == "KYC_VERIFIED",
+        "live_listings": int(live_listings),
+        "active_offers": int(active_offers),
+        "settled_amount_paise": int(settled_amount_paise),
+    }
 
 
 def create_farmer_profile(db: Session, user: User, payload: FarmerProfileCreate) -> FarmerProfile:
