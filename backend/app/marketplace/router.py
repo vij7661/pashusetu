@@ -116,6 +116,7 @@ def admin_create_reference(
         payload.source_label,
         payload.valid_from,
         payload.valid_to,
+        user.id,
     )
     return _admin_reference_response(row, datetime.now(UTC))
 
@@ -136,6 +137,7 @@ def admin_edit_reference(
         payload.breed,
         payload.price_per_kg_paise,
         payload.source_label,
+        user.id,
     )
     return _admin_reference_response(row, datetime.now(UTC))
 
