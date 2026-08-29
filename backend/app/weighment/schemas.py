@@ -1,5 +1,6 @@
 from decimal import Decimal
 from typing import Literal
+
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -60,6 +61,8 @@ class ReceiptResponse(BaseModel):
     receipt_code: str
     qr_payload: str
     print_status: str
+    target_type: Literal["GOAT", "LOT"]
+    target_id: str
 
 
 class ReweighRequest(BaseModel):
