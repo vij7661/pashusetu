@@ -26,6 +26,7 @@ jobs:
       APP_ENV: test
       DATABASE_URL: postgresql+psycopg://pashusetu:pashusetu@localhost:5432/pashusetu_test
       JWT_SECRET: ci-secret
+      DEVELOPMENT_OTP_SEED: pashusetu-dev-otp-v1
 
     defaults:
       run:
@@ -38,6 +39,16 @@ jobs:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
       - run: alembic upgrade head
-      - run: pytest -q
+      - name: Legacy backend regression
+        run: pytest -q --ignore=tests/test_farmer_registration_contract.py
+      - name: Farmer OTP and fixture contract
+        run: >-
+          pytest -q
+          tests/test_farmer_registration_contract.py::test_otp_contract_is_exactly_four_numeric_digits
+          tests/test_farmer_registration_contract.py::test_farmer_positive_v2_fixture_integrity
+      - name: Farmer registration lifecycle contract
+        run: >-
+          pytest -q
+          tests/test_farmer_registration_contract.py::test_registration_resumes_and_farmer_id_is_created_only_after_kyc_submission
       - run: ruff check app tests
       - run: python scripts/export_openapi.py
