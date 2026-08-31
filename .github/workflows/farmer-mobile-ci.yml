@@ -36,9 +36,9 @@ jobs:
 
           gradle = Path("android/app/build.gradle.kts")
           text = gradle.read_text(encoding="utf-8")
-          marker = "        targetCompatibility = JavaVersion.VERSION_11\n"
+          marker = "    compileOptions {\n"
           if marker not in text:
-              raise SystemExit("Generated Flutter Android compileOptions template changed")
+              raise SystemExit("Generated Flutter Android compileOptions block not found")
           text = text.replace(
               marker,
               marker + "        isCoreLibraryDesugaringEnabled = true\n",
