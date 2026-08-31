@@ -33,9 +33,13 @@ def upgrade():
     op.add_column("farmer_profiles", sa.Column("kyc_reference", sa.String(80), nullable=True))
     op.create_unique_constraint("uq_farmer_profiles_kyc_reference", "farmer_profiles", ["kyc_reference"])
     op.alter_column("farmer_profiles", "kyc_status", existing_type=sa.String(20), type_=sa.String(30), server_default="KYC_PENDING")
+    op.execute("UPDATE farmer_profiles SET kyc_status = 'KYC_VERIFIED' WHERE kyc_status = 'VERIFIED'")
+    op.execute("UPDATE farmer_profiles SET kyc_status = 'KYC_PENDING' WHERE kyc_status = 'PENDING'")
 
 
 def downgrade():
+    op.execute("UPDATE farmer_profiles SET kyc_status = 'VERIFIED' WHERE kyc_status = 'KYC_VERIFIED'")
+    op.execute("UPDATE farmer_profiles SET kyc_status = 'PENDING' WHERE kyc_status = 'KYC_PENDING'")
     op.alter_column("farmer_profiles", "kyc_status", existing_type=sa.String(30), type_=sa.String(20), server_default="PENDING")
     op.drop_constraint("uq_farmer_profiles_kyc_reference", "farmer_profiles", type_="unique")
     op.drop_column("farmer_profiles", "kyc_reference")
