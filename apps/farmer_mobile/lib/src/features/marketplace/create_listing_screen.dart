@@ -107,22 +107,20 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
     });
     try {
       final repository = ref.read(marketplaceRepositoryProvider);
-      final context = await repository.listingContext(
+      final listingContext = await repository.listingContext(
         targetType: targetType,
         targetId: targetId.text.trim(),
       );
-      final weight = double.parse(context['verified_weight_kg'].toString());
-      final marketCode = context['market_code'].toString();
-      final rows = await repository.recommendations(marketCode);
+      final rows = await repository.recommendations(listingContext.marketCode);
       if (!mounted) return;
       setState(() {
-        verifiedWeightKg = weight;
+        verifiedWeightKg = listingContext.verifiedWeightKg;
         if (rows.isNotEmpty) {
           final reference = rows.first;
-          recommendationPaise = reference['price_per_kg_paise'] as int;
-          recommendationId = reference['recommendation_id'].toString();
-          referenceSource = reference['source_label'].toString();
-          referenceValidFrom = DateTime.tryParse(reference['valid_from'].toString());
+          recommendationPaise = reference.pricePerKgPaise;
+          recommendationId = reference.id;
+          referenceSource = reference.sourceLabel;
+          referenceValidFrom = reference.validFrom;
         }
       });
     } catch (e) {
