@@ -11,6 +11,8 @@ FarmerKYCStatus = Literal[
     "KYC_ACTION_REQUIRED",
     "KYC_REJECTED",
 ]
+FarmerRegistrationState = Literal["NEW_IN_PROGRESS", "KYC_SUBMITTED"]
+FarmerRegistrationNextStep = Literal["FARMER_DETAILS", "KYC", "HOME"]
 
 
 class FarmerRegistrationDetails(BaseModel):
@@ -24,14 +26,25 @@ class FarmerRegistrationDetails(BaseModel):
 
 class FarmerRegistrationStatus(BaseModel):
     registration_id: str
-    registration_status: str
-    next_step: str
+    registration_status: FarmerRegistrationState
+    next_step: FarmerRegistrationNextStep
     full_name: str | None = None
     village: str | None = None
     mandal: str | None = None
     district: str | None = None
     state: str | None = None
     preferred_language: SupportedLanguage
+
+    @model_validator(mode="after")
+    def validate_lifecycle(self):
+        if self.registration_status == "KYC_SUBMITTED":
+            if self.next_step != "HOME":
+                raise ValueError("KYC_SUBMITTED registration must resume at HOME")
+            return self
+        expected = "KYC" if self.full_name else "FARMER_DETAILS"
+        if self.next_step != expected:
+            raise ValueError("Registration next_step does not match saved details")
+        return self
 
 
 class FarmerKYCSubmit(BaseModel):
