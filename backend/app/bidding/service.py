@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.audit.service import append_event
 from app.core.errors import AppError
 from app.identity.profile_models import BuyerProfile, FarmerProfile
 from app.marketplace.models import Bid, BidSequence, IdempotencyRecord, Listing
@@ -129,6 +130,8 @@ def accept_bid(
     farmer_user_id: UUID,
     listing_code: str,
     bid_code: str,
+    *,
+    commit: bool = True,
 ) -> tuple[Listing, Bid]:
     farmer = db.scalar(select(FarmerProfile).where(FarmerProfile.user_id == farmer_user_id))
     if not farmer:
@@ -144,6 +147,8 @@ def accept_bid(
 
     if listing.accepted_bid_id:
         accepted = db.get(Bid, listing.accepted_bid_id)
+        if accepted is None:
+            raise AppError("BID_NOT_FOUND", "Accepted bid not found.", 404)
         return listing, accepted
 
     if listing.status not in {"PUBLISHED", "CLOSED"}:
@@ -182,7 +187,22 @@ def accept_bid(
     for other in other_bids:
         other.status = "NOT_SELECTED"
 
-    db.commit()
-    db.refresh(listing)
-    db.refresh(bid)
+    db.flush()
+    append_event(
+        db,
+        "LISTING",
+        listing.id,
+        "BID_ACCEPTED",
+        farmer_user_id,
+        payload={
+            "listing_id": listing.listing_code,
+            "accepted_bid_id": bid.bid_code,
+            "accepted_server_sequence": bid.server_sequence,
+        },
+        commit=False,
+    )
+    if commit:
+        db.commit()
+        db.refresh(listing)
+        db.refresh(bid)
     return listing, bid
