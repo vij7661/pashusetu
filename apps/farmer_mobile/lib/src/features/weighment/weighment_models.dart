@@ -25,6 +25,31 @@ class WeighmentView {
       );
 }
 
+class WeighmentAcknowledgement {
+  const WeighmentAcknowledgement({
+    required this.acknowledgementId,
+    required this.status,
+  });
+
+  final String acknowledgementId;
+  final String status;
+
+  factory WeighmentAcknowledgement.fromJson(Map<String, dynamic> json) {
+    final id = json['acknowledgement_id'];
+    final status = json['status'];
+    if (id is! String || id.isEmpty) {
+      throw const FormatException('Invalid weighment acknowledgement id');
+    }
+    if (status != 'ACKNOWLEDGED_BY_FARMER' && status != 'REJECTED_BY_FARMER') {
+      throw const FormatException('Invalid weighment acknowledgement status');
+    }
+    return WeighmentAcknowledgement(
+      acknowledgementId: id,
+      status: status as String,
+    );
+  }
+}
+
 class WeighmentReceipt {
   WeighmentReceipt({
     required this.receiptId,
