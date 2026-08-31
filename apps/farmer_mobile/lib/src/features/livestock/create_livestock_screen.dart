@@ -109,15 +109,18 @@ class _CreateLivestockScreenState extends ConsumerState<CreateLivestockScreen> {
                           quantity: parsedQuantity,
                           breedSummary: breed.text.trim(),
                         );
-                        setState(() => result = 'Lot ${x.id}');
+                        if (!mounted) return;
+                        setState(() => result = '${t('multiple_goats_lot')}: ${x.id}');
                       } else {
                         final x = await ref.read(livestockRepositoryProvider).createGoat(
                           breed: breed.text.trim(),
                           sex: sex,
                         );
-                        setState(() => result = 'Goat ${x.id}');
+                        if (!mounted) return;
+                        setState(() => result = '${t('individual_goat')}: ${x.id}');
                       }
                     } catch (e) {
+                      if (!mounted) return;
                       setState(() => result = e.toString());
                     } finally {
                       if (mounted) setState(() => busy = false);
