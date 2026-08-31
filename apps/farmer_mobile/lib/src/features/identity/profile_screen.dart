@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/localization/kyc_status_strings.dart';
 import '../../core/localization/language_provider.dart';
 import '../../core/localization/profile_strings.dart';
 import 'farmer_profile.dart';
@@ -41,7 +42,10 @@ class ProfileScreen extends ConsumerWidget {
               ListTile(title: Text(t('mandal')), subtitle: Text(optional(profile.mandal))),
               ListTile(title: Text(t('district')), subtitle: Text(optional(profile.district))),
               ListTile(title: Text(t('state')), subtitle: Text(optional(profile.state))),
-              ListTile(title: Text(t('kyc_status')), subtitle: Text(profile.kycStatus)),
+              ListTile(
+                title: Text(t('kyc_status')),
+                subtitle: Text(KycStatusStrings.statusLabel(language, profile.kycStatus)),
+              ),
               ListTile(title: Text(t('payout_status')), subtitle: Text(profile.payoutStatus)),
             ],
           );
