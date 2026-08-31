@@ -33,4 +33,41 @@ void main() {
       throwsFormatException,
     );
   });
+
+  test('evidence response contract is typed and strict', () {
+    final evidence = DisputeEvidenceView.fromJson({
+      'evidence_id': 'EVD-001',
+      'status': 'RECORDED',
+    });
+
+    expect(evidence.id, 'EVD-001');
+    expect(evidence.status, 'RECORDED');
+    expect(
+      () => DisputeEvidenceView.fromJson({
+        'evidence_id': 1,
+        'status': 'RECORDED',
+      }),
+      throwsFormatException,
+    );
+  });
+
+  test('reweigh response contract is typed and strict', () {
+    final reweigh = DisputeReweighView.fromJson({
+      'reweigh_id': 'RW-001',
+      'stage': 'CONTROLLED',
+      'status': 'RECORDED',
+    });
+
+    expect(reweigh.id, 'RW-001');
+    expect(reweigh.stage, 'CONTROLLED');
+    expect(reweigh.status, 'RECORDED');
+    expect(
+      () => DisputeReweighView.fromJson({
+        'reweigh_id': 'RW-001',
+        'stage': null,
+        'status': 'RECORDED',
+      }),
+      throwsFormatException,
+    );
+  });
 }
