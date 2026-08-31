@@ -121,7 +121,21 @@ def confirm_agreement(
                 confirmed=confirm,
             )
         )
-    db.commit()
+    db.flush()
+
+    append_event(
+        db,
+        "TRANSACTION",
+        tx.id,
+        "AGREEMENT_CONFIRMATION_RECORDED",
+        user_id,
+        payload={
+            "agreement_id": agreement.agreement_code,
+            "party_role": role,
+            "confirmed": confirm,
+        },
+        commit=False,
+    )
 
     confirmations = db.scalars(
         select(AgreementConfirmation).where(
@@ -135,8 +149,20 @@ def confirm_agreement(
         agreement.locked = True
         agreement.status = "LOCKED"
         tx.active_agreement_id = agreement.id
-        db.commit()
-        transition_transaction(db, tx, "AGREEMENT_LOCKED")
-        db.refresh(agreement)
+        transition_transaction(db, tx, "AGREEMENT_LOCKED", commit=False)
+        append_event(
+            db,
+            "TRANSACTION",
+            tx.id,
+            "AGREEMENT_LOCKED",
+            user_id,
+            payload={
+                "agreement_id": agreement.agreement_code,
+                "version": agreement.version,
+            },
+            commit=False,
+        )
 
+    db.commit()
+    db.refresh(agreement)
     return agreement
