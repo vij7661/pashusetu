@@ -43,6 +43,19 @@ Status flow: `PROPOSED -> DEBATED -> LOCKED -> SUPERSEDED`.
   - settlement workflow transitions eligible `SETTLED` transactions to `CLOSED`,
   - reputation processing runs from the backend finalization path.
 
+## DR-008 — Dispute resolution authority
+- Date: 2026-08-31
+- Status: LOCKED
+- Decision: Farmer and Buyer may open disputes and submit transaction evidence, but **final dispute resolution and settlement adjustment are platform-controlled**. A transaction party must not set the final decision, resolution rule or settlement adjustment.
+- Supersedes: Party-callable dispute resolution behavior.
+- Reasoning: A disputing party cannot be authoritative over its own financial adjustment. Resolution affects money, finality and reputation and therefore requires a trusted platform boundary.
+- Implementation contract:
+  - dispute opening remains available to verified transaction parties,
+  - evidence/reweigh attachment remains ownership-checked,
+  - `POST /disputes/{dispute_id}/resolve` requires an authorized platform role,
+  - pilot platform resolvers are `ADMIN` or `OPERATOR`,
+  - final decision and settlement adjustment remain backend-audited inputs from the resolver workflow.
+
 ## Unresolved decisions
 
 ### U-001 — Payout/UPI persistence mechanism
