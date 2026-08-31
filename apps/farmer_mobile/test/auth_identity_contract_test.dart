@@ -41,6 +41,16 @@ void main() {
       () => AuthIdentity.fromJson({
         'user_id': 'user-1',
         'mobile_e164': '+919100000001',
+        'roles': ['FARMER', 'UNKNOWN'],
+        'preferred_language': 'te',
+      }),
+      throwsA(isA<FormatException>()),
+    );
+
+    expect(
+      () => AuthIdentity.fromJson({
+        'user_id': 'user-1',
+        'mobile_e164': '+919100000001',
         'roles': ['FARMER'],
         'preferred_language': 'xx',
       }),
