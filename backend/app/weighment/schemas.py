@@ -1,5 +1,6 @@
 from decimal import Decimal
 from typing import Literal
+
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -55,11 +56,18 @@ class AcknowledgeRequest(BaseModel):
     method: Literal["APP_CONFIRMATION", "OPERATOR_ASSISTED"] = "APP_CONFIRMATION"
 
 
+class AcknowledgeResponse(BaseModel):
+    acknowledgement_id: str | None = None
+    status: Literal["ACKNOWLEDGED", "REJECTED_BY_FARMER"]
+
+
 class ReceiptResponse(BaseModel):
     receipt_id: str
     receipt_code: str
     qr_payload: str
     print_status: str
+    target_type: Literal["GOAT", "LOT"]
+    target_id: str
 
 
 class ReweighRequest(BaseModel):

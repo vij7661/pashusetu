@@ -1,5 +1,6 @@
 from typing import Literal
-from pydantic import BaseModel, Field
+
+from pydantic import BaseModel, Field, model_validator
 
 
 class GoatCreate(BaseModel):
@@ -10,12 +11,12 @@ class GoatCreate(BaseModel):
 
 
 class GoatResponse(BaseModel):
-    goat_id: str
+    goat_id: str = Field(min_length=1)
     breed: str | None
-    sex: str | None
-    age_months: int | None
+    sex: Literal["MALE", "FEMALE", "UNKNOWN"] | None
+    age_months: int | None = Field(default=None, ge=0, le=300)
     health_notes: str | None
-    status: str
+    status: str = Field(min_length=1)
 
 
 class LotCreate(BaseModel):
@@ -24,17 +25,25 @@ class LotCreate(BaseModel):
     sex_summary: str | None = Field(default=None, max_length=160)
     age_summary: str | None = Field(default=None, max_length=160)
     health_notes: str | None = Field(default=None, max_length=2000)
-    goat_ids: list[str] = []
+    goat_ids: list[str] = Field(default_factory=list)
 
 
 class LotResponse(BaseModel):
-    lot_id: str
-    declared_quantity: int
+    lot_id: str = Field(min_length=1)
+    declared_quantity: int = Field(gt=0, le=500)
     linked_goat_ids: list[str]
     breed_summary: str | None
     sex_summary: str | None
     age_summary: str | None
-    status: str
+    status: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_linked_quantity(self):
+        if any(not goat_id for goat_id in self.linked_goat_ids):
+            raise ValueError("linked_goat_ids cannot contain blank identifiers")
+        if len(self.linked_goat_ids) > self.declared_quantity:
+            raise ValueError("linked goats cannot exceed declared quantity")
+        return self
 
 
 class EvidenceUploadRequest(BaseModel):
@@ -53,8 +62,8 @@ class EvidenceUploadRequest(BaseModel):
 
 
 class EvidenceUploadResponse(BaseModel):
-    evidence_id: str
-    storage_key: str
-    upload_method: str
-    upload_url: str
-    expires_in_seconds: int
+    evidence_id: str = Field(min_length=1)
+    storage_key: str = Field(min_length=1)
+    upload_method: Literal["PUT"]
+    upload_url: str = Field(min_length=1)
+    expires_in_seconds: int = Field(gt=0)

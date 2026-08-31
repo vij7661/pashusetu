@@ -5,10 +5,16 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.agreement.models import Agreement, AgreementConfirmation
-from app.agreement.schemas import AgreementCreate
+from app.agreement.schemas import (
+    PILOT_DISPUTE_RULE,
+    PILOT_PRICE_BASIS,
+    PILOT_TRANSPORT_RESPONSIBILITY,
+    AgreementCreate,
+)
+from app.audit.service import append_event
 from app.core.errors import AppError
-from app.identity.profile_models import FarmerProfile, BuyerProfile
-from app.marketplace.models import Bid, Listing
+from app.identity.profile_models import BuyerProfile, FarmerProfile
+from app.marketplace.models import Bid
 from app.transaction.models import Transaction
 from app.transaction.service import transition_transaction
 
@@ -42,8 +48,9 @@ def create_agreement(
         raise AppError("ACCEPTED_BID_NOT_FOUND", "Accepted bid not found.", 500)
 
     next_version = db.scalar(
-        select(func.coalesce(func.max(Agreement.version), 0) + 1)
-        .where(Agreement.transaction_id == tx.id)
+        select(func.coalesce(func.max(Agreement.version), 0) + 1).where(
+            Agreement.transaction_id == tx.id
+        )
     )
 
     agreement = Agreement(
@@ -51,12 +58,12 @@ def create_agreement(
         transaction_id=tx.id,
         version=next_version,
         accepted_bid_id=accepted_bid.id,
-        price_basis=payload.price_basis,
+        price_basis=PILOT_PRICE_BASIS,
         pickup_point=payload.pickup_point,
         final_weighing_point=payload.final_weighing_point,
-        tolerance_basis_points=int(Decimal(str(payload.tolerance_percent)) * Decimal("100")),
-        transport_responsibility=payload.transport_responsibility,
-        dispute_rule=payload.dispute_rule,
+        tolerance_basis_points=int(Decimal(str(payload.tolerance_percent)) * Decimal(100)),
+        transport_responsibility=PILOT_TRANSPORT_RESPONSIBILITY,
+        dispute_rule=PILOT_DISPUTE_RULE,
         status="PENDING_CONFIRMATION",
         locked=False,
     )
@@ -64,10 +71,21 @@ def create_agreement(
     db.flush()
 
     if tx.state == "OFFER_ACCEPTED":
-        transition_transaction(db, tx, "AGREEMENT_PENDING")
-    else:
-        db.commit()
+        transition_transaction(db, tx, "AGREEMENT_PENDING", commit=False)
 
+    append_event(
+        db,
+        "TRANSACTION",
+        tx.id,
+        "AGREEMENT_CREATED",
+        user_id,
+        payload={
+            "agreement_id": agreement.agreement_code,
+            "version": agreement.version,
+        },
+        commit=False,
+    )
+    db.commit()
     db.refresh(agreement)
     return agreement
 
@@ -103,7 +121,21 @@ def confirm_agreement(
                 confirmed=confirm,
             )
         )
-    db.commit()
+    db.flush()
+
+    append_event(
+        db,
+        "TRANSACTION",
+        tx.id,
+        "AGREEMENT_CONFIRMATION_RECORDED",
+        user_id,
+        payload={
+            "agreement_id": agreement.agreement_code,
+            "party_role": role,
+            "confirmed": confirm,
+        },
+        commit=False,
+    )
 
     confirmations = db.scalars(
         select(AgreementConfirmation).where(
@@ -117,8 +149,20 @@ def confirm_agreement(
         agreement.locked = True
         agreement.status = "LOCKED"
         tx.active_agreement_id = agreement.id
-        db.commit()
-        transition_transaction(db, tx, "AGREEMENT_LOCKED")
-        db.refresh(agreement)
+        transition_transaction(db, tx, "AGREEMENT_LOCKED", commit=False)
+        append_event(
+            db,
+            "TRANSACTION",
+            tx.id,
+            "AGREEMENT_LOCKED",
+            user_id,
+            payload={
+                "agreement_id": agreement.agreement_code,
+                "version": agreement.version,
+            },
+            commit=False,
+        )
 
+    db.commit()
+    db.refresh(agreement)
     return agreement

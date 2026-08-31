@@ -14,6 +14,10 @@ export async function post<T = any>(path: string, body?: any) {
   return (await api.post<T>(path, body)).data;
 }
 
+export async function put<T = any>(path: string, body?: any) {
+  return (await api.put<T>(path, body)).data;
+}
+
 export async function get<T = any>(path: string) {
   return (await api.get<T>(path)).data;
 }

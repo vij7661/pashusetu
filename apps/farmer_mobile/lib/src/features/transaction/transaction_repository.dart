@@ -1,42 +1,47 @@
 import '../../core/api/api_client.dart';
+import 'transaction_models.dart';
 
 class TransactionRepository {
   TransactionRepository(this._api);
   final ApiClient _api;
 
-  Future<Map<String, dynamic>> createFromListing(String listingId) =>
-      _api.post('/transaction/from-listing/$listingId');
+  Future<TransactionView> createFromListing(String listingId) async {
+    final json = await _api.post('/transaction/from-listing/$listingId');
+    return TransactionView.fromJson(json);
+  }
 
-  Future<Map<String, dynamic>> transaction(String id) =>
-      _api.get('/transaction/$id');
+  Future<TransactionView> transaction(String id) async {
+    final json = await _api.get('/transaction/$id');
+    return TransactionView.fromJson(json);
+  }
 
-  Future<Map<String, dynamic>> createAgreement({
+  Future<SettlementView> settlement(String transactionId) async {
+    final json = await _api.get('/payments/transactions/$transactionId/settlement');
+    return SettlementView.fromJson(json);
+  }
+
+  Future<AgreementView> createAgreement({
     required String transactionId,
     required String pickupPoint,
     required String finalWeighingPoint,
     required double tolerancePercent,
-  }) {
-    return _api.post('/agreement/transactions/$transactionId', body: {
-      'price_basis': 'DELIVERY_ADJUSTED_NET_KG',
+  }) async {
+    final json = await _api.post('/agreement/transactions/$transactionId', body: {
       'pickup_point': pickupPoint,
       'final_weighing_point': finalWeighingPoint,
       'tolerance_percent': tolerancePercent,
-      'transport_responsibility': 'BUYER',
-      'dispute_rule':
-          'Controlled reweigh, independent verified scale if unresolved, then evidence review.',
     });
+    return AgreementView.fromJson(json);
   }
 
-  Future<Map<String, dynamic>> confirmAgreement(
+  Future<AgreementView> confirmAgreement(
     String transactionId,
     String agreementId,
-  ) {
-    return _api.post(
+  ) async {
+    final json = await _api.post(
       '/agreement/transactions/$transactionId/$agreementId/confirm',
       body: {'confirm': true},
     );
+    return AgreementView.fromJson(json);
   }
-
-  Future<Map<String, dynamic>> close(String transactionId) =>
-      _api.post('/transaction/$transactionId/close');
 }

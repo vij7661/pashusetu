@@ -10,8 +10,8 @@ from app.identity.profile_models import BuyerProfile, FarmerProfile, FarmerRegis
 from app.identity.schemas import (
     BuyerProfileCreate,
     BuyerProfileResponse,
+    FarmerDashboardResponse,
     FarmerKYCSubmit,
-    FarmerProfileCreate,
     FarmerProfileResponse,
     FarmerRegistrationComplete,
     FarmerRegistrationDetails,
@@ -20,7 +20,7 @@ from app.identity.schemas import (
 from app.identity.service import (
     complete_farmer_registration_kyc,
     create_buyer_profile,
-    create_farmer_profile,
+    farmer_dashboard,
     save_farmer_registration_details,
 )
 
@@ -80,26 +80,6 @@ def farmer_registration_kyc(
     )
 
 
-@router.post("/farmers", response_model=FarmerProfileResponse, status_code=201)
-def create_farmer(
-    payload: FarmerProfileCreate,
-    db: Session = Depends(get_db),
-    user: User = Depends(current_user),
-):
-    p = create_farmer_profile(db, user, payload)
-    return FarmerProfileResponse(
-        farmer_id=p.farmer_code,
-        full_name=p.full_name,
-        village=p.village,
-        mandal=p.mandal,
-        district=p.district,
-        state=p.state,
-        kyc_status=p.kyc_status,
-        payout_status=p.payout_status,
-        preferred_language=user.preferred_language,
-    )
-
-
 @router.get("/farmers/me", response_model=FarmerProfileResponse)
 def get_farmer_me(
     db: Session = Depends(get_db),
@@ -119,6 +99,14 @@ def get_farmer_me(
         payout_status=p.payout_status,
         preferred_language=user.preferred_language,
     )
+
+
+@router.get("/farmers/me/dashboard", response_model=FarmerDashboardResponse)
+def get_farmer_dashboard(
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    return FarmerDashboardResponse(**farmer_dashboard(db, user))
 
 
 @router.post("/buyers", response_model=BuyerProfileResponse, status_code=201)

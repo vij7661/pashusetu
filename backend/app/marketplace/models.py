@@ -26,7 +26,7 @@ class Listing(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     seller_farmer_profile_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("farmer_profiles.id", ondelete="RESTRICT"), nullable=False
     )
-    target_type: Mapped[str] = mapped_column(String(10), nullable=False)  # GOAT / LOT
+    target_type: Mapped[str] = mapped_column(String(10), nullable=False)
     target_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False, index=True)
     weighment_session_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("weighment_sessions.id", ondelete="RESTRICT"), nullable=False
@@ -38,6 +38,8 @@ class Listing(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     recommendation_id: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("market_price_recommendations.id", ondelete="SET NULL")
     )
+    farmer_acknowledged_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
+    farmer_acknowledgement_version: Mapped[str | None] = mapped_column(String(40))
     sale_type: Mapped[str] = mapped_column(String(30), default="COMPETITIVE_BIDDING", nullable=False)
     opens_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False)
     closes_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False)

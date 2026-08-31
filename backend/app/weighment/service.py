@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.audit.service import append_event
 from app.core.errors import AppError
 from app.identity.profile_models import FarmerProfile
 from app.livestock.models import EvidenceAsset, Goat, Lot
@@ -160,14 +161,25 @@ def acknowledge_weighment(
     session: WeighmentSession,
     acknowledged: bool,
     method: str,
-) -> FarmerWeighmentAcknowledgement:
+    *,
+    actor_user_id: UUID | None = None,
+) -> FarmerWeighmentAcknowledgement | None:
     if session.status != "FARMER_REVIEW":
         raise AppError("WEIGHMENT_NOT_READY_FOR_ACK", "Weighment is not ready for farmer acknowledgement.", 409)
 
     if not acknowledged:
         session.status = "REJECTED_BY_FARMER"
+        append_event(
+            db,
+            "WEIGHMENT",
+            session.id,
+            "FARMER_WEIGHMENT_REJECTED",
+            actor_user_id=actor_user_id,
+            payload={"method": method, "status": session.status},
+            commit=False,
+        )
         db.commit()
-        raise AppError("FARMER_REJECTED_WEIGHT", "Farmer rejected weighment; start a reweigh.", 409)
+        return None
 
     ack = FarmerWeighmentAcknowledgement(
         weighment_session_id=session.id,
@@ -177,12 +189,27 @@ def acknowledge_weighment(
     )
     db.add(ack)
     session.status = "ACKNOWLEDGED"
+    db.flush()
+    append_event(
+        db,
+        "WEIGHMENT",
+        session.id,
+        "FARMER_WEIGHMENT_ACKNOWLEDGED",
+        actor_user_id=actor_user_id,
+        payload={"method": method, "status": session.status},
+        commit=False,
+    )
     db.commit()
     db.refresh(ack)
     return ack
 
 
-def create_receipt(db: Session, session: WeighmentSession) -> WeighmentReceipt:
+def create_receipt(
+    db: Session,
+    session: WeighmentSession,
+    *,
+    actor_user_id: UUID | None = None,
+) -> WeighmentReceipt:
     if session.status != "ACKNOWLEDGED":
         raise AppError("ACK_REQUIRED", "Farmer acknowledgement is required before receipt generation.", 409)
 
@@ -212,6 +239,16 @@ def create_receipt(db: Session, session: WeighmentSession) -> WeighmentReceipt:
     )
     db.add(receipt)
     session.status = "VERIFIED"
+    db.flush()
+    append_event(
+        db,
+        "WEIGHMENT",
+        session.id,
+        "WEIGHMENT_RECEIPT_CREATED",
+        actor_user_id=actor_user_id,
+        payload={"status": session.status},
+        commit=False,
+    )
     db.commit()
     db.refresh(receipt)
     return receipt

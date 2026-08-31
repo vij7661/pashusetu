@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/localization/language_provider.dart';
 import '../providers.dart';
+import 'transaction_models.dart';
+import 'transaction_state_strings.dart';
+import 'transaction_strings.dart';
 
 class TransactionScreen extends ConsumerWidget {
   const TransactionScreen({super.key, required this.transactionId});
@@ -9,9 +13,12 @@ class TransactionScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final language = ref.watch(languageProvider);
+    String t(String key) => TransactionStrings.tr(language, key);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Transaction')),
-      body: FutureBuilder<Map<String, dynamic>>(
+      appBar: AppBar(title: Text(t('transaction'))),
+      body: FutureBuilder<TransactionView>(
         future: ref.read(transactionRepositoryProvider).transaction(transactionId),
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
@@ -24,14 +31,13 @@ class TransactionScreen extends ConsumerWidget {
             children: [
               Card(
                 child: ListTile(
-                  title: Text(tx['transaction_id'].toString()),
-                  subtitle: Text('State: ${tx['state']}'),
+                  title: Text(tx.id),
+                  subtitle: Text(
+                    '${t('state')}: ${TransactionStateStrings.label(language, tx.state)}',
+                  ),
                 ),
               ),
-              const Text(
-                'Farmer and Buyer apps render this authoritative backend transaction state. '
-                'They do not maintain independent transaction status.',
-              ),
+              Text(t('transaction_truth_note')),
             ],
           );
         },

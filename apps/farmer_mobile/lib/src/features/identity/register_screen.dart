@@ -12,7 +12,9 @@ const farmerOtpLength = 4;
 const aadhaarLength = 12;
 
 class RegisterScreen extends ConsumerStatefulWidget {
-  const RegisterScreen({super.key});
+  const RegisterScreen({super.key, this.resumeExisting = false});
+
+  final bool resumeExisting;
 
   @override
   ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
@@ -34,6 +36,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   String t(String key) => AppStrings.tr(language, key);
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.resumeExisting) {
+      Future.microtask(_restoreRegistration);
+    }
+  }
+
+  @override
   void dispose() {
     mobile.dispose();
     otp.dispose();
@@ -46,16 +56,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   Future<void> _restoreRegistration() async {
-    final status = await ref.read(identityRepositoryProvider).registrationStatus();
-    name.text = status['full_name']?.toString() ?? '';
-    village.text = status['village']?.toString() ?? '';
-    mandal.text = status['mandal']?.toString() ?? '';
-    district.text = status['district']?.toString() ?? '';
-    language = status['preferred_language']?.toString() ?? language;
-    await ref.read(languageProvider.notifier).setLanguage(language);
-    if (!mounted) return;
-    if (status['next_step'] == 'KYC') {
-      setState(() => step = 4);
+    try {
+      final status = await ref.read(identityRepositoryProvider).registrationStatus();
+      name.text = status.fullName ?? '';
+      village.text = status.village ?? '';
+      mandal.text = status.mandal ?? '';
+      district.text = status.district ?? '';
+      language = status.preferredLanguage;
+      await ref.read(languageProvider.notifier).setLanguage(language);
+      if (!mounted) return;
+      setState(() {
+        step = status.nextStep == 'KYC' ? 4 : 3;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => error = e.toString());
     }
   }
 
@@ -85,7 +100,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         if (ref.read(authControllerProvider).hasError) {
           throw ref.read(authControllerProvider).error!;
         }
-        if (result?['next_step'] == 'KYC') {
+        if (result?.nextStep == 'KYC') {
           await _restoreRegistration();
         } else if (mounted) {
           setState(() => step = 3);

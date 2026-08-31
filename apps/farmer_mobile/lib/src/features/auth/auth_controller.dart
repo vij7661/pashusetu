@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
+import 'auth_models.dart';
 import 'auth_repository.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>(
@@ -31,11 +32,11 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     state = await AsyncValue.guard(() => _repo.requestRegistrationOtp(mobile));
   }
 
-  Future<Map<String, dynamic>?> verifyRegistrationOtp(
+  Future<FarmerRegistrationSession?> verifyRegistrationOtp(
     String mobile,
     String otp,
   ) async {
-    Map<String, dynamic>? result;
+    FarmerRegistrationSession? result;
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       result = await _repo.verifyRegistrationOtp(mobile, otp);

@@ -1,12 +1,18 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.audit.reputation_models import ReputationRecord, OperatorScorecard
+from app.audit.reputation_models import OperatorScorecard, ReputationRecord
 from app.transaction.models import Transaction
-from app.weighment.models import OperatorProfile, WeighmentSession
+from app.weighment.models import WeighmentSession
 
 
-def get_or_create_reputation(db: Session, subject_type: str, subject_id):
+def get_or_create_reputation(
+    db: Session,
+    subject_type: str,
+    subject_id,
+    *,
+    commit: bool = True,
+):
     row = db.scalar(
         select(ReputationRecord).where(
             ReputationRecord.subject_type == subject_type,
@@ -16,14 +22,33 @@ def get_or_create_reputation(db: Session, subject_type: str, subject_id):
     if not row:
         row = ReputationRecord(subject_type=subject_type, subject_id=subject_id)
         db.add(row)
-        db.commit()
-        db.refresh(row)
+        if commit:
+            db.commit()
+            db.refresh(row)
+        else:
+            db.flush()
     return row
 
 
-def close_transaction_reputation(db: Session, tx: Transaction, dispute_loser: str | None = None):
-    farmer = get_or_create_reputation(db, "FARMER", tx.farmer_profile_id)
-    buyer = get_or_create_reputation(db, "BUYER", tx.buyer_profile_id)
+def close_transaction_reputation(
+    db: Session,
+    tx: Transaction,
+    dispute_loser: str | None = None,
+    *,
+    commit: bool = True,
+):
+    farmer = get_or_create_reputation(
+        db,
+        "FARMER",
+        tx.farmer_profile_id,
+        commit=commit,
+    )
+    buyer = get_or_create_reputation(
+        db,
+        "BUYER",
+        tx.buyer_profile_id,
+        commit=commit,
+    )
 
     farmer.completed_transactions += 1
     buyer.completed_transactions += 1
@@ -35,7 +60,10 @@ def close_transaction_reputation(db: Session, tx: Transaction, dispute_loser: st
         buyer.disputes_lost += 1
         buyer.score = max(0, buyer.score - 5)
 
-    db.commit()
+    if commit:
+        db.commit()
+    else:
+        db.flush()
 
 
 def update_operator_scorecard_for_weighment(db: Session, weighment: WeighmentSession, is_reweigh: bool):

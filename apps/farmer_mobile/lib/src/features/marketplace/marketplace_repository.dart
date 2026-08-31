@@ -5,11 +5,24 @@ class MarketplaceRepository {
   MarketplaceRepository(this._api);
   final ApiClient _api;
 
-  Future<List<Map<String, dynamic>>> recommendations(String marketCode) async {
+  Future<ListingContext> listingContext({
+    required String targetType,
+    required String targetId,
+  }) async {
+    final json = await _api.get('/marketplace/listing-context', query: {
+      'target_type': targetType,
+      'target_id': targetId,
+    });
+    return ListingContext.fromJson(json);
+  }
+
+  Future<List<MarketRecommendation>> recommendations(String marketCode) async {
     final rows = await _api.getList('/marketplace/recommendations', query: {
       'market_code': marketCode,
     });
-    return rows.cast<Map<String, dynamic>>();
+    return rows
+        .map((e) => MarketRecommendation.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<Listing> createListing({
@@ -24,6 +37,7 @@ class MarketplaceRepository {
       'target_type': targetType,
       'target_id': targetId,
       'farmer_price_per_kg_paise': pricePerKgPaise,
+      'farmer_acknowledged': true,
       'sale_type': 'COMPETITIVE_BIDDING',
       'opens_at': opensAt.toUtc().toIso8601String(),
       'closes_at': closesAt.toUtc().toIso8601String(),
@@ -46,7 +60,8 @@ class MarketplaceRepository {
         .toList();
   }
 
-  Future<Map<String, dynamic>> acceptBid(String listingId, String bidId) {
-    return _api.post('/bidding/listings/$listingId/accept/$bidId');
+  Future<BidAcceptance> acceptBid(String listingId, String bidId) async {
+    final json = await _api.post('/bidding/listings/$listingId/accept/$bidId');
+    return BidAcceptance.fromJson(json);
   }
 }

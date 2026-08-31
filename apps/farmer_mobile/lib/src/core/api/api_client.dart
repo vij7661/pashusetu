@@ -9,8 +9,18 @@ class ApiException implements Exception {
   final String message;
   final int? statusCode;
 
+  bool get isAuthenticationFailure => statusCode == 401 || statusCode == 403;
+
   @override
   String toString() => '$code: $message';
+}
+
+bool isAuthenticationFailure(Object error) {
+  if (error is ApiException) return error.isAuthenticationFailure;
+  if (error is DioException && error.error is ApiException) {
+    return (error.error! as ApiException).isAuthenticationFailure;
+  }
+  return false;
 }
 
 class ApiClient {

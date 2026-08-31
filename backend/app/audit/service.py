@@ -14,6 +14,8 @@ def append_event(
     actor_user_id: UUID | None = None,
     request_id: str | None = None,
     payload: dict | None = None,
+    *,
+    commit: bool = True,
 ) -> AuditEvent:
     next_sequence = db.scalar(
         select(func.coalesce(func.max(AuditEvent.sequence), 0) + 1).where(
@@ -31,8 +33,11 @@ def append_event(
         payload=payload or {},
     )
     db.add(event)
-    db.commit()
-    db.refresh(event)
+    if commit:
+        db.commit()
+        db.refresh(event)
+    else:
+        db.flush()
     return event
 
 

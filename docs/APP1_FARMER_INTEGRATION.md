@@ -5,28 +5,28 @@ The Farmer mobile client has now moved from static HTML prototype to a Flutter a
 ## Key principle
 The mobile app does not own commercial truth. Weight, bid sequence, accepted offer, agreement state and transaction state come from the backend.
 
-## Implemented connection map
+Farmer identity follows one authoritative lifecycle. Before KYC submission, only the temporary Farmer registration exists. Farmer details are saved against that registration; permanent User/Farmer identity is created only by the KYC submission flow. The legacy direct `POST /identity/farmers` bypass is not exposed. Farmer-detail persistence and KYC-time permanent identity creation are each committed with their audit events in the same database transaction, and the KYC audit payload never contains raw Aadhaar. Registration OTP verification, registration status/details and KYC completion are consumed through typed Flutter models rather than raw maps; the temporary registration response accepts only the backend-owned `NEW_IN_PROGRESS` state with `FARMER_DETAILS` or `KYC` as its next step, and blank registration identifiers/tokens are rejected. Permanent-account Home routing occurs only after KYC conversion, not by inventing a completed temporary-registration state. Account tokens and `/auth/me` identity are also typed and validated before use: blank tokens/identity fields, malformed or unknown roles, identities without the `FARMER` role, malformed E.164 mobile identity and unsupported language codes are rejected instead of silently entering Farmer routing or identity state. Startup recovery clears a saved session only when the backend proves the credential/role is no longer authorized; transient network or service failures preserve the saved account/registration session and present a retry path instead of destroying Farmer progress. Farmer profile and dashboard response schemas enforce the same KYC lifecycle server-side, including supported KYC states, supported language, non-negative dashboard counters and the rule that only `KYC_VERIFIED` may set `transaction_enabled=true`. KYC submission account conversion is explicitly `KYC_SUBMITTED` + `KYC_PENDING` with non-empty account tokens. The profile renders KYC state through the six-language UI instead of exposing raw backend codes. Payout status remains backend-owned and is not reinterpreted while its provider mechanism is unresolved.
 
-| Farmer UI | Backend |
-|---|---|
-| Existing login | `POST /auth/otp/request`, `POST /auth/otp/verify` |
-| Profile | `GET /identity/farmers/me` |
-| New farmer profile | `POST /identity/farmers` |
-| Individual goat | `POST /livestock/goats` |
-| Lot | `POST /livestock/lots` |
-| Evidence contract | `POST /livestock/evidence/upload-contract` |
-| Market recommendation | `GET /marketplace/recommendations` |
-| Publish listing | `POST /marketplace/listings` |
-| Offers | `GET /bidding/listings/{id}/bids` |
-| Accept offer | `POST /bidding/listings/{id}/accept/{bid}` |
-| Transaction | `GET /transaction/{id}` |
-| Agreement | `/agreement/transactions/*` |
-| Dispute | `/disputes/transactions/*` |
+For pilot agreements, the Farmer app submits only transaction-specific inputs that the Farmer can actually provide: pickup point, final weighing point and allowed tolerance. Platform business terms such as price basis, transport responsibility and dispute handling are owned by the backend contract. The mobile client must not hard-code or override them. After agreement creation, the app renders the terms returned by the server. Farmer agreement creation, the transition into `AGREEMENT_PENDING` and the agreement-created audit event are committed atomically. Party confirmation is also atomic: the confirmation record and audit event share one commit, and when both parties have confirmed, agreement locking, activation on the transaction, the `AGREEMENT_LOCKED` state transition and lock audit event are committed together.
 
-## Remaining provider-dependent UI
-- Aadhaar/KYC verification
-- payout/bank/UPI provider integration
-- object-storage upload execution
-- SMS/WhatsApp/push notifications
+The Farmer app must also never prefill fabricated operational facts such as a mandal centre, buyer scale identifier, verified weight, market price or transaction tolerance. Those values must come from the relevant authoritative service or explicit Farmer/operator input.
 
-These are intentionally left behind adapters instead of being mocked as production functionality.
+Goat registration, lot registration/linking and creation of evidence-upload contracts are auditable Farmer-owned mutations. Each domain write is committed atomically with its corresponding audit event so livestock identity or evidence metadata cannot be persisted without its trust trail. KYC-pending Farmers may still manage livestock, consistent with the lifecycle contract; transaction-producing actions remain KYC-verified only. Goat and Lot responses are typed and validated before they enter Farmer state: goat sex/age must match the backend contract, lot quantity must be positive and bounded, linked goat identifiers must be non-blank, and linked goats cannot exceed the declared quantity. Evidence-upload instructions returned to the Farmer client are typed and validated before use, including the evidence identifier, storage key, upload method, URL and positive expiry window; malformed upload contracts must not be treated as usable instructions.
+
+Farmer weighment review is a typed trust-boundary decision. Acceptance returns `ACKNOWLEDGED` with an acknowledgement identifier and may then proceed to receipt/listing. Rejection returns `REJECTED_BY_FARMER` with no acknowledgement identifier. The Farmer app exposes both choices; after rejection it does not perform the reweigh itself because reweigh remains an Operator-only mutation. Instead it tells the Farmer that the Operator must start a new scale reweigh. Farmer acceptance, Farmer rejection and first receipt creation are each committed atomically with their audit events and attributed to the authenticated Farmer. Unexpected or internally inconsistent decision payloads must not advance the flow.
+
+Reference-price provenance is enforced by the backend. A listing may use a selected reference only when that reference is active and belongs to the centralized pilot market returned by the listing context. The Farmer client sends a typed reference UUID; malformed identifiers are rejected by request validation and a reference from another market cannot be attached to the listing. Listing context, Reference Price records and bid-acceptance responses are consumed as typed Farmer-mobile contracts rather than raw maps, so malformed authoritative weight, provenance dates, market identifiers or accepted server sequence cannot silently drive pricing or acceptance UI.
+
+Transaction creation from an accepted listing is authorized before any transaction mutation occurs: the authenticated verified Farmer must own the listing. Transaction creation and its audit event are committed atomically, so an unauthorized request cannot create another Farmer's transaction and a successful transaction creation cannot exist without its corresponding audit record. Farmer transaction and shipment screens render the authoritative backend state through the six-language Farmer localization contract; the underlying state code remains the source of truth, but known states are not exposed as untranslated internal identifiers.
+
+Farmer bid acceptance is part of the trust boundary. The deterministic accepted-bid state change, its audit event and creation of the corresponding transaction are composed into one database commit. A failure before that commit must not leave an accepted bid without its transaction or leave the transaction without the acceptance audit trail.
+
+Farmer logistics mutations are also trust events. Transport assignment, pickup and delivery state changes are committed atomically with their domain record and audit event. Delivery tolerance cannot be evaluated from an unrelated verified weighment: the delivery weighment must match the exact goat/lot target and Farmer identity of the transaction listing. Delivery validation runs before transaction state changes so a failed verification cannot leave a partially advanced shipment state.
+
+Securing funds is also treated as one trust mutation: the payment-intent record, `FUNDS_SECURED` transaction state and audit event share one database commit, the accepted bid must exist, invalid transaction state is rejected with a controlled domain error, and the response is typed with a positive amount. This hardening does not redefine which production actor/provider should ultimately own the secure-funds command.
+
+Settlement display is read-only in the Farmer app. Viewing or refreshing settlement details must call the settlement GET endpoint and must never create a settlement as a side effect. Settlement creation remains a distinct backend mutation with transaction-state enforcement. When the backend settlement service is invoked, settlement persistence, settlement audit evidence, required `RESOLVED → SETTLED → CLOSED` transitions and reputation updates are committed atomically. This hardening does not decide the still-unresolved external/provider authority that is ultimately allowed to trigger settlement.
+
+Final transaction closure is backend/system-owned after settlement finality. The Farmer app has no close mutation and cannot trigger reputation processing by client action.
+
+Dispute parties may open a dispute and submit evidence, but they do not own the final resolution. Final decision, resolution rule and settlement adjustment are platform-controlled and require an authorized Admin or Operator resolver in the pilot. Reweigh evidence must be verified and must match the exact goat/lot and Farmer identity from the disputed listing; an unrelated verified weighment cannot be attached to the case. Additional evidence or reweighs are rejected after the dispute is resolved.

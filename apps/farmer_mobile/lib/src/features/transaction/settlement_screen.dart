@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/localization/app_strings.dart';
 import '../../core/localization/language_provider.dart';
-import '../../core/providers.dart';
 import '../../shared/money.dart';
+import '../providers.dart';
+import 'transaction_models.dart';
 
 class SettlementScreen extends ConsumerStatefulWidget {
   const SettlementScreen({super.key, required this.transactionId});
@@ -15,8 +16,32 @@ class SettlementScreen extends ConsumerStatefulWidget {
 }
 
 class _SettlementScreenState extends ConsumerState<SettlementScreen> {
-  Map<String, dynamic>? result;
+  SettlementView? result;
   String? error;
+  bool loading = false;
+
+  Future<void> loadSettlement() async {
+    if (loading) return;
+    setState(() {
+      loading = true;
+      error = null;
+    });
+    try {
+      final settlement = await ref
+          .read(transactionRepositoryProvider)
+          .settlement(widget.transactionId);
+      if (!mounted) return;
+      setState(() => result = settlement);
+    } catch (exception) {
+      if (!mounted) return;
+      setState(() {
+        result = null;
+        error = exception.toString();
+      });
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,12 +59,12 @@ class _SettlementScreenState extends ConsumerState<SettlementScreen> {
                 child: ListTile(
                   title: Text(t('final_settlement')),
                   subtitle: Text(
-                    '${t('gross')} ${formatPaise(result!['gross_amount_paise'] as int)}\n'
-                    '${t('adjustment')} ${formatPaise(result!['adjustment_paise'] as int)}\n'
-                    '${t('platform_fee')} ${formatPaise(result!['platform_fee_paise'] as int)}',
+                    '${t('gross')} ${formatPaise(result!.grossAmountPaise)}\n'
+                    '${t('adjustment')} ${formatPaise(result!.adjustmentPaise)}\n'
+                    '${t('platform_fee')} ${formatPaise(result!.platformFeePaise)}',
                   ),
                   trailing: Text(
-                    formatPaise(result!['final_amount_paise'] as int),
+                    formatPaise(result!.finalAmountPaise),
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -48,19 +73,13 @@ class _SettlementScreenState extends ConsumerState<SettlementScreen> {
               Text(error!, style: const TextStyle(color: Colors.red)),
             const Spacer(),
             FilledButton(
-              onPressed: () async {
-                try {
-                  final x = await ref.read(apiClientProvider).post(
-                        '/payments/transactions/${widget.transactionId}/settle',
-                      );
-                  if (!mounted) return;
-                  setState(() => result = x);
-                } catch (e) {
-                  if (!mounted) return;
-                  setState(() => error = e.toString());
-                }
-              },
-              child: Text(t('load_complete_settlement')),
+              onPressed: loading ? null : loadSettlement,
+              child: loading
+                  ? const SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(t('settlement')),
             ),
           ],
         ),

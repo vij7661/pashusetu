@@ -1,13 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../shared/money.dart';
 import '../../core/localization/app_strings.dart';
 import '../../core/localization/language_provider.dart';
+import '../../core/localization/marketplace_strings.dart';
+import '../../shared/money.dart';
 import '../providers.dart';
 
+const defaultListingWindow = Duration(hours: 8);
+
 class CreateListingScreen extends ConsumerStatefulWidget {
-  const CreateListingScreen({super.key});
+  const CreateListingScreen({
+    super.key,
+    this.initialTargetType,
+    this.initialTargetId,
+    this.receiptCode,
+  });
+
+  final String? initialTargetType;
+  final String? initialTargetId;
+  final String? receiptCode;
 
   @override
   ConsumerState<CreateListingScreen> createState() => _CreateListingScreenState();
@@ -15,41 +27,130 @@ class CreateListingScreen extends ConsumerStatefulWidget {
 
 class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
   final targetId = TextEditingController();
-  final weight = TextEditingController(text: '50');
-  final price = TextEditingController(text: '400');
+  final price = TextEditingController();
   String targetType = 'LOT';
+  double? verifiedWeightKg;
   int? recommendationPaise;
+  String? recommendationId;
+  String? referenceSource;
+  DateTime? referenceValidFrom;
+  String? selectedRecommendationId;
   bool acknowledged = false;
+  bool loadingContext = false;
+  bool publishing = false;
   String? result;
 
-  int get totalPaise {
-    final w = double.tryParse(weight.text) ?? 0;
-    final p = double.tryParse(price.text) ?? 0;
-    return (w * p * 100).round();
-  }
-
-  Future<void> loadRecommendation() async {
-    try {
-      final rows = await ref.read(marketplaceRepositoryProvider).recommendations('HYDERABAD');
-      if (rows.isNotEmpty) {
-        final value = rows.first['price_per_kg_paise'] as int;
-        setState(() => recommendationPaise = value);
-      }
-    } catch (e) {
-      setState(() => result = e.toString());
-    }
-  }
+  bool get targetLocked =>
+      widget.initialTargetId?.trim().isNotEmpty == true &&
+      (widget.initialTargetType == 'GOAT' || widget.initialTargetType == 'LOT');
 
   @override
   void initState() {
     super.initState();
-    Future.microtask(loadRecommendation);
+    if (targetLocked) {
+      targetType = widget.initialTargetType!;
+      targetId.text = widget.initialTargetId!.trim();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) loadContext();
+      });
+    }
+  }
+
+  int get totalPaise {
+    final weight = verifiedWeightKg ?? 0;
+    final pricePerKg = double.tryParse(price.text) ?? 0;
+    return (weight * pricePerKg * 100).round();
+  }
+
+  bool get canPublish {
+    final pricePerKg = double.tryParse(price.text);
+    return !publishing &&
+        acknowledged &&
+        verifiedWeightKg != null &&
+        targetId.text.trim().isNotEmpty &&
+        pricePerKg != null &&
+        pricePerKg > 0;
+  }
+
+  String referenceDateLabel() {
+    final date = referenceValidFrom?.toLocal();
+    if (date == null) return '';
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}-$month-$day';
+  }
+
+  void invalidateContext() {
+    setState(() {
+      verifiedWeightKg = null;
+      recommendationPaise = null;
+      recommendationId = null;
+      referenceSource = null;
+      referenceValidFrom = null;
+      selectedRecommendationId = null;
+      acknowledged = false;
+      result = null;
+    });
+  }
+
+  Future<void> loadContext() async {
+    if (targetId.text.trim().isEmpty || loadingContext) return;
+    setState(() {
+      loadingContext = true;
+      verifiedWeightKg = null;
+      recommendationPaise = null;
+      recommendationId = null;
+      referenceSource = null;
+      referenceValidFrom = null;
+      selectedRecommendationId = null;
+      acknowledged = false;
+      result = null;
+    });
+    try {
+      final repository = ref.read(marketplaceRepositoryProvider);
+      final listingContext = await repository.listingContext(
+        targetType: targetType,
+        targetId: targetId.text.trim(),
+      );
+      final rows = await repository.recommendations(listingContext.marketCode);
+      if (!mounted) return;
+      setState(() {
+        verifiedWeightKg = listingContext.verifiedWeightKg;
+        if (rows.isNotEmpty) {
+          final reference = rows.first;
+          recommendationPaise = reference.pricePerKgPaise;
+          recommendationId = reference.id;
+          referenceSource = reference.sourceLabel;
+          referenceValidFrom = reference.validFrom;
+        }
+      });
+    } catch (e) {
+      if (mounted) setState(() => result = e.toString());
+    } finally {
+      if (mounted) setState(() => loadingContext = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    targetId.dispose();
+    price.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final language = ref.watch(languageProvider);
     String t(String key) => AppStrings.tr(language, key);
+    final weightLabel = verifiedWeightKg == null
+        ? '—'
+        : '${verifiedWeightKg!.toStringAsFixed(3)} kg';
+    final referenceDetails = recommendationPaise == null
+        ? t('no_recommendation')
+        : '${formatPaise(recommendationPaise!)}/kg\n'
+            '${t('reference_source')}: ${referenceSource ?? '—'}\n'
+            '${t('reference_effective_date')}: ${referenceDateLabel()}';
+
     return Scaffold(
       appBar: AppBar(title: Text(t('price_listing_rules'))),
       body: ListView(
@@ -61,49 +162,79 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
               DropdownMenuItem(value: 'GOAT', child: Text(t('individual_goat'))),
               DropdownMenuItem(value: 'LOT', child: Text(t('multiple_goats_lot'))),
             ],
-            onChanged: (v) => setState(() => targetType = v ?? 'LOT'),
+            onChanged: targetLocked
+                ? null
+                : (value) {
+                    final next = value ?? 'LOT';
+                    if (next != targetType) {
+                      targetType = next;
+                      invalidateContext();
+                    }
+                  },
           ),
           const SizedBox(height: 10),
-          TextField(controller: targetId, decoration: InputDecoration(labelText: t('goat_id_lot_id'))),
-          const SizedBox(height: 10),
           TextField(
-            controller: weight,
-            enabled: false,
-            decoration: InputDecoration(
-              labelText: t('verified_weight'),
-              helperText: t('review_weighment_note'),
+            controller: targetId,
+            enabled: !targetLocked,
+            onChanged: targetLocked ? null : (_) => invalidateContext(),
+            decoration: InputDecoration(labelText: t('goat_id_lot_id')),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: loadingContext || targetId.text.trim().isEmpty
+                ? null
+                : loadContext,
+            icon: loadingContext
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.scale_outlined),
+            label: Text(t('verified_weight')),
+          ),
+          const SizedBox(height: 10),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(t('verified_weight')),
+            subtitle: Text(t('review_weighment_note')),
+            trailing: Text(
+              weightLabel,
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
           const SizedBox(height: 16),
           Card(
             child: ListTile(
               title: Text(t('market_recommendation')),
-              subtitle: Text(
-                recommendationPaise == null
-                    ? t('no_recommendation')
-                    : '${formatPaise(recommendationPaise!)}/kg',
-              ),
+              subtitle: Text(referenceDetails),
+              isThreeLine: recommendationPaise != null,
               trailing: recommendationPaise == null
                   ? null
                   : TextButton(
-                      onPressed: () => setState(
-                        () => price.text = (recommendationPaise! / 100).toStringAsFixed(0),
-                      ),
+                      onPressed: () => setState(() {
+                        price.text =
+                            (recommendationPaise! / 100).toStringAsFixed(0);
+                        selectedRecommendationId = recommendationId;
+                      }),
                       child: Text(t('use')),
                     ),
             ),
           ),
           TextField(
             controller: price,
-            keyboardType: TextInputType.number,
-            onChanged: (_) => setState(() {}),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (_) => setState(() => selectedRecommendationId = null),
             decoration: InputDecoration(labelText: t('your_price')),
           ),
           const SizedBox(height: 12),
           Card(
             child: ListTile(
               title: Text(t('estimated_listing_value')),
-              subtitle: Text('${weight.text} kg × ₹${price.text}/kg'),
+              subtitle: Text(
+                verifiedWeightKg == null
+                    ? '—'
+                    : '$weightLabel × ₹${price.text.isEmpty ? '—' : price.text}/kg',
+              ),
               trailing: Text(
                 formatPaise(totalPaise),
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
@@ -112,27 +243,44 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
           ),
           CheckboxListTile(
             value: acknowledged,
-            onChanged: (v) => setState(() => acknowledged = v ?? false),
+            onChanged: verifiedWeightKg == null
+                ? null
+                : (value) => setState(() => acknowledged = value ?? false),
             title: Text(t('ack_verified_weighment')),
           ),
           if (result != null) Text(result!),
           FilledButton(
-            onPressed: !acknowledged || targetId.text.trim().isEmpty
-                ? null
-                : () async {
+            onPressed: canPublish
+                ? () async {
+                    setState(() {
+                      publishing = true;
+                      result = null;
+                    });
                     try {
-                      final listing = await ref.read(marketplaceRepositoryProvider).createListing(
-                        targetType: targetType,
-                        targetId: targetId.text.trim(),
-                        pricePerKgPaise: ((double.tryParse(price.text) ?? 0) * 100).round(),
-                        opensAt: DateTime.now(),
-                        closesAt: DateTime.now().add(const Duration(hours: 8)),
-                      );
-                      setState(() => result = 'Published ${listing.id}');
+                      final listing = await ref
+                          .read(marketplaceRepositoryProvider)
+                          .createListing(
+                            targetType: targetType,
+                            targetId: targetId.text.trim(),
+                            pricePerKgPaise:
+                                (double.parse(price.text) * 100).round(),
+                            opensAt: DateTime.now(),
+                            closesAt: DateTime.now().add(defaultListingWindow),
+                            recommendationId: selectedRecommendationId,
+                          );
+                      if (mounted) {
+                        setState(
+                          () => result =
+                              '${MarketplaceStrings.tr(language, 'published')} ${listing.id}',
+                        );
+                      }
                     } catch (e) {
-                      setState(() => result = e.toString());
+                      if (mounted) setState(() => result = e.toString());
+                    } finally {
+                      if (mounted) setState(() => publishing = false);
                     }
-                  },
+                  }
+                : null,
             child: Text(t('publish_verified_listing')),
           ),
         ],

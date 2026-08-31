@@ -17,11 +17,25 @@ class _DisputeScreenState extends ConsumerState<DisputeScreen> {
   String reason = 'WEIGHT_DIFFERENCE';
   final amount = TextEditingController(text: '0');
   String? result;
+  bool submitting = false;
+
+  int? get disputedAmountPaise {
+    final value = int.tryParse(amount.text.trim());
+    if (value == null || value < 0) return null;
+    return value;
+  }
+
+  @override
+  void dispose() {
+    amount.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final language = ref.watch(languageProvider);
     String t(String key) => AppStrings.tr(language, key);
+    final validAmount = disputedAmountPaise;
 
     return Scaffold(
       appBar: AppBar(title: Text(t('open_dispute'))),
@@ -49,13 +63,16 @@ class _DisputeScreenState extends ConsumerState<DisputeScreen> {
                   child: Text(t('other')),
                 ),
               ],
-              onChanged: (v) =>
-                  setState(() => reason = v ?? 'WEIGHT_DIFFERENCE'),
+              onChanged: submitting
+                  ? null
+                  : (v) => setState(() => reason = v ?? 'WEIGHT_DIFFERENCE'),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: amount,
+              enabled: !submitting,
               keyboardType: TextInputType.number,
+              onChanged: (_) => setState(() {}),
               decoration: InputDecoration(labelText: t('disputed_amount')),
             ),
             const SizedBox(height: 12),
@@ -63,21 +80,38 @@ class _DisputeScreenState extends ConsumerState<DisputeScreen> {
             const Spacer(),
             if (result != null) Text(result!),
             FilledButton(
-              onPressed: () async {
-                try {
-                  final x = await ref.read(disputeRepositoryProvider).open(
-                        transactionId: widget.transactionId,
-                        reason: reason,
-                        disputedAmountPaise: int.tryParse(amount.text) ?? 0,
-                      );
-                  if (!mounted) return;
-                  setState(() => result = '${x['dispute_id']}');
-                } catch (e) {
-                  if (!mounted) return;
-                  setState(() => result = e.toString());
-                }
-              },
-              child: Text(t('open_dispute')),
+              onPressed: submitting || validAmount == null
+                  ? null
+                  : () async {
+                      setState(() {
+                        submitting = true;
+                        result = null;
+                      });
+                      try {
+                        final dispute = await ref.read(disputeRepositoryProvider).open(
+                              transactionId: widget.transactionId,
+                              reason: reason,
+                              disputedAmountPaise: validAmount,
+                            );
+                        if (!mounted) return;
+                        setState(() {
+                          submitting = false;
+                          result = dispute.id;
+                        });
+                      } catch (e) {
+                        if (!mounted) return;
+                        setState(() {
+                          submitting = false;
+                          result = e.toString();
+                        });
+                      }
+                    },
+              child: submitting
+                  ? const SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(t('open_dispute')),
             ),
           ],
         ),
