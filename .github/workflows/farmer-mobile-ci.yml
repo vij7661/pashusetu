@@ -29,8 +29,30 @@ jobs:
       - run: flutter test
       - name: Generate Android host for QA artifact
         run: flutter create --platforms=android --project-name pashusetu_farmer .
-      - name: Allow local HTTP backend in debug builds only
+      - name: Configure generated Android QA host
         run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          gradle = Path("android/app/build.gradle.kts")
+          text = gradle.read_text(encoding="utf-8")
+          marker = "        targetCompatibility = JavaVersion.VERSION_11\n"
+          if marker not in text:
+              raise SystemExit("Generated Flutter Android compileOptions template changed")
+          text = text.replace(
+              marker,
+              marker + "        isCoreLibraryDesugaringEnabled = true\n",
+              1,
+          )
+          text += (
+              "\n"
+              "dependencies {\n"
+              "    coreLibraryDesugaring(\"com.android.tools:desugar_jdk_libs:2.1.4\")\n"
+              "}\n"
+          )
+          gradle.write_text(text, encoding="utf-8")
+          PY
+
           mkdir -p android/app/src/debug
           cat > android/app/src/debug/AndroidManifest.xml <<'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
