@@ -4,6 +4,11 @@ class WeighmentRepository {
   WeighmentRepository(this._api);
   final ApiClient _api;
 
+  Future<List<Map<String, dynamic>>> pendingReviews() async {
+    final rows = await _api.getList('/weighment/farmer-reviews');
+    return rows.cast<Map<String, dynamic>>();
+  }
+
   Future<Map<String, dynamic>> review(String weighmentId) {
     return _api.get('/weighment/sessions/$weighmentId/farmer-review');
   }
