@@ -42,7 +42,4 @@ class TransactionRepository {
     );
     return AgreementView.fromJson(json);
   }
-
-  Future<Map<String, dynamic>> close(String transactionId) =>
-      _api.post('/transaction/$transactionId/close');
 }
