@@ -1,19 +1,24 @@
 # Farmer Mobile Manual QA Runbook
 
-This runbook is for local/manual validation of the Farmer MVP. It uses simulated development providers and controlled QA fixtures. It is **not** a pilot/production deployment guide.
+This runbook validates the Farmer MVP against controlled local development fixtures. It is **manual-QA ready**, not pilot/production ready.
 
 ## 1. Reset and start the QA backend
 
-From the repository root:
+From the repository root on Windows:
 
-```bash
+```bat
 copy .env.example .env
-# macOS/Linux: cp .env.example .env
-
 docker compose down -v
 docker compose up --build -d
 docker compose exec api alembic upgrade head
+make farmer-qa-seed
+```
+
+If `make` is not available on Windows, run:
+
+```bat
 docker compose exec api python scripts/seed_farmer_manual_qa.py
+docker compose exec api python scripts/seed_farmer_manual_qa_states.py
 ```
 
 The QA seed refuses to run outside `local`, `test`, or `development`. It never persists raw Aadhaar.
@@ -30,13 +35,11 @@ flutter pub get
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1
 ```
 
-The Farmer CI workflow also publishes a debug emulator APK artifact named:
-
-`pashusetu-farmer-manual-qa-emulator-apk`
+Farmer CI also publishes a debug emulator APK artifact named `pashusetu-farmer-manual-qa-emulator-apk`.
 
 ### Physical Android phone
 
-The phone and development PC must be on the same network. Replace `<PC-LAN-IP>` with the PC's LAN address:
+The phone and PC must be on the same network. Build/run with the PC LAN IP:
 
 ```bash
 cd apps/farmer_mobile
@@ -44,212 +47,125 @@ flutter create --platforms=android --project-name pashusetu_farmer .
 flutter run --dart-define=API_BASE_URL=http://<PC-LAN-IP>:8000/api/v1
 ```
 
-For local HTTP testing on a physical device, use a debug Android manifest that enables cleartext traffic. Do not enable cleartext traffic for a release build.
+Local HTTP is for debug QA only. Do not enable cleartext traffic in a release build.
 
-## 3. Controlled Farmer QA identities
+## 3. Controlled Farmer identities
 
-| Scenario | Mobile | Development OTP | Expected start |
+| Scenario | Mobile | Dev OTP | Expected start |
 | --- | --- | --- | --- |
 | Brand-new Farmer | `+919100000001` | `8830` | Language → mobile → OTP → Farmer Details → KYC → Home |
-| Registration resumed | `+919100000017` | `4856` | Mobile → OTP → KYC with saved Farmer Details |
-| KYC pending Farmer | `+919100000025` | `1735` | Existing Farmer Login → Home; transactional mutations blocked |
-| KYC verified Farmer | `+919100000033` | `0588` | Existing Farmer Login → full Farmer transactional journey |
+| Registration resumed | `+919100000017` | `4856` | OTP → restored Farmer Details → KYC |
+| KYC pending Farmer | `+919100000025` | `1735` | Existing login → Home; transaction mutations blocked |
+| KYC verified Farmer | `+919100000033` | `0588` | Existing login → full Farmer journey |
 
-OTP values are deterministic only because `APP_ENV=local` and `DEVELOPMENT_OTP_SEED` is explicitly configured for development. Production defaults fail closed.
+These OTPs are deterministic only because local development explicitly opts into the development OTP provider. Production defaults fail closed.
 
-## 4. Seeded verified-market data
+## 4. Seeded Farmer market/transaction data
 
-For the verified Farmer (`+919100000033`):
+For `+919100000033`:
 
-- `GOAT-QA-CREATE` — verified and acknowledged weight `50.000 kg`; use this to test **Create Verified Listing**.
-- `PS-LST-QA-OFFER` — already-published Farmer-owned listing for `GOAT-QA-OFFER`, verified weight `48.500 kg`.
-- `BID-QA-001` — active buyer offer on `PS-LST-QA-OFFER`, ₹420/kg, total ₹20,370.
-- Hyderabad QA market recommendation — ₹400/kg.
+- `GOAT-QA-CREATE` — verified/acknowledged weight `50.000 kg`, reserved for Create Listing.
+- `PS-LST-QA-OFFER` — Farmer-owned published listing for `GOAT-QA-OFFER`, weight `48.500 kg`.
+- `BID-QA-001` — active ₹420/kg offer, total ₹20,370.
+- Hyderabad QA recommendation — ₹400/kg.
+- `TX-QA-SHIPMENT` — authoritative state `IN_TRANSIT`.
+- `TX-QA-DISPUTED` — authoritative state `DISPUTED`.
+- `TX-QA-SETTLED` — authoritative state `SETTLED`.
 
-The Create Listing screen must load verified weight from the backend. It must never display a fabricated default weight.
+The state fixtures exist only so the Farmer UI can be tested without manually operating Buyer/Operator apps first.
 
 ## 5. Manual QA cases
 
 ### FQA-01 — Brand-new registration
 
-1. Choose a language.
-2. Register `+919100000001` with OTP `8830`.
-3. Enter Farmer Details.
-4. Enter any 12-digit QA Aadhaar value, for example `123412341234`.
-5. Submit KYC.
+Use `+919100000001` / `8830`. Choose a language, complete Farmer Details, then submit a 12-digit QA Aadhaar such as `123412341234`.
 
-Expected:
-- permanent Farmer ID is created only after KYC submission;
-- Home opens with `KYC_PENDING` messaging;
-- raw Aadhaar is not returned by APIs or shown in Profile;
-- Create Verified Listing remains disabled while KYC is pending.
+Expected: permanent Farmer ID exists only after KYC submission; Home opens in `KYC_PENDING`; raw Aadhaar is not returned/stored in the core domain; transactional listing remains blocked until verification.
 
-### FQA-02 — Resume incomplete registration
+### FQA-02 — Resume registration
 
-1. Start New Farmer Registration with `+919100000017`, OTP `4856`.
-2. Verify OTP.
+Use `+919100000017` / `4856` through New Farmer Registration.
 
-Expected:
-- previously saved Farmer Details are restored;
-- flow resumes at KYC rather than creating a duplicate registration/account.
+Expected: saved Farmer Details are restored and the journey resumes at KYC, without a duplicate permanent Farmer account.
 
-### FQA-03 — Existing KYC-pending Farmer
+### FQA-03 — KYC-pending Home
 
-1. Existing Farmer Login with `+919100000025`, OTP `1735`.
-2. Open Home and Profile.
-3. Add an individual Goat or Lot.
+Use Existing Farmer Login with `+919100000025` / `1735`.
 
-Expected:
-- Home and livestock management are available;
-- Create Verified Listing is disabled;
-- if a transactional API is attempted directly, backend returns `KYC_VERIFICATION_REQUIRED`.
+Expected: Home/Profile and livestock management work; Create Verified Listing is disabled; direct transactional mutations return `KYC_VERIFICATION_REQUIRED`.
 
-### FQA-04 — Existing verified Farmer login
+### FQA-04 — Verified Farmer login
 
-1. Existing Farmer Login with `+919100000033`, OTP `0588`.
-2. Confirm Home and Profile load without a KYC-pending blocker.
+Use `+919100000033` / `0588`.
 
-Expected: full Farmer transaction actions are enabled subject to normal domain prerequisites.
+Expected: Home/Profile load without KYC blocker and Farmer transaction actions are available subject to domain prerequisites.
 
-### FQA-05 — Create verified listing with authoritative weight
+### FQA-05 — Authoritative verified listing weight
 
-1. Open Create Verified Listing.
-2. Choose `Individual Goat`.
-3. Enter `GOAT-QA-CREATE`.
-4. Load Verified Weight.
-5. Confirm `50 kg` comes from backend eligibility.
-6. Use market recommendation or enter a price.
-7. Confirm total = verified weight × price/kg.
-8. Confirm Publish is disabled before acknowledgement.
-9. Acknowledge and publish.
+Open Create Verified Listing → Individual Goat → enter `GOAT-QA-CREATE` → load Verified Weight.
 
-Expected:
-- no hard-coded/default 50 kg is shown before eligibility is loaded;
-- server remains authoritative for weight and total;
-- published listing appears under **Your Listings** only for this Farmer.
+Expected: weight is loaded from backend as `50.000 kg`; no fabricated default is displayed; total = authoritative weight × Farmer price; Publish stays disabled until acknowledgement; published listing appears in Your Listings.
 
-### FQA-06 — Farmer-owned listing history and Buyer Offers
+### FQA-06 — Farmer-owned listing history and offers
 
-1. Open Your Listings.
-2. Open `PS-LST-QA-OFFER`.
+Open Your Listings → `PS-LST-QA-OFFER`.
 
-Expected:
-- listing is visible because it belongs to the logged-in Farmer;
-- unrelated Farmers' listings are not shown;
-- Buyer Offers shows `BID-QA-001` with ₹420/kg and total ₹20,370;
-- server sequence is shown.
+Expected: only Farmer-owned history is returned; Buyer Offers shows `BID-QA-001`, ₹420/kg, ₹20,370 total and server sequence.
 
-### FQA-07 — Accept offer and create transaction
+### FQA-07 — Accept offer → transaction
 
-1. From `PS-LST-QA-OFFER`, accept `BID-QA-001`.
+Accept `BID-QA-001`.
 
-Expected:
-- accepted bid is recorded server-side;
-- Farmer app creates/loads the authoritative transaction;
-- app navigates to Transaction detail instead of losing the transaction ID;
-- transaction state begins at `OFFER_ACCEPTED`.
+Expected: backend accepts the bid, creates/returns the authoritative transaction and the app navigates to Transaction detail at `OFFER_ACCEPTED` instead of losing the transaction ID.
 
-### FQA-08 — Agreement navigation
+### FQA-08 — Agreement
 
-From the accepted transaction, open Agreement.
+From the accepted transaction open Agreement, create a proposal, then confirm as Farmer.
 
-Expected:
-- Farmer can create agreement proposal;
-- Farmer confirmation is recorded;
-- state remains backend-authoritative and waits for Buyer confirmation where required.
+Expected: Farmer confirmation is recorded; state remains backend-authoritative and waits for Buyer confirmation when required.
 
-### FQA-09 — Transaction history persistence
+### FQA-09 — Transaction history
 
-1. Return to Home.
-2. Open Transactions.
-3. Open the transaction created in FQA-07.
+Home → Transactions.
 
-Expected: the transaction can be rediscovered after navigation/restart without manually knowing its ID.
+Expected: accepted transaction can be rediscovered after navigation/restart. The seeded `TX-QA-SHIPMENT`, `TX-QA-DISPUTED`, and `TX-QA-SETTLED` are also visible.
 
-### FQA-10 — Weighment acknowledgement route
+### FQA-10 — Shipment tracking
 
-For an operator-created Farmer review weighment, open `/weighment/<id>/ack` through the normal test setup.
+Open `TX-QA-SHIPMENT` → Pickup & Delivery.
 
-Expected:
-- acknowledgement is explicit;
-- rejecting a weighment routes domain state to reweigh, not listing;
-- accepting permits receipt generation;
-- listing remains dependent on a `VERIFIED` weighment.
+Expected: `IN_TRANSIT` comes from backend; app does not invent GPS/transporter information.
 
-### FQA-11 — Shipment tracking
+### FQA-11 — Dispute
 
-For a transaction progressed by the Buyer/Operator test setup, open Pickup & Delivery.
+Open `TX-QA-DISPUTED` → Dispute and submit a supported reason.
 
-Expected:
-- screen renders authoritative transaction state;
-- it does not invent live GPS or transporter data;
-- delivery/tolerance/dispute result follows backend state.
+Expected: dispute is tied to the authenticated transaction party; another Farmer cannot mutate it.
 
-### FQA-12 — Dispute
+### FQA-12 — Settlement
 
-For a transaction in `DISPUTED`, open Dispute.
+Open `TX-QA-SETTLED` → Settlement.
 
-Expected:
-- Farmer can open the transaction's dispute with supported reason;
-- user cannot mutate a dispute belonging to another transaction party;
-- resolution/reweigh remains authoritative server behavior.
+Expected: gross, adjustment, platform fee and final amount come from backend; repeated settlement load is idempotent; development UI makes no real escrow/payment claim.
 
-### FQA-13 — Settlement
+### FQA-13 — Weighment acknowledgement
 
-For `RESOLVED` or `SETTLED` transaction state, open Settlement.
+Use an Operator-created weighment in Farmer review state through the approved test setup.
 
-Expected:
-- gross, adjustment, platform fee and final amount come from backend;
-- repeated settlement load is idempotent;
-- no real payment/escrow claim is shown in this development build.
+Expected: Farmer acknowledgement is explicit; reject routes domain state to reweigh; accept permits receipt; listing still requires `VERIFIED` weighment.
 
-## 6. Negative and resilience checks
+## 6. Negative/resilience checks
 
-Test all of these:
+Validate: invalid mobile; invalid/wrong OTP; existing-login on unregistered mobile; duplicate registration; KYC before Farmer Details; KYC-pending transaction block; invalid/non-owned Goat/Lot; target without verified weighment; Publish without acknowledgement; invalid price/window; backend unavailable; and all six language layouts (Telugu, Hindi, English, Marathi, Tamil, Malayalam).
 
-- invalid mobile format;
-- OTP fewer/more than four digits;
-- wrong OTP;
-- expired/exhausted OTP attempts where practical;
-- Existing Farmer login for an unregistered mobile;
-- New registration for an already-registered Farmer;
-- KYC submission before Farmer Details via API must fail;
-- KYC-pending Farmer transaction mutation must fail;
-- invalid/non-owned Goat or Lot code when loading listing eligibility;
-- target with no verified weighment must fail with `VERIFIED_WEIGHMENT_REQUIRED`;
-- publish without acknowledgement remains disabled in UI;
-- invalid listing price/window rejected by backend;
-- backend stopped/unreachable shows an error and app remains responsive;
-- rotate through Telugu, Hindi, English, Marathi, Tamil and Malayalam; report untranslated or clipped text.
+## 7. Defect evidence
 
-## 7. Evidence to record for every defect
+For every defect record: case ID, device/emulator and Android version, app commit/artifact, account, exact steps, expected/actual result, screenshot/video, backend error code/message, and reset/reproduction status.
 
-Record:
-
-- case ID;
-- phone/emulator model and Android version;
-- app commit/build artifact;
-- account/mobile used;
-- exact steps;
-- expected result;
-- actual result;
-- screenshot/video;
-- backend error code/message if visible;
-- whether issue reproduces after reset.
-
-Do not change production/domain behavior solely to make a manual expectation pass. Each defect must be classified against the product contract, implementation, fixture/test data, test expectation and environment.
+Do not change production/domain behavior solely to satisfy a manual expectation. Classify each failure against product contract, code, fixture/test data, test expectation and environment.
 
 ## 8. Development-only boundaries
 
-This manual-QA build intentionally uses simulated or incomplete external integrations. The following remain outside Farmer manual-QA acceptance and require provider/hardware selection before pilot:
+Outside this manual-QA acceptance: production OTP, compliant live Aadhaar/KYC provider, real UPI/bank payout, real payment/escrow, live WhatsApp/SMS/push, real Bluetooth livestock scale, physical QR printer and live transporter GPS/maps.
 
-- production OTP provider;
-- compliant live Aadhaar/KYC provider;
-- real UPI/bank payout provider;
-- real payment/escrow integration;
-- live WhatsApp/SMS/push provider;
-- real Bluetooth livestock scale integration;
-- physical QR printer validation;
-- live transporter GPS/maps provider.
-
-Manual-QA readiness means the Farmer software flow is testable end-to-end against the controlled development backend. It does not mean production/pilot readiness.
+Manual-QA ready means the Farmer software flow is testable end-to-end against the controlled development backend. It does not mean pilot/production ready.
