@@ -39,17 +39,38 @@ class FarmerRegistrationStatus {
       return value;
     }
 
+    final registrationStatus = requiredString('registration_status');
+    if (!const {'NEW_IN_PROGRESS', 'KYC_SUBMITTED'}.contains(registrationStatus)) {
+      throw FormatException('Invalid farmer registration status: $registrationStatus');
+    }
+
     final nextStep = requiredString('next_step');
     if (!const {'FARMER_DETAILS', 'KYC', 'HOME'}.contains(nextStep)) {
       throw FormatException('Invalid farmer registration next_step: $nextStep');
     }
 
+    final preferredLanguage = requiredString('preferred_language');
+    if (!const {'te', 'hi', 'en', 'mr', 'ta', 'ml'}.contains(preferredLanguage)) {
+      throw FormatException('Unsupported farmer registration language: $preferredLanguage');
+    }
+
+    final fullName = optionalString('full_name');
+    final expectedNextStep = registrationStatus == 'KYC_SUBMITTED'
+        ? 'HOME'
+        : (fullName == null || fullName.isEmpty ? 'FARMER_DETAILS' : 'KYC');
+    if (nextStep != expectedNextStep) {
+      throw FormatException(
+        'Inconsistent farmer registration lifecycle: '
+        '$registrationStatus/$nextStep',
+      );
+    }
+
     return FarmerRegistrationStatus(
       registrationId: requiredString('registration_id'),
-      registrationStatus: requiredString('registration_status'),
+      registrationStatus: registrationStatus,
       nextStep: nextStep,
-      preferredLanguage: requiredString('preferred_language'),
-      fullName: optionalString('full_name'),
+      preferredLanguage: preferredLanguage,
+      fullName: fullName,
       village: optionalString('village'),
       mandal: optionalString('mandal'),
       district: optionalString('district'),
@@ -96,13 +117,18 @@ class FarmerRegistrationComplete {
       );
     }
 
+    final tokenType = requiredString('token_type');
+    if (tokenType != 'bearer') {
+      throw FormatException('Unexpected token type: $tokenType');
+    }
+
     return FarmerRegistrationComplete(
       farmerId: requiredString('farmer_id'),
       kycStatus: kycStatus,
       registrationStatus: registrationStatus,
       accessToken: requiredString('access_token'),
       refreshToken: requiredString('refresh_token'),
-      tokenType: requiredString('token_type'),
+      tokenType: tokenType,
     );
   }
 }
