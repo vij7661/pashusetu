@@ -6,7 +6,6 @@ from app.auth.dependencies import current_user
 from app.core.errors import AppError
 from app.db.session import get_db
 from app.identity.models import User
-from app.identity.profile_models import FarmerProfile
 from app.livestock.models import Goat, Lot, LotGoat
 from app.livestock.schemas import (
     GoatCreate,
