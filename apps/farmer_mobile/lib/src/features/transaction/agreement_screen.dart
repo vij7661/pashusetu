@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/localization/language_provider.dart';
 import '../providers.dart';
+import 'transaction_strings.dart';
 
 class AgreementScreen extends ConsumerStatefulWidget {
   const AgreementScreen({super.key, required this.transactionId});
@@ -43,46 +45,49 @@ class _AgreementScreenState extends ConsumerState<AgreementScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final language = ref.watch(languageProvider);
+    String t(String key) => TransactionStrings.tr(language, key);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Transaction Agreement')),
+      appBar: AppBar(title: Text(t('agreement_title'))),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           TextField(
             controller: pickup,
             onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(labelText: 'Pickup point'),
+            decoration: InputDecoration(labelText: t('pickup_point')),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: finalScale,
             onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(labelText: 'Final weighing point'),
+            decoration: InputDecoration(labelText: t('final_weighing_point')),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: tolerance,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(labelText: 'Allowed tolerance %'),
+            decoration: InputDecoration(labelText: t('allowed_tolerance')),
           ),
           const SizedBox(height: 12),
           if (agreementId != null) ...[
             Card(
               child: ListTile(
-                title: const Text('Price basis'),
+                title: Text(t('price_basis')),
                 subtitle: Text(priceBasis ?? '—'),
               ),
             ),
             Card(
               child: ListTile(
-                title: const Text('Transport responsibility'),
+                title: Text(t('transport_responsibility')),
                 subtitle: Text(transportResponsibility ?? '—'),
               ),
             ),
             Card(
               child: ListTile(
-                title: const Text('Dispute rule'),
+                title: Text(t('dispute_rule')),
                 subtitle: Text(disputeRule ?? '—'),
               ),
             ),
@@ -136,9 +141,10 @@ class _AgreementScreenState extends ConsumerState<AgreementScreen> {
                           setState(() {
                             submitting = false;
                             confirmed = result.farmerConfirmed;
-                            message = result.locked
-                                ? 'Agreement confirmed by both parties and locked.'
-                                : 'Farmer confirmed agreement. Waiting for buyer confirmation.';
+                            priceBasis = result.priceBasis;
+                            transportResponsibility = result.transportResponsibility;
+                            disputeRule = result.disputeRule;
+                            message = confirmed ? t('farmer_confirmed_waiting') : null;
                           });
                         } catch (error) {
                           if (!mounted) return;
@@ -154,9 +160,9 @@ class _AgreementScreenState extends ConsumerState<AgreementScreen> {
                     dimension: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Text(agreementId == null ? 'Create Agreement' : 'Confirm Agreement'),
+                : Text(agreementId == null ? t('create_agreement') : t('confirm_agreement')),
           ),
-          if (confirmed) const Text('✓ Farmer confirmation recorded'),
+          if (confirmed) Text('✓ ${t('farmer_confirmation_recorded')}'),
         ],
       ),
     );
