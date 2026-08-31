@@ -2,8 +2,11 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
+from pydantic import ValidationError
 
 from app.core.errors import AppError
+from app.disputes.router import _transaction_or_404
+from app.disputes.schemas import EvidenceAddResponse, ReweighAttachResponse
 from app.disputes.service import (
     _assert_reweigh_matches_listing,
     _require_open_dispute,
@@ -90,6 +93,30 @@ def test_reweigh_must_match_disputed_listing_target_and_farmer():
     with pytest.raises(AppError) as exc:
         _assert_reweigh_matches_listing(wrong_farmer, listing)
     assert exc.value.code == "REWEIGH_TARGET_MISMATCH"
+
+
+def test_missing_dispute_transaction_returns_domain_404():
+    dispute = SimpleNamespace(transaction_id=uuid4())
+    with pytest.raises(AppError) as exc:
+        _transaction_or_404(_FakeDb(transaction=None), dispute)
+    assert exc.value.code == "TRANSACTION_NOT_FOUND"
+    assert exc.value.status_code == 404
+
+
+def test_dispute_mutation_responses_are_strictly_typed():
+    evidence = EvidenceAddResponse(evidence_id="E-1", status="RECORDED")
+    reweigh = ReweighAttachResponse(
+        reweigh_id="RW-1",
+        stage="CONTROLLED",
+        status="RECORDED",
+    )
+    assert evidence.status == "RECORDED"
+    assert reweigh.stage == "CONTROLLED"
+
+    with pytest.raises(ValidationError):
+        EvidenceAddResponse(evidence_id="E-1", status="DONE")
+    with pytest.raises(ValidationError):
+        ReweighAttachResponse(reweigh_id="RW-1", stage="DELIVERY", status="RECORDED")
 
 
 def test_dispute_evidence_addition_is_audited_atomically_without_reference(monkeypatch):
