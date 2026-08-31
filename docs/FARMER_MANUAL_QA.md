@@ -27,23 +27,27 @@ Backend API: `http://localhost:8000/api/v1`
 
 ## 2. Run the Farmer app
 
+On a fresh checkout, first create/configure the Android host from inside `apps/farmer_mobile`. The helper is cross-platform, enables the core-library desugaring required by current Flutter plugins, and enables local HTTP only in the Android debug manifest.
+
 ### Android emulator
 
 ```bash
 cd apps/farmer_mobile
 flutter pub get
+dart run tool/prepare_android_qa.dart
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1
 ```
 
-Farmer CI also publishes a debug emulator APK artifact named `pashusetu-farmer-manual-qa-emulator-apk`.
+Farmer CI also publishes a debug emulator APK artifact named `pashusetu-farmer-manual-qa-emulator-apk` from the exact reviewed source tree.
 
 ### Physical Android phone
 
-The phone and PC must be on the same network. Build/run with the PC LAN IP:
+The phone and PC must be on the same network. Prepare the Android host the same way, then run with the PC LAN IP:
 
 ```bash
 cd apps/farmer_mobile
-flutter create --platforms=android --project-name pashusetu_farmer .
+flutter pub get
+dart run tool/prepare_android_qa.dart
 flutter run --dart-define=API_BASE_URL=http://<PC-LAN-IP>:8000/api/v1
 ```
 
