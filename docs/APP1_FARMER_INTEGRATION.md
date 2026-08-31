@@ -13,7 +13,7 @@ The Farmer app must also never prefill fabricated operational facts such as a ma
 
 Goat registration, lot registration/linking and creation of evidence-upload contracts are auditable Farmer-owned mutations. Each domain write is committed atomically with its corresponding audit event so livestock identity or evidence metadata cannot be persisted without its trust trail. KYC-pending Farmers may still manage livestock, consistent with the lifecycle contract; transaction-producing actions remain KYC-verified only. Evidence-upload instructions returned to the Farmer client are typed and validated before use, including the evidence identifier, storage key, upload method, URL and positive expiry window; malformed upload contracts must not be treated as usable instructions.
 
-Reference-price provenance is enforced by the backend. A listing may use a selected reference only when that reference is active and belongs to the centralized pilot market returned by the listing context. The Farmer client sends a typed reference UUID; malformed identifiers are rejected by request validation and a reference from another market cannot be attached to the listing.
+Reference-price provenance is enforced by the backend. A listing may use a selected reference only when that reference is active and belongs to the centralized pilot market returned by the listing context. The Farmer client sends a typed reference UUID; malformed identifiers are rejected by request validation and a reference from another market cannot be attached to the listing. Listing context, Reference Price records and bid-acceptance responses are consumed as typed Farmer-mobile contracts rather than raw maps, so malformed authoritative weight, provenance dates, market identifiers or accepted server sequence cannot silently drive pricing or acceptance UI.
 
 Transaction creation from an accepted listing is authorized before any transaction mutation occurs: the authenticated verified Farmer must own the listing. Transaction creation and its audit event are committed atomically, so an unauthorized request cannot create another Farmer's transaction and a successful transaction creation cannot exist without its corresponding audit record.
 
@@ -28,41 +28,3 @@ Settlement display is read-only in the Farmer app. Viewing or refreshing settlem
 Final transaction closure is backend/system-owned after settlement finality. The Farmer app has no close mutation and cannot trigger reputation processing by client action.
 
 Dispute parties may open a dispute and submit evidence, but they do not own the final resolution. Final decision, resolution rule and settlement adjustment are platform-controlled and require an authorized Admin or Operator resolver in the pilot. Reweigh evidence must be verified and must match the exact goat/lot and Farmer identity from the disputed listing; an unrelated verified weighment cannot be attached to the case. Additional evidence or reweighs are rejected after the dispute is resolved.
-
-Shipment UI must not infer that pickup, transit, delivery, weighment or evidence milestones happened merely because those steps exist in the workflow. Until verified event data is returned by the backend, the Farmer app shows only the authoritative transaction state.
-
-## Implemented connection map
-
-| Farmer UI | Backend |
-|---|---|
-| Registration status | `GET /identity/farmer-registration/status` |
-| Farmer details | `PUT /identity/farmer-registration/details` |
-| KYC submission / permanent identity creation | `POST /identity/farmer-registration/kyc` |
-| Existing login | `POST /auth/otp/request`, `POST /auth/otp/verify` |
-| Profile | `GET /identity/farmers/me` |
-| Individual goat | `POST /livestock/goats` |
-| Lot | `POST /livestock/lots` |
-| Evidence contract | `POST /livestock/evidence/upload-contract` |
-| Market recommendation | `GET /marketplace/recommendations` |
-| Publish listing | `POST /marketplace/listings` |
-| Offers | `GET /bidding/listings/{id}/bids` |
-| Accept offer | `POST /bidding/listings/{id}/accept/{bid}` |
-| Transaction creation | `POST /transaction/from-listing/{listing_id}` |
-| Transaction | `GET /transaction/{id}` |
-| Agreement | `/agreement/transactions/*` |
-| Transport | `POST /logistics/transactions/{id}/transport` |
-| Pickup | `POST /logistics/transactions/{id}/pickup` |
-| Delivery | `POST /logistics/transactions/{id}/delivery` |
-| Settlement status | `GET /payments/transactions/{id}/settlement` |
-| Open dispute | `POST /disputes/transactions/{id}` |
-| Dispute evidence/reweigh | `POST /disputes/{id}/evidence`, `POST /disputes/{id}/reweigh` |
-
-There is intentionally no direct Farmer-profile creation endpoint, Farmer-facing transaction-close endpoint or party-facing dispute-resolution endpoint.
-
-## Remaining provider-dependent UI
-- Aadhaar/KYC verification
-- payout/bank/UPI provider integration
-- object-storage upload execution
-- SMS/WhatsApp/push notifications
-
-These are intentionally left behind adapters instead of being mocked as production functionality.
