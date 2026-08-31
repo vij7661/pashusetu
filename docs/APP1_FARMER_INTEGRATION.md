@@ -9,6 +9,8 @@ For pilot agreements, the Farmer app submits only transaction-specific inputs th
 
 The Farmer app must also never prefill fabricated operational facts such as a mandal centre, buyer scale identifier, verified weight, market price or transaction tolerance. Those values must come from the relevant authoritative service or explicit Farmer/operator input.
 
+Reference-price provenance is enforced by the backend. A listing may use a selected reference only when that reference is active and belongs to the centralized pilot market returned by the listing context. The Farmer client sends a typed reference UUID; malformed identifiers are rejected by request validation and a reference from another market cannot be attached to the listing.
+
 Transaction creation from an accepted listing is authorized before any transaction mutation occurs: the authenticated verified Farmer must own the listing. Transaction creation and its audit event are committed atomically, so an unauthorized request cannot create another Farmer's transaction and a successful transaction creation cannot exist without its corresponding audit record.
 
 Farmer bid acceptance is part of the trust boundary. The deterministic accepted-bid state change, its audit event and creation of the corresponding transaction are composed into one database commit. A failure before that commit must not leave an accepted bid without its transaction or leave the transaction without the acceptance audit trail.
