@@ -167,7 +167,7 @@ def post_acknowledge(
     _require_farmer_session_owner(db, session, user)
     acknowledgement = acknowledge_weighment(db, session, payload.acknowledged, payload.method)
     return AcknowledgeResponse(
-        acknowledgement_id=str(acknowledgement.id),
+        acknowledgement_id=str(acknowledgement.id) if acknowledgement else None,
         status=session.status,
     )
 
