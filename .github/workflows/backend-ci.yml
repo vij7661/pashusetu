@@ -87,6 +87,7 @@ jobs:
           app/logistics/service.py
           tests/test_farmer_registration_contract.py
           tests/test_farmer_kyc_enforcement.py
+          tests/test_farmer_identity_lifecycle_contract.py
           tests/test_market_reference_contract.py
           tests/test_listing_acknowledgement_contract.py
           tests/test_weighment_authorization_contract.py
