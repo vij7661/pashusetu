@@ -23,12 +23,15 @@ Use the controlled setup, accounts, OTPs and test cases in:
 
 `docs/FARMER_MANUAL_QA.md`
 
-Android emulator:
+On a fresh checkout, prepare the generated Android host first. The helper enables the Android desugaring required by current plugins and allows local HTTP only in the debug manifest:
 
 ```bash
 flutter pub get
+dart run tool/prepare_android_qa.dart
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1
 ```
+
+For a physical Android phone, replace `10.0.2.2` with the development PC's LAN IP while both devices are on the same network.
 
 Development OTPs are account-specific and deterministic only in explicit local/test environments; there is no universal Farmer OTP.
 
