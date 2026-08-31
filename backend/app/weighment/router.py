@@ -112,7 +112,7 @@ def post_reading(
     user: User = Depends(operator_required),
 ):
     session = _session_by_code(db, weighment_id)
-    reading = append_reading(db, session, payload)
+    reading = append_reading(db, session, payload, actor_user_id=user.id)
     return ReadingResponse(
         reading_id=str(reading.id),
         sequence_no=reading.sequence_no,
