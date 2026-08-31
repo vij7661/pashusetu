@@ -5,6 +5,7 @@ import 'package:pashusetu_farmer/src/core/localization/kyc_status_strings.dart';
 void main() {
   test('KYC status strings exist for every supported Farmer language', () {
     const requiredKeys = {
+      'verified',
       'pending',
       'action_required',
       'rejected',
@@ -21,6 +22,10 @@ void main() {
       for (final key in requiredKeys) {
         expect(strings[key]!.trim(), isNotEmpty);
       }
+      expect(
+        KycStatusStrings.statusLabel(language, 'KYC_VERIFIED').trim(),
+        isNotEmpty,
+      );
     }
   });
 }
