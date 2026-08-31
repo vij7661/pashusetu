@@ -3,14 +3,20 @@ from uuid import UUID, uuid4
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.audit.service import append_event
 from app.core.errors import AppError
-from app.identity.profile_models import FarmerProfile, BuyerProfile
-from app.marketplace.models import Listing, Bid
+from app.identity.profile_models import BuyerProfile, FarmerProfile
+from app.marketplace.models import Bid, Listing
 from app.transaction.models import Transaction
 from app.transaction.state_machine import assert_transition
 
 
-def create_transaction_from_accepted_bid(db: Session, listing: Listing, bid: Bid) -> Transaction:
+def create_transaction_from_accepted_bid(
+    db: Session,
+    listing: Listing,
+    bid: Bid,
+    actor_user_id: UUID | None = None,
+) -> Transaction:
     existing = db.scalar(select(Transaction).where(Transaction.listing_id == listing.id))
     if existing:
         return existing
@@ -24,6 +30,20 @@ def create_transaction_from_accepted_bid(db: Session, listing: Listing, bid: Bid
         state="OFFER_ACCEPTED",
     )
     db.add(transaction)
+    db.flush()
+    append_event(
+        db,
+        "TRANSACTION",
+        transaction.id,
+        "TRANSACTION_CREATED",
+        actor_user_id,
+        payload={
+            "transaction_id": transaction.transaction_code,
+            "listing_id": listing.listing_code,
+            "accepted_bid_id": bid.bid_code,
+        },
+        commit=False,
+    )
     db.commit()
     db.refresh(transaction)
     return transaction
