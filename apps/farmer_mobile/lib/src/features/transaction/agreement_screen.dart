@@ -107,11 +107,10 @@ class _AgreementScreenState extends ConsumerState<AgreementScreen> {
                               );
                           if (!mounted) return;
                           setState(() {
-                            agreementId = result['agreement_id'] as String;
-                            priceBasis = result['price_basis']?.toString();
-                            transportResponsibility =
-                                result['transport_responsibility']?.toString();
-                            disputeRule = result['dispute_rule']?.toString();
+                            agreementId = result.id;
+                            priceBasis = result.priceBasis;
+                            transportResponsibility = result.transportResponsibility;
+                            disputeRule = result.disputeRule;
                             submitting = false;
                           });
                         } catch (error) {
@@ -130,15 +129,16 @@ class _AgreementScreenState extends ConsumerState<AgreementScreen> {
                           message = null;
                         });
                         try {
-                          await ref
+                          final result = await ref
                               .read(transactionRepositoryProvider)
                               .confirmAgreement(widget.transactionId, agreementId!);
                           if (!mounted) return;
                           setState(() {
                             submitting = false;
-                            confirmed = true;
-                            message =
-                                'Farmer confirmed agreement. Waiting for buyer confirmation if not yet complete.';
+                            confirmed = result.farmerConfirmed;
+                            message = result.locked
+                                ? 'Agreement confirmed by both parties and locked.'
+                                : 'Farmer confirmed agreement. Waiting for buyer confirmation.';
                           });
                         } catch (error) {
                           if (!mounted) return;
