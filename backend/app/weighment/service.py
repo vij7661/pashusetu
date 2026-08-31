@@ -160,14 +160,14 @@ def acknowledge_weighment(
     session: WeighmentSession,
     acknowledged: bool,
     method: str,
-) -> FarmerWeighmentAcknowledgement:
+) -> FarmerWeighmentAcknowledgement | None:
     if session.status != "FARMER_REVIEW":
         raise AppError("WEIGHMENT_NOT_READY_FOR_ACK", "Weighment is not ready for farmer acknowledgement.", 409)
 
     if not acknowledged:
         session.status = "REJECTED_BY_FARMER"
         db.commit()
-        raise AppError("FARMER_REJECTED_WEIGHT", "Farmer rejected weighment; start a reweigh.", 409)
+        return None
 
     ack = FarmerWeighmentAcknowledgement(
         weighment_session_id=session.id,
