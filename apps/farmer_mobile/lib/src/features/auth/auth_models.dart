@@ -7,10 +7,10 @@ class TokenPair {
   factory TokenPair.fromJson(Map<String, dynamic> json) {
     final accessToken = json['access_token'];
     final refreshToken = json['refresh_token'];
-    if (accessToken is! String || accessToken.isEmpty) {
+    if (accessToken is! String || accessToken.trim().isEmpty) {
       throw const FormatException('Invalid access token');
     }
-    if (refreshToken is! String || refreshToken.isEmpty) {
+    if (refreshToken is! String || refreshToken.trim().isEmpty) {
       throw const FormatException('Invalid refresh token');
     }
     return TokenPair(
@@ -38,7 +38,7 @@ class AuthIdentity {
   factory AuthIdentity.fromJson(Map<String, dynamic> json) {
     String requiredString(String key) {
       final value = json[key];
-      if (value is! String || value.isEmpty) {
+      if (value is! String || value.trim().isEmpty) {
         throw FormatException('Invalid auth identity field: $key');
       }
       return value;
@@ -47,7 +47,7 @@ class AuthIdentity {
     final rawRoles = json['roles'];
     if (rawRoles is! List ||
         rawRoles.isEmpty ||
-        rawRoles.any((role) => role is! String || role.isEmpty)) {
+        rawRoles.any((role) => role is! String || role.trim().isEmpty)) {
       throw const FormatException('Invalid auth identity roles');
     }
     final roles = rawRoles.cast<String>();
@@ -94,7 +94,7 @@ class FarmerRegistrationSession {
   factory FarmerRegistrationSession.fromJson(Map<String, dynamic> json) {
     String requiredString(String key) {
       final value = json[key];
-      if (value is! String || value.isEmpty) {
+      if (value is! String || value.trim().isEmpty) {
         throw FormatException('Invalid farmer registration session field: $key');
       }
       return value;
