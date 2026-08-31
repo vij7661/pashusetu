@@ -3,12 +3,31 @@ from uuid import UUID, uuid4
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.audit.service import append_event
 from app.core.errors import AppError
 from app.disputes.models import Dispute, DisputeEvidence, DisputeReweigh
+from app.marketplace.models import Listing
 from app.transaction.models import Transaction
 from app.transaction.service import transition_transaction
 from app.weighment.models import WeighmentSession
-from app.audit.service import append_event
+
+
+def _require_open_dispute(dispute: Dispute) -> None:
+    if dispute.status != "OPEN":
+        raise AppError("DISPUTE_NOT_OPEN", "Dispute is not open for additional evidence.", 409)
+
+
+def _assert_reweigh_matches_listing(ws: WeighmentSession, listing: Listing) -> None:
+    if (
+        ws.target_type != listing.target_type
+        or ws.target_id != listing.target_id
+        or ws.farmer_profile_id != listing.seller_farmer_profile_id
+    ):
+        raise AppError(
+            "REWEIGH_TARGET_MISMATCH",
+            "Verified reweigh does not belong to the disputed listing target.",
+            409,
+        )
 
 
 def open_dispute(
@@ -35,13 +54,27 @@ def open_dispute(
     db.commit()
     db.refresh(dispute)
     append_event(
-        db, "TRANSACTION", tx.id, "DISPUTE_OPENED", actor_user_id,
-        payload={"dispute_id": dispute.dispute_code, "reason": reason, "disputed_amount_paise": disputed_amount_paise},
+        db,
+        "TRANSACTION",
+        tx.id,
+        "DISPUTE_OPENED",
+        actor_user_id,
+        payload={
+            "dispute_id": dispute.dispute_code,
+            "reason": reason,
+            "disputed_amount_paise": disputed_amount_paise,
+        },
     )
     return dispute
 
 
-def add_evidence(db: Session, dispute: Dispute, evidence_type: str, evidence_reference: str) -> DisputeEvidence:
+def add_evidence(
+    db: Session,
+    dispute: Dispute,
+    evidence_type: str,
+    evidence_reference: str,
+) -> DisputeEvidence:
+    _require_open_dispute(dispute)
     row = DisputeEvidence(
         dispute_id=dispute.id,
         evidence_type=evidence_type,
@@ -53,10 +86,24 @@ def add_evidence(db: Session, dispute: Dispute, evidence_type: str, evidence_ref
     return row
 
 
-def attach_reweigh(db: Session, dispute: Dispute, weighment_code: str, stage: str) -> DisputeReweigh:
+def attach_reweigh(
+    db: Session,
+    dispute: Dispute,
+    weighment_code: str,
+    stage: str,
+) -> DisputeReweigh:
+    _require_open_dispute(dispute)
     ws = db.scalar(select(WeighmentSession).where(WeighmentSession.weighment_code == weighment_code))
     if not ws or ws.status != "VERIFIED":
         raise AppError("VERIFIED_REWEIGH_REQUIRED", "Verified reweigh session required.", 409)
+
+    tx = db.get(Transaction, dispute.transaction_id)
+    if tx is None:
+        raise AppError("TRANSACTION_NOT_FOUND", "Transaction not found.", 404)
+    listing = db.get(Listing, tx.listing_id)
+    if listing is None:
+        raise AppError("LISTING_NOT_FOUND", "Listing not found.", 404)
+    _assert_reweigh_matches_listing(ws, listing)
 
     row = DisputeReweigh(
         dispute_id=dispute.id,
@@ -90,7 +137,11 @@ def resolve_dispute(
 
     transition_transaction(db, tx, "RESOLVED")
     append_event(
-        db, "TRANSACTION", tx.id, "DISPUTE_RESOLVED", actor_user_id,
+        db,
+        "TRANSACTION",
+        tx.id,
+        "DISPUTE_RESOLVED",
+        actor_user_id,
         payload={
             "dispute_id": dispute.dispute_code,
             "settlement_adjustment_paise": settlement_adjustment_paise,
