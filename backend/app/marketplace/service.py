@@ -89,6 +89,26 @@ def _validate_reference_window(valid_from: datetime, valid_to: datetime | None) 
         raise AppError("INVALID_REFERENCE_WINDOW", "Reference price expiry must be after its start.", 400)
 
 
+def _validate_listing_reference(
+    recommendation: MarketPriceRecommendation,
+    acknowledged_at: datetime,
+) -> None:
+    if recommendation.market_code != PILOT_MARKET_CODE:
+        raise AppError(
+            "REFERENCE_MARKET_MISMATCH",
+            "Selected reference price does not belong to the listing market.",
+            409,
+        )
+    if recommendation.valid_from > acknowledged_at or (
+        recommendation.valid_to is not None and recommendation.valid_to <= acknowledged_at
+    ):
+        raise AppError(
+            "REFERENCE_PRICE_NOT_ACTIVE",
+            "Selected reference price is no longer active. Reload the current reference price.",
+            409,
+        )
+
+
 def create_market_reference(
     db: Session,
     market_code: str,
@@ -228,20 +248,7 @@ def create_listing(
         recommendation = db.get(MarketPriceRecommendation, recommendation_id)
         if not recommendation:
             raise AppError("RECOMMENDATION_NOT_FOUND", "Market reference price not found.", 404)
-        if recommendation.market_code != PILOT_MARKET_CODE:
-            raise AppError(
-                "REFERENCE_MARKET_MISMATCH",
-                "Selected reference price does not belong to the listing market.",
-                409,
-            )
-        if recommendation.valid_from > acknowledged_at or (
-            recommendation.valid_to is not None and recommendation.valid_to <= acknowledged_at
-        ):
-            raise AppError(
-                "REFERENCE_PRICE_NOT_ACTIVE",
-                "Selected reference price is no longer active. Reload the current reference price.",
-                409,
-            )
+        _validate_listing_reference(recommendation, acknowledged_at)
 
     listing = Listing(
         listing_code=f"PS-LST-{uuid4().hex[:10].upper()}",
