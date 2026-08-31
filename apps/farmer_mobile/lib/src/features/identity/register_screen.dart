@@ -100,7 +100,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         if (ref.read(authControllerProvider).hasError) {
           throw ref.read(authControllerProvider).error!;
         }
-        if (result?['next_step'] == 'KYC') {
+        if (result?.nextStep == 'KYC') {
           await _restoreRegistration();
         } else if (mounted) {
           setState(() => step = 3);
