@@ -83,5 +83,6 @@ jobs:
           tests/test_weighment_authorization_contract.py
           tests/test_agreement_pilot_contract.py
           tests/test_dispute_trust_contract.py
+          tests/test_transaction_trust_contract.py
           tests/fixtures/farmer_positive_v2.py
       - run: python scripts/export_openapi.py
