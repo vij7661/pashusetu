@@ -179,7 +179,7 @@ def test_dispute_reweigh_attachment_is_audited_atomically(monkeypatch):
         calls.append((args, kwargs))
 
     monkeypatch.setattr("app.disputes.service.append_event", capture_event)
-    attach_reweigh(db, dispute, actor_id, weighment.weighment_code, "DELIVERY")
+    attach_reweigh(db, dispute, actor_id, weighment.weighment_code, "CONTROLLED")
 
     assert len(calls) == 1
     args, kwargs = calls[0]
@@ -191,7 +191,7 @@ def test_dispute_reweigh_attachment_is_audited_atomically(monkeypatch):
     )
     assert kwargs["payload"]["dispute_id"] == "DSP-TEST"
     assert kwargs["payload"]["weighment_code"] == "WGT-TEST-001"
-    assert kwargs["payload"]["stage"] == "DELIVERY"
+    assert kwargs["payload"]["stage"] == "CONTROLLED"
     assert kwargs["commit"] is False
     assert db.flush_count == 1
     assert db.commit_count == 1
