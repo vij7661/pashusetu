@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_env: str = "local"
+    app_env: str = "production"
     app_name: str = "PashuSetu API"
     api_v1_prefix: str = "/api/v1"
     database_url: str = "postgresql+psycopg://pashusetu:pashusetu@db:5432/pashusetu"
