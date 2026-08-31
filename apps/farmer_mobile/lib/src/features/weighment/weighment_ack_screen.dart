@@ -8,6 +8,7 @@ import '../providers.dart';
 
 class WeighmentAckScreen extends ConsumerStatefulWidget {
   const WeighmentAckScreen({super.key, required this.weighmentId});
+
   final String weighmentId;
 
   @override
@@ -16,8 +17,8 @@ class WeighmentAckScreen extends ConsumerStatefulWidget {
 
 class _WeighmentAckScreenState extends ConsumerState<WeighmentAckScreen> {
   bool acknowledged = false;
-  bool submitting = false;
-  String? message;
+  bool busy = false;
+  String? result;
 
   @override
   Widget build(BuildContext context) {
@@ -29,60 +30,48 @@ class _WeighmentAckScreenState extends ConsumerState<WeighmentAckScreen> {
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Card(
-              child: ListTile(
-                title: Text(t('verified_weighment')),
-                subtitle: Text(t('review_weighment_note')),
-              ),
-            ),
+            Text(t('review_weighment_note')),
+            const SizedBox(height: 16),
             CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
               value: acknowledged,
-              onChanged: submitting
+              onChanged: busy
                   ? null
                   : (value) => setState(() => acknowledged = value ?? false),
-              title: Text(t('i_acknowledge')),
-              subtitle: Text(t('ack_confirm_note')),
+              title: Text(t('ack_confirm_note')),
             ),
-            if (message != null) Text(message!),
+            if (result != null) Text(result!),
             const Spacer(),
             FilledButton(
-              onPressed: acknowledged && !submitting
-                  ? () async {
+              onPressed: !acknowledged || busy
+                  ? null
+                  : () async {
                       setState(() {
-                        submitting = true;
-                        message = null;
+                        busy = true;
+                        result = null;
                       });
                       try {
                         final repository = ref.read(weighmentRepositoryProvider);
-                        await repository.acknowledge(widget.weighmentId);
+                        final ack = await repository.acknowledge(widget.weighmentId);
+                        if (ack.status != 'ACKNOWLEDGED_BY_FARMER') {
+                          throw StateError('Unexpected acknowledgement status: ${ack.status}');
+                        }
                         final receipt = await repository.createReceipt(widget.weighmentId);
                         if (!mounted) return;
-                        final uri = Uri(
-                          path: '/listing/create',
-                          queryParameters: {
-                            'target_type': receipt.targetType,
-                            'target_id': receipt.targetId,
-                            'receipt_code': receipt.receiptCode,
-                          },
+                        context.go(
+                          '/listing/create?target_type=${Uri.encodeQueryComponent(receipt.targetType)}'
+                          '&target_id=${Uri.encodeQueryComponent(receipt.targetId)}'
+                          '&receipt_code=${Uri.encodeQueryComponent(receipt.receiptCode)}',
                         );
-                        this.context.go(uri.toString());
-                      } catch (error) {
-                        if (!mounted) return;
-                        setState(() {
-                          submitting = false;
-                          message = error.toString();
-                        });
+                      } catch (e) {
+                        if (mounted) setState(() => result = e.toString());
+                      } finally {
+                        if (mounted) setState(() => busy = false);
                       }
-                    }
-                  : null,
-              child: submitting
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(t('set_price_listing')),
+                    },
+              child: Text(t('set_price_listing')),
             ),
           ],
         ),
