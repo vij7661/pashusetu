@@ -88,14 +88,24 @@ void main() {
     expect(details.nextStep, 'FARMER_DETAILS');
     expect(kyc.nextStep, 'KYC');
 
-    expect(
-      () => FarmerRegistrationSession.fromJson({
+    for (final json in [
+      {
         'registration_id': 'REG-1',
         'registration_token': 'token',
         'registration_status': 'COMPLETED',
         'next_step': 'HOME',
-      }),
-      throwsA(isA<FormatException>()),
-    );
+      },
+      {
+        'registration_id': 'REG-1',
+        'registration_token': '   ',
+        'registration_status': 'NEW_IN_PROGRESS',
+        'next_step': 'KYC',
+      },
+    ]) {
+      expect(
+        () => FarmerRegistrationSession.fromJson(json),
+        throwsA(isA<FormatException>()),
+      );
+    }
   });
 }
