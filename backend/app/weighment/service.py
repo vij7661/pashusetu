@@ -6,12 +6,12 @@ from sqlalchemy.orm import Session
 from app.core.errors import AppError
 from app.livestock.models import EvidenceAsset, Goat, Lot
 from app.weighment.models import (
+    FarmerWeighmentAcknowledgement,
     OperatorProfile,
     ScaleDevice,
+    WeighmentReceipt,
     WeighmentSession,
     WeightReading,
-    FarmerWeighmentAcknowledgement,
-    WeighmentReceipt,
 )
 from app.weighment.schemas import ReadingCreate
 
@@ -158,22 +158,35 @@ def acknowledge_weighment(
     acknowledged: bool,
     method: str,
 ) -> FarmerWeighmentAcknowledgement:
-    if session.status != "FARMER_REVIEW":
-        raise AppError("WEIGHMENT_NOT_READY_FOR_ACK", "Weighment is not ready for farmer acknowledgement.", 409)
+    existing = db.scalar(
+        select(FarmerWeighmentAcknowledgement).where(
+            FarmerWeighmentAcknowledgement.weighment_session_id == session.id
+        )
+    )
+    if existing is not None:
+        if existing.acknowledged == acknowledged:
+            return existing
+        raise AppError(
+            "WEIGHMENT_DECISION_ALREADY_RECORDED",
+            "The Farmer weighment decision has already been recorded.",
+            409,
+        )
 
-    if not acknowledged:
-        session.status = "REJECTED_BY_FARMER"
-        db.commit()
-        raise AppError("FARMER_REJECTED_WEIGHT", "Farmer rejected weighment; start a reweigh.", 409)
+    if session.status != "FARMER_REVIEW":
+        raise AppError(
+            "WEIGHMENT_NOT_READY_FOR_ACK",
+            "Weighment is not ready for farmer acknowledgement.",
+            409,
+        )
 
     ack = FarmerWeighmentAcknowledgement(
         weighment_session_id=session.id,
         farmer_profile_id=session.farmer_profile_id,
-        acknowledged=True,
+        acknowledged=acknowledged,
         method=method,
     )
     db.add(ack)
-    session.status = "ACKNOWLEDGED"
+    session.status = "ACKNOWLEDGED" if acknowledged else "REJECTED_BY_FARMER"
     db.commit()
     db.refresh(ack)
     return ack
