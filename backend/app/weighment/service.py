@@ -98,7 +98,13 @@ def start_weighment(
     return session
 
 
-def append_reading(db: Session, session: WeighmentSession, payload: ReadingCreate) -> WeightReading:
+def append_reading(
+    db: Session,
+    session: WeighmentSession,
+    payload: ReadingCreate,
+    *,
+    actor_user_id: UUID | None = None,
+) -> WeightReading:
     if session.status not in {"LIVE", "REWEIGH_LIVE"}:
         raise AppError("WEIGHMENT_NOT_LIVE", "Weighment is not accepting readings.", 409)
 
@@ -116,6 +122,25 @@ def append_reading(db: Session, session: WeighmentSession, payload: ReadingCreat
         locked=False,
     )
     db.add(reading)
+    db.flush()
+    append_event(
+        db,
+        "WEIGHMENT",
+        session.id,
+        "WEIGHMENT_READING_RECORDED",
+        actor_user_id=actor_user_id,
+        payload={
+            "reading_id": str(reading.id),
+            "sequence_no": reading.sequence_no,
+            "gross_kg": str(reading.gross_kg),
+            "tare_kg": str(reading.tare_kg),
+            "net_kg": str(reading.net_kg),
+            "stable": reading.stable,
+            "locked": reading.locked,
+            "session_status": session.status,
+        },
+        commit=False,
+    )
     db.commit()
     db.refresh(reading)
     return reading
