@@ -2,10 +2,10 @@ import pytest
 from pydantic import ValidationError
 
 from app.agreement.schemas import (
-    AgreementCreate,
     PILOT_DISPUTE_RULE,
     PILOT_PRICE_BASIS,
     PILOT_TRANSPORT_RESPONSIBILITY,
+    AgreementCreate,
 )
 
 
