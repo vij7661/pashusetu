@@ -93,5 +93,6 @@ jobs:
           tests/test_bidding_trust_contract.py
           tests/test_logistics_trust_contract.py
           tests/test_settlement_trust_contract.py
+          tests/test_secure_funds_trust_contract.py
           tests/fixtures/farmer_positive_v2.py
       - run: python scripts/export_openapi.py
