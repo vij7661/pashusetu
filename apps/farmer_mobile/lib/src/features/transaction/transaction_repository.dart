@@ -7,6 +7,11 @@ class TransactionRepository {
   Future<Map<String, dynamic>> createFromListing(String listingId) =>
       _api.post('/transaction/from-listing/$listingId');
 
+  Future<List<Map<String, dynamic>>> myTransactions() async {
+    final rows = await _api.getList('/transaction/mine');
+    return rows.cast<Map<String, dynamic>>();
+  }
+
   Future<Map<String, dynamic>> transaction(String id) =>
       _api.get('/transaction/$id');
 
