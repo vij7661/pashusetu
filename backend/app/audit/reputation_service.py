@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.audit.reputation_models import OperatorScorecard, ReputationRecord
 from app.transaction.models import Transaction
-from app.weighment.models import OperatorProfile, WeighmentSession
+from app.weighment.models import WeighmentSession
 
 
 def get_or_create_reputation(
