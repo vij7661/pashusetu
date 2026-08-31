@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/localization/language_provider.dart';
 import '../providers.dart';
 import 'transaction_models.dart';
+import 'transaction_strings.dart';
 
 class ShipmentScreen extends ConsumerWidget {
   const ShipmentScreen({super.key, required this.transactionId});
@@ -10,8 +12,11 @@ class ShipmentScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final language = ref.watch(languageProvider);
+    String t(String key) => TransactionStrings.tr(language, key);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Pickup & Delivery Tracking')),
+      appBar: AppBar(title: Text(t('shipment_title'))),
       body: FutureBuilder<TransactionView>(
         future: ref.read(transactionRepositoryProvider).transaction(transactionId),
         builder: (context, snapshot) {
@@ -27,16 +32,12 @@ class ShipmentScreen extends ConsumerWidget {
               Card(
                 child: ListTile(
                   leading: const Icon(Icons.local_shipping_outlined),
-                  title: const Text('Authoritative transaction state'),
+                  title: Text(t('authoritative_state')),
                   subtitle: Text(transaction.state),
                 ),
               ),
               const SizedBox(height: 12),
-              const Text(
-                'Shipment milestones are shown only when the backend provides verified '
-                'pickup, transit, delivery, weighment, or evidence events. This screen '
-                'does not infer completed milestones from static UI steps.',
-              ),
+              Text(t('shipment_truth_note')),
             ],
           );
         },
