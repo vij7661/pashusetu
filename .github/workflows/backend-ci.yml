@@ -78,6 +78,8 @@ jobs:
           app/disputes/router.py
           app/disputes/service.py
           app/logistics/router.py
+          app/logistics/schemas.py
+          app/logistics/service.py
           tests/test_farmer_registration_contract.py
           tests/test_farmer_kyc_enforcement.py
           tests/test_market_reference_contract.py
@@ -87,5 +89,6 @@ jobs:
           tests/test_dispute_trust_contract.py
           tests/test_transaction_trust_contract.py
           tests/test_bidding_trust_contract.py
+          tests/test_logistics_trust_contract.py
           tests/fixtures/farmer_positive_v2.py
       - run: python scripts/export_openapi.py
