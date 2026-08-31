@@ -57,8 +57,8 @@ class AcknowledgeRequest(BaseModel):
 
 
 class AcknowledgeResponse(BaseModel):
-    acknowledgement_id: str
-    status: Literal["ACKNOWLEDGED_BY_FARMER", "REJECTED_BY_FARMER"]
+    acknowledgement_id: str | None = None
+    status: Literal["ACKNOWLEDGED", "REJECTED_BY_FARMER"]
 
 
 class ReceiptResponse(BaseModel):
