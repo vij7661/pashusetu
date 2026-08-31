@@ -13,6 +13,8 @@ Transaction creation from an accepted listing is authorized before any transacti
 
 Farmer bid acceptance is part of the trust boundary. The deterministic accepted-bid state change, its audit event and creation of the corresponding transaction are composed into one database commit. A failure before that commit must not leave an accepted bid without its transaction or leave the transaction without the acceptance audit trail.
 
+Farmer logistics mutations are also trust events. Transport assignment, pickup and delivery state changes are committed atomically with their domain record and audit event. Delivery tolerance cannot be evaluated from an unrelated verified weighment: the delivery weighment must match the exact goat/lot target and Farmer identity of the transaction listing. Delivery validation runs before transaction state changes so a failed verification cannot leave a partially advanced shipment state.
+
 Settlement display is read-only in the Farmer app. Viewing or refreshing settlement details must call the settlement GET endpoint and must never create a settlement as a side effect. Settlement creation remains a distinct backend mutation with transaction-state enforcement.
 
 Final transaction closure is backend/system-owned after settlement finality. The Farmer app has no close mutation and cannot trigger reputation processing by client action.
@@ -38,6 +40,9 @@ Shipment UI must not infer that pickup, transit, delivery, weighment or evidence
 | Transaction creation | `POST /transaction/from-listing/{listing_id}` |
 | Transaction | `GET /transaction/{id}` |
 | Agreement | `/agreement/transactions/*` |
+| Transport | `POST /logistics/transactions/{id}/transport` |
+| Pickup | `POST /logistics/transactions/{id}/pickup` |
+| Delivery | `POST /logistics/transactions/{id}/delivery` |
 | Settlement status | `GET /payments/transactions/{id}/settlement` |
 | Open dispute | `POST /disputes/transactions/{id}` |
 | Dispute evidence/reweigh | `POST /disputes/{id}/evidence`, `POST /disputes/{id}/reweigh` |
