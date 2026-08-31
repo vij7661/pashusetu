@@ -5,6 +5,8 @@ The Farmer mobile client has now moved from static HTML prototype to a Flutter a
 ## Key principle
 The mobile app does not own commercial truth. Weight, bid sequence, accepted offer, agreement state and transaction state come from the backend.
 
+Farmer identity follows one authoritative lifecycle. Before KYC submission, only the temporary Farmer registration exists. Farmer details are saved against that registration; permanent User/Farmer identity is created only by the KYC submission flow. The legacy direct `POST /identity/farmers` bypass is not exposed.
+
 For pilot agreements, the Farmer app submits only transaction-specific inputs that the Farmer can actually provide: pickup point, final weighing point and allowed tolerance. Platform business terms such as price basis, transport responsibility and dispute handling are owned by the backend contract. The mobile client must not hard-code or override them. After agreement creation, the app renders the terms returned by the server. Farmer agreement creation, the transition into `AGREEMENT_PENDING` and the agreement-created audit event are committed atomically. Party confirmation is also atomic: the confirmation record and audit event share one commit, and when both parties have confirmed, agreement locking, activation on the transaction, the `AGREEMENT_LOCKED` state transition and lock audit event are committed together.
 
 The Farmer app must also never prefill fabricated operational facts such as a mandal centre, buyer scale identifier, verified weight, market price or transaction tolerance. Those values must come from the relevant authoritative service or explicit Farmer/operator input.
@@ -33,9 +35,11 @@ Shipment UI must not infer that pickup, transit, delivery, weighment or evidence
 
 | Farmer UI | Backend |
 |---|---|
+| Registration status | `GET /identity/farmer-registration/status` |
+| Farmer details | `PUT /identity/farmer-registration/details` |
+| KYC submission / permanent identity creation | `POST /identity/farmer-registration/kyc` |
 | Existing login | `POST /auth/otp/request`, `POST /auth/otp/verify` |
 | Profile | `GET /identity/farmers/me` |
-| New farmer profile | `POST /identity/farmers` |
 | Individual goat | `POST /livestock/goats` |
 | Lot | `POST /livestock/lots` |
 | Evidence contract | `POST /livestock/evidence/upload-contract` |
@@ -53,7 +57,7 @@ Shipment UI must not infer that pickup, transit, delivery, weighment or evidence
 | Open dispute | `POST /disputes/transactions/{id}` |
 | Dispute evidence/reweigh | `POST /disputes/{id}/evidence`, `POST /disputes/{id}/reweigh` |
 
-There is intentionally no Farmer-facing transaction-close or dispute-resolution endpoint.
+There is intentionally no direct Farmer-profile creation endpoint, Farmer-facing transaction-close endpoint or party-facing dispute-resolution endpoint.
 
 ## Remaining provider-dependent UI
 - Aadhaar/KYC verification
