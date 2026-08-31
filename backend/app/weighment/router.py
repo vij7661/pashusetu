@@ -64,10 +64,21 @@ def _session_response(db: Session, s: WeighmentSession) -> WeighmentSessionRespo
     )
 
 
-def _farmer_owned_session(db: Session, code: str, user: User) -> tuple[WeighmentSession, FarmerProfile]:
-    session = _session_by_code(db, code)
+def _farmer_for_user(db: Session, user: User) -> FarmerProfile:
     farmer = db.scalar(select(FarmerProfile).where(FarmerProfile.user_id == user.id))
-    if farmer is None or session.farmer_profile_id != farmer.id:
+    if farmer is None:
+        raise AppError("FARMER_PROFILE_REQUIRED", "Farmer profile is required.", 403)
+    return farmer
+
+
+def _farmer_owned_session(
+    db: Session,
+    code: str,
+    user: User,
+) -> tuple[WeighmentSession, FarmerProfile]:
+    session = _session_by_code(db, code)
+    farmer = _farmer_for_user(db, user)
+    if session.farmer_profile_id != farmer.id:
         raise AppError(
             "WEIGHMENT_NOT_OWNED",
             "This weighment does not belong to the authenticated Farmer.",
@@ -88,32 +99,10 @@ def _target_code(db: Session, session: WeighmentSession) -> str:
     return target.lot_code
 
 
-@router.post("/sessions", response_model=WeighmentSessionResponse, status_code=201)
-def create_session(
-    payload: WeighmentStartRequest,
-    db: Session = Depends(get_db),
-    user: User = Depends(current_user),
-):
-    s = start_weighment(
-        db,
-        operator_user_id=user.id,
-        target_type=payload.target_type,
-        target_code=payload.target_id,
-        scale_code=payload.scale_code,
-    )
-    return _session_response(db, s)
-
-
-@router.get(
-    "/sessions/{weighment_id}/farmer-review",
-    response_model=FarmerWeighmentReviewResponse,
-)
-def farmer_review(
-    weighment_id: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(current_user),
-):
-    session, _ = _farmer_owned_session(db, weighment_id, user)
+def _farmer_review_response(
+    db: Session,
+    session: WeighmentSession,
+) -> FarmerWeighmentReviewResponse:
     locked = db.scalar(
         select(WeightReading).where(
             WeightReading.weighment_session_id == session.id,
@@ -145,6 +134,55 @@ def farmer_review(
         verification_evidence_present=evidence is not None,
         status=session.status,
     )
+
+
+@router.post("/sessions", response_model=WeighmentSessionResponse, status_code=201)
+def create_session(
+    payload: WeighmentStartRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    s = start_weighment(
+        db,
+        operator_user_id=user.id,
+        target_type=payload.target_type,
+        target_code=payload.target_id,
+        scale_code=payload.scale_code,
+    )
+    return _session_response(db, s)
+
+
+@router.get(
+    "/farmer-reviews",
+    response_model=list[FarmerWeighmentReviewResponse],
+)
+def farmer_reviews(
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    farmer = _farmer_for_user(db, user)
+    sessions = db.scalars(
+        select(WeighmentSession)
+        .where(
+            WeighmentSession.farmer_profile_id == farmer.id,
+            WeighmentSession.status == "FARMER_REVIEW",
+        )
+        .order_by(WeighmentSession.created_at.desc())
+    ).all()
+    return [_farmer_review_response(db, session) for session in sessions]
+
+
+@router.get(
+    "/sessions/{weighment_id}/farmer-review",
+    response_model=FarmerWeighmentReviewResponse,
+)
+def farmer_review(
+    weighment_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    session, _ = _farmer_owned_session(db, weighment_id, user)
+    return _farmer_review_response(db, session)
 
 
 @router.post("/sessions/{weighment_id}/readings", response_model=ReadingResponse, status_code=201)
