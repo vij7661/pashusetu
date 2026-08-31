@@ -1,4 +1,5 @@
 from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -24,7 +25,7 @@ class LotCreate(BaseModel):
     sex_summary: str | None = Field(default=None, max_length=160)
     age_summary: str | None = Field(default=None, max_length=160)
     health_notes: str | None = Field(default=None, max_length=2000)
-    goat_ids: list[str] = []
+    goat_ids: list[str] = Field(default_factory=list)
 
 
 class LotResponse(BaseModel):
