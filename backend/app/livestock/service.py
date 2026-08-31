@@ -3,10 +3,11 @@ from uuid import UUID, uuid4
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.audit.service import append_event
 from app.core.errors import AppError
 from app.identity.profile_models import FarmerProfile
-from app.livestock.models import Goat, Lot, LotGoat, EvidenceAsset
-from app.livestock.schemas import GoatCreate, LotCreate, EvidenceUploadRequest
+from app.livestock.models import EvidenceAsset, Goat, Lot, LotGoat
+from app.livestock.schemas import EvidenceUploadRequest, GoatCreate, LotCreate
 
 
 def farmer_profile_for_user(db: Session, user_id: UUID) -> FarmerProfile:
@@ -27,6 +28,16 @@ def create_goat(db: Session, user_id: UUID, payload: GoatCreate) -> Goat:
         health_notes=payload.health_notes,
     )
     db.add(goat)
+    db.flush()
+    append_event(
+        db,
+        "GOAT",
+        goat.id,
+        "GOAT_REGISTERED",
+        user_id,
+        payload={"goat_code": goat.goat_code},
+        commit=False,
+    )
     db.commit()
     db.refresh(goat)
     return goat
@@ -76,6 +87,19 @@ def create_lot(db: Session, user_id: UUID, payload: LotCreate) -> tuple[Lot, lis
     for goat in linked_goats:
         db.add(LotGoat(lot_id=lot.id, goat_id=goat.id))
 
+    append_event(
+        db,
+        "LOT",
+        lot.id,
+        "LOT_REGISTERED",
+        user_id,
+        payload={
+            "lot_code": lot.lot_code,
+            "declared_quantity": lot.declared_quantity,
+            "linked_goat_ids": [goat.goat_code for goat in linked_goats],
+        },
+        commit=False,
+    )
     db.commit()
     db.refresh(lot)
     return lot, linked_goats
@@ -118,6 +142,21 @@ def create_evidence_upload_contract(
         status="PENDING_UPLOAD",
     )
     db.add(asset)
+    db.flush()
+    append_event(
+        db,
+        "EVIDENCE_ASSET",
+        asset.id,
+        "EVIDENCE_UPLOAD_CONTRACT_CREATED",
+        user_id,
+        payload={
+            "owner_type": asset.owner_type,
+            "owner_id": str(asset.owner_id),
+            "evidence_type": asset.evidence_type,
+            "storage_key": asset.storage_key,
+        },
+        commit=False,
+    )
     db.commit()
     db.refresh(asset)
 
