@@ -30,6 +30,40 @@ class DisputeView {
   }
 }
 
+class DisputeEvidenceView {
+  const DisputeEvidenceView({required this.id, required this.status});
+
+  final String id;
+  final String status;
+
+  factory DisputeEvidenceView.fromJson(Map<String, dynamic> json) {
+    return DisputeEvidenceView(
+      id: _requiredString(json, 'evidence_id'),
+      status: _requiredString(json, 'status'),
+    );
+  }
+}
+
+class DisputeReweighView {
+  const DisputeReweighView({
+    required this.id,
+    required this.stage,
+    required this.status,
+  });
+
+  final String id;
+  final String stage;
+  final String status;
+
+  factory DisputeReweighView.fromJson(Map<String, dynamic> json) {
+    return DisputeReweighView(
+      id: _requiredString(json, 'reweigh_id'),
+      stage: _requiredString(json, 'stage'),
+      status: _requiredString(json, 'status'),
+    );
+  }
+}
+
 String _requiredString(Map<String, dynamic> json, String key) {
   final value = json[key];
   if (value is! String || value.trim().isEmpty) {
