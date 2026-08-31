@@ -5,12 +5,18 @@ class WeighmentRepository {
   WeighmentRepository(this._api);
   final ApiClient _api;
 
-  Future<WeighmentAcknowledgement> acknowledge(String weighmentId) async {
+  Future<WeighmentDecision> decide(
+    String weighmentId, {
+    required bool acknowledged,
+  }) async {
     final json = await _api.post(
       '/weighment/sessions/$weighmentId/acknowledge',
-      body: {'acknowledged': true, 'method': 'APP_CONFIRMATION'},
+      body: {
+        'acknowledged': acknowledged,
+        'method': 'APP_CONFIRMATION',
+      },
     );
-    return WeighmentAcknowledgement.fromJson(json);
+    return WeighmentDecision.fromJson(json);
   }
 
   Future<WeighmentReceipt> createReceipt(String weighmentId) async {
