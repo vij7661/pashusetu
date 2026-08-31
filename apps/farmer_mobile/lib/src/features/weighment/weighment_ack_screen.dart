@@ -59,7 +59,7 @@ class _WeighmentAckScreenState extends ConsumerState<WeighmentAckScreen> {
                           throw StateError('Unexpected acknowledgement status: ${ack.status}');
                         }
                         final receipt = await repository.createReceipt(widget.weighmentId);
-                        if (!mounted) return;
+                        if (!context.mounted) return;
                         context.go(
                           '/listing/create?target_type=${Uri.encodeQueryComponent(receipt.targetType)}'
                           '&target_id=${Uri.encodeQueryComponent(receipt.targetId)}'
