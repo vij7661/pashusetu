@@ -15,11 +15,15 @@ class HomeScreen extends ConsumerWidget {
     final listingsFuture = ref.read(marketplaceRepositoryProvider).myListings();
     final transactionsFuture =
         ref.read(transactionRepositoryProvider).myTransactions();
+    final weighmentReviewsFuture =
+        ref.read(weighmentRepositoryProvider).pendingReviews();
 
     final profile = await profileFuture;
     final listings = await listingsFuture;
     final transactions = await transactionsFuture;
-    final published = listings.where((listing) => listing.status == 'PUBLISHED').toList();
+    final weighmentReviews = await weighmentReviewsFuture;
+    final published =
+        listings.where((listing) => listing.status == 'PUBLISHED').toList();
 
     final bidGroups = await Future.wait(
       published.map(
@@ -43,6 +47,7 @@ class HomeScreen extends ConsumerWidget {
       liveListings: published.length,
       activeOffers: activeOffers,
       settledTransactions: settledTransactions,
+      weighmentReviews: weighmentReviews,
     );
   }
 
@@ -95,6 +100,30 @@ class HomeScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
+              ],
+              if (data.weighmentReviews.isNotEmpty) ...[
+                Text(
+                  t('farmer_acknowledgement'),
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                for (final review in data.weighmentReviews)
+                  AppCard(
+                    onTap: () => context.go(
+                      '/weighment/${review['weighment_id']}/ack',
+                    ),
+                    child: ListTile(
+                      leading: const Icon(Icons.scale_outlined),
+                      title: Text(
+                        '${review['target_type']} ${review['target_id']} · ${review['net_kg']} kg',
+                      ),
+                      subtitle: Text(
+                        '${review['centre_name']} · ${review['scale_code']}',
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                    ),
+                  ),
+                const SizedBox(height: 8),
               ],
               Row(
                 children: [
@@ -174,12 +203,14 @@ class _HomeData {
     required this.liveListings,
     required this.activeOffers,
     required this.settledTransactions,
+    required this.weighmentReviews,
   });
 
   final Map<String, dynamic> profile;
   final int liveListings;
   final int activeOffers;
   final int settledTransactions;
+  final List<Map<String, dynamic>> weighmentReviews;
 }
 
 class _Kpi extends StatelessWidget {
