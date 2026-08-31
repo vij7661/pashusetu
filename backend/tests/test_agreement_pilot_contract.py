@@ -10,7 +10,7 @@ from app.agreement.schemas import (
     PILOT_TRANSPORT_RESPONSIBILITY,
     AgreementCreate,
 )
-from app.agreement.service import create_agreement
+from app.agreement.service import confirm_agreement, create_agreement
 
 
 class _FakeAgreementDb:
@@ -32,6 +32,44 @@ class _FakeAgreementDb:
 
     def flush(self):
         self.flush_count += 1
+
+    def commit(self):
+        self.commit_count += 1
+
+    def refresh(self, _row):
+        pass
+
+
+class _ScalarsResult:
+    def __init__(self, rows):
+        self._rows = rows
+
+    def all(self):
+        return self._rows
+
+
+class _FakeConfirmationDb:
+    def __init__(self, confirmed_roles):
+        self.confirmed_roles = confirmed_roles
+        self.flush_count = 0
+        self.commit_count = 0
+        self.added = []
+
+    def scalar(self, _statement):
+        return None
+
+    def add(self, row):
+        if getattr(row, "id", None) is None:
+            row.id = uuid4()
+        self.added.append(row)
+
+    def flush(self):
+        self.flush_count += 1
+
+    def scalars(self, _statement):
+        return _ScalarsResult(
+            [SimpleNamespace(party_role=role) for role in self.confirmed_roles]
+        )
 
     def commit(self):
         self.commit_count += 1
@@ -116,3 +154,46 @@ def test_farmer_agreement_creation_and_audit_share_one_commit(monkeypatch):
         "version": 1,
     }
     assert kwargs["commit"] is False
+
+
+def test_agreement_lock_confirmation_and_audit_share_one_commit(monkeypatch):
+    user_id = uuid4()
+    tx = SimpleNamespace(id=uuid4(), state="AGREEMENT_PENDING", active_agreement_id=None)
+    agreement = SimpleNamespace(
+        id=uuid4(),
+        agreement_code="AGR-TEST",
+        version=2,
+        locked=False,
+        status="PENDING_CONFIRMATION",
+    )
+    db = _FakeConfirmationDb(["FARMER", "BUYER"])
+    transitions = []
+    events = []
+
+    monkeypatch.setattr("app.agreement.service._role_for_user", lambda *_args: "BUYER")
+
+    def capture_transition(_db, received_tx, state, *, commit=True):
+        transitions.append((received_tx, state, commit))
+        received_tx.state = state
+        return received_tx
+
+    def capture_event(*args, **kwargs):
+        events.append((args, kwargs))
+
+    monkeypatch.setattr("app.agreement.service.transition_transaction", capture_transition)
+    monkeypatch.setattr("app.agreement.service.append_event", capture_event)
+
+    result = confirm_agreement(db, tx, agreement, user_id, True)
+
+    assert result is agreement
+    assert agreement.locked is True
+    assert agreement.status == "LOCKED"
+    assert tx.active_agreement_id == agreement.id
+    assert transitions == [(tx, "AGREEMENT_LOCKED", False)]
+    assert db.flush_count == 1
+    assert db.commit_count == 1
+    assert [args[3] for args, _kwargs in events] == [
+        "AGREEMENT_CONFIRMATION_RECORDED",
+        "AGREEMENT_LOCKED",
+    ]
+    assert all(kwargs["commit"] is False for _args, kwargs in events)
