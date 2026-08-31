@@ -82,6 +82,10 @@ def test_secure_funds_domain_state_and_audit_share_one_commit(monkeypatch):
     events = []
 
     monkeypatch.setattr("app.payments.router.transaction_for_party", lambda *_args: tx)
+    monkeypatch.setattr(
+        "app.payments.router.SimulatedFundsProvider.create_secure_funds_intent",
+        lambda *_args: SimpleNamespace(provider_reference="SIM-TEST"),
+    )
 
     def capture_transition(_db, received_tx, state, *, commit=True):
         transitions.append((received_tx, state, commit))
