@@ -76,6 +76,23 @@ def start_weighment(
         reweigh_of_id=reweigh_of.id if reweigh_of else None,
     )
     db.add(session)
+    db.flush()
+    append_event(
+        db,
+        "WEIGHMENT",
+        session.id,
+        "WEIGHMENT_STARTED",
+        actor_user_id=operator_user_id,
+        payload={
+            "status": session.status,
+            "target_type": target_type,
+            "target_id": str(target.id),
+            "centre_id": str(operator.centre_id),
+            "scale_id": str(scale.id),
+            "reweigh_of_id": str(reweigh_of.id) if reweigh_of else None,
+        },
+        commit=False,
+    )
     db.commit()
     db.refresh(session)
     return session
