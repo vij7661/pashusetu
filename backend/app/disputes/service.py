@@ -71,6 +71,7 @@ def open_dispute(
 def add_evidence(
     db: Session,
     dispute: Dispute,
+    actor_user_id: UUID,
     evidence_type: str,
     evidence_reference: str,
 ) -> DisputeEvidence:
@@ -83,12 +84,25 @@ def add_evidence(
     db.add(row)
     db.commit()
     db.refresh(row)
+    append_event(
+        db,
+        "TRANSACTION",
+        dispute.transaction_id,
+        "DISPUTE_EVIDENCE_ADDED",
+        actor_user_id,
+        payload={
+            "dispute_id": dispute.dispute_code,
+            "evidence_id": str(row.id),
+            "evidence_type": evidence_type,
+        },
+    )
     return row
 
 
 def attach_reweigh(
     db: Session,
     dispute: Dispute,
+    actor_user_id: UUID,
     weighment_code: str,
     stage: str,
 ) -> DisputeReweigh:
@@ -114,6 +128,19 @@ def attach_reweigh(
     db.add(row)
     db.commit()
     db.refresh(row)
+    append_event(
+        db,
+        "TRANSACTION",
+        dispute.transaction_id,
+        "DISPUTE_REWEIGH_ATTACHED",
+        actor_user_id,
+        payload={
+            "dispute_id": dispute.dispute_code,
+            "reweigh_id": str(row.id),
+            "weighment_code": ws.weighment_code,
+            "stage": stage,
+        },
+    )
     return row
 
 
