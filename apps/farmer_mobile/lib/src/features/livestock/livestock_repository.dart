@@ -37,19 +37,20 @@ class LivestockRepository {
     return Lot.fromJson(json);
   }
 
-  Future<Map<String, dynamic>> createEvidenceContract({
+  Future<EvidenceUploadContract> createEvidenceContract({
     required String ownerType,
     required String ownerId,
     required String evidenceType,
     required String fileName,
     required String mimeType,
-  }) {
-    return _api.post('/livestock/evidence/upload-contract', body: {
+  }) async {
+    final json = await _api.post('/livestock/evidence/upload-contract', body: {
       'owner_type': ownerType,
       'owner_id': ownerId,
       'evidence_type': evidenceType,
       'file_name': fileName,
       'mime_type': mimeType,
     });
+    return EvidenceUploadContract.fromJson(json);
   }
 }
