@@ -20,6 +20,12 @@ void main() {
   test('rejects malformed or non-Farmer auth identity', () {
     for (final json in [
       {
+        'user_id': '   ',
+        'mobile_e164': '+919100000001',
+        'roles': ['FARMER'],
+        'preferred_language': 'te',
+      },
+      {
         'user_id': 'user-1',
         'mobile_e164': '+919100000001',
         'roles': <String>[],
