@@ -24,6 +24,11 @@ class EvidenceService {
     );
     if (file == null) return null;
 
+    final mimeType = file.mimeType?.trim();
+    final contentType = mimeType == null || mimeType.isEmpty
+        ? 'image/jpeg'
+        : mimeType;
+
     final json = await _api.post(
       '/livestock/evidence/upload-contract',
       body: {
@@ -31,7 +36,7 @@ class EvidenceService {
         'owner_id': ownerId,
         'evidence_type': evidenceType,
         'file_name': file.name,
-        'mime_type': 'image/jpeg',
+        'mime_type': contentType,
       },
     );
     final contract = EvidenceUploadContract.fromJson(json);
@@ -42,7 +47,7 @@ class EvidenceService {
       contract.uploadUrl,
       data: Stream.fromIterable([bytes]),
       options: Options(
-        headers: {'Content-Type': 'image/jpeg'},
+        headers: {'Content-Type': contentType},
       ),
     );
 
