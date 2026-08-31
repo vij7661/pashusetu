@@ -8,7 +8,7 @@ from app.agreement.models import Agreement, AgreementConfirmation
 from app.agreement.schemas import AgreementCreate
 from app.core.errors import AppError
 from app.identity.profile_models import FarmerProfile, BuyerProfile
-from app.marketplace.models import Bid, Listing
+from app.marketplace.models import Bid
 from app.transaction.models import Transaction
 from app.transaction.service import transition_transaction
 

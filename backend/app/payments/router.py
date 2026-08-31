@@ -13,11 +13,13 @@ router=APIRouter(prefix="/payments",tags=["payments"])
 @router.post("/transactions/{transaction_id}/secure")
 def secure(transaction_id:str, db:Session=Depends(get_db), user:User=Depends(current_user)):
     tx=transaction_for_party(db,transaction_id,user.id)
-    if tx.state!="AGREEMENT_LOCKED": return {"status":tx.state,"detail":"Agreement must be locked first."}
+    if tx.state!="AGREEMENT_LOCKED":
+        return {"status":tx.state,"detail":"Agreement must be locked first."}
     bid=db.get(Bid,tx.accepted_bid_id)
     p=SimulatedFundsProvider().create_secure_funds_intent(tx.transaction_code,bid.total_offer_paise)
     row=PaymentIntent(transaction_id=tx.id,provider="SIMULATED",provider_reference=p.provider_reference,amount_paise=bid.total_offer_paise,status="SECURED")
-    db.add(row); db.commit()
+    db.add(row)
+    db.commit()
     transition_transaction(db,tx,"FUNDS_SECURED")
     return {"payment_intent_id":str(row.id),"provider_reference":p.provider_reference,"amount_paise":row.amount_paise,"status":row.status,"transaction_state":tx.state}
 
