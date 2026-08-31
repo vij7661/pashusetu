@@ -1,4 +1,5 @@
 from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -12,9 +13,20 @@ class EvidenceAddRequest(BaseModel):
     evidence_reference: str = Field(min_length=3, max_length=255)
 
 
+class EvidenceAddResponse(BaseModel):
+    evidence_id: str
+    status: Literal["RECORDED"]
+
+
 class ReweighAttachRequest(BaseModel):
     weighment_id: str
     stage: Literal["CONTROLLED", "INDEPENDENT"]
+
+
+class ReweighAttachResponse(BaseModel):
+    reweigh_id: str
+    stage: Literal["CONTROLLED", "INDEPENDENT"]
+    status: Literal["RECORDED"]
 
 
 class DisputeResolveRequest(BaseModel):
