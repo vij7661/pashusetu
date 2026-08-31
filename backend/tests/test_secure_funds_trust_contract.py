@@ -55,6 +55,19 @@ def test_secure_funds_response_is_strictly_typed():
         )
 
 
+def test_secure_funds_rejects_invalid_transaction_state(monkeypatch):
+    tx = SimpleNamespace(id=uuid4(), state="OFFER_ACCEPTED", accepted_bid_id=uuid4())
+    user = SimpleNamespace(id=uuid4())
+    db = _FakeDb()
+    monkeypatch.setattr("app.payments.router.transaction_for_party", lambda *_args: tx)
+
+    with pytest.raises(AppError) as exc_info:
+        secure("TX-TEST", db=db, user=user)
+
+    assert exc_info.value.code == "FUNDS_SECURE_NOT_ALLOWED"
+    assert db.commit_count == 0
+
+
 def test_secure_funds_rejects_missing_accepted_bid(monkeypatch):
     tx = SimpleNamespace(id=uuid4(), state="AGREEMENT_LOCKED", accepted_bid_id=uuid4())
     user = SimpleNamespace(id=uuid4())
