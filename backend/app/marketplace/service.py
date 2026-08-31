@@ -39,7 +39,11 @@ def _target_for_farmer(db: Session, farmer: FarmerProfile, target_type: str, tar
     return target
 
 
-def _verified_weighment(db: Session, target_type: str, target_id: UUID) -> tuple[WeighmentSession, Decimal]:
+def _verified_weighment(
+    db: Session,
+    target_type: str,
+    target_id: UUID,
+) -> tuple[WeighmentSession, Decimal]:
     session = db.scalar(
         select(WeighmentSession)
         .where(
@@ -50,7 +54,11 @@ def _verified_weighment(db: Session, target_type: str, target_id: UUID) -> tuple
         .order_by(WeighmentSession.created_at.desc())
     )
     if not session:
-        raise AppError("VERIFIED_WEIGHMENT_REQUIRED", "Verified weighment is required before listing.", 409)
+        raise AppError(
+            "VERIFIED_WEIGHMENT_REQUIRED",
+            "Verified weighment is required before listing.",
+            409,
+        )
 
     reading = db.scalar(
         select(WeightReading).where(
@@ -59,8 +67,48 @@ def _verified_weighment(db: Session, target_type: str, target_id: UUID) -> tuple
         )
     )
     if not reading:
-        raise AppError("LOCKED_READING_REQUIRED", "Locked weighment reading not found.", 500)
+        raise AppError(
+            "LOCKED_READING_REQUIRED",
+            "Locked weighment reading not found.",
+            500,
+        )
     return session, reading.net_kg
+
+
+def listing_eligibility(
+    db: Session,
+    user_id: UUID,
+    target_type: str,
+    target_code: str,
+):
+    farmer = _farmer_for_user(db, user_id)
+    target = _target_for_farmer(db, farmer, target_type, target_code)
+    session, verified_weight = _verified_weighment(db, target_type, target.id)
+    return target, session, verified_weight
+
+
+def farmer_listings(db: Session, user_id: UUID) -> list[Listing]:
+    farmer = _farmer_for_user(db, user_id)
+    return list(
+        db.scalars(
+            select(Listing)
+            .where(Listing.seller_farmer_profile_id == farmer.id)
+            .order_by(Listing.created_at.desc())
+        ).all()
+    )
+
+
+def target_code_for_listing(db: Session, listing: Listing) -> str:
+    if listing.target_type == "GOAT":
+        target = db.get(Goat, listing.target_id)
+        if not target:
+            raise AppError("LISTING_TARGET_NOT_FOUND", "Listing goat not found.", 500)
+        return target.goat_code
+
+    target = db.get(Lot, listing.target_id)
+    if not target:
+        raise AppError("LISTING_TARGET_NOT_FOUND", "Listing lot not found.", 500)
+    return target.lot_code
 
 
 def calculate_total_paise(weight_kg: Decimal, price_per_kg_paise: int) -> int:
@@ -99,7 +147,10 @@ def create_listing(
         weighment_session_id=session.id,
         verified_weight_kg=verified_weight,
         farmer_price_per_kg_paise=farmer_price_per_kg_paise,
-        farmer_total_value_paise=calculate_total_paise(verified_weight, farmer_price_per_kg_paise),
+        farmer_total_value_paise=calculate_total_paise(
+            verified_weight,
+            farmer_price_per_kg_paise,
+        ),
         recommendation_id=recommendation_id,
         sale_type=sale_type,
         opens_at=opens_at,

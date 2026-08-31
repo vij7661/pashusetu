@@ -8,25 +8,34 @@ from app.auth.dependencies import current_user
 from app.core.errors import AppError
 from app.db.session import get_db
 from app.identity.models import User
-from app.weighment.models import MandalCentre, OperatorProfile, ScaleDevice, WeighmentSession
+from app.identity.profile_models import FarmerProfile
+from app.livestock.models import EvidenceAsset, Goat, Lot
+from app.weighment.models import (
+    MandalCentre,
+    OperatorProfile,
+    ScaleDevice,
+    WeighmentSession,
+    WeightReading,
+)
 from app.weighment.schemas import (
-    WeighmentStartRequest,
-    WeighmentSessionResponse,
+    AcknowledgeRequest,
+    FarmerWeighmentReviewResponse,
+    LockReadingRequest,
     ReadingCreate,
     ReadingResponse,
-    LockReadingRequest,
-    VerificationEvidenceRequest,
-    AcknowledgeRequest,
     ReceiptResponse,
     ReweighRequest,
+    VerificationEvidenceRequest,
+    WeighmentSessionResponse,
+    WeighmentStartRequest,
 )
 from app.weighment.service import (
-    start_weighment,
-    append_reading,
-    lock_reading,
-    attach_verification_video,
     acknowledge_weighment,
+    append_reading,
+    attach_verification_video,
     create_receipt,
+    lock_reading,
+    start_weighment,
 )
 
 router = APIRouter(prefix="/weighment", tags=["weighment"])
@@ -55,6 +64,78 @@ def _session_response(db: Session, s: WeighmentSession) -> WeighmentSessionRespo
     )
 
 
+def _farmer_for_user(db: Session, user: User) -> FarmerProfile:
+    farmer = db.scalar(select(FarmerProfile).where(FarmerProfile.user_id == user.id))
+    if farmer is None:
+        raise AppError("FARMER_PROFILE_REQUIRED", "Farmer profile is required.", 403)
+    return farmer
+
+
+def _farmer_owned_session(
+    db: Session,
+    code: str,
+    user: User,
+) -> tuple[WeighmentSession, FarmerProfile]:
+    session = _session_by_code(db, code)
+    farmer = _farmer_for_user(db, user)
+    if session.farmer_profile_id != farmer.id:
+        raise AppError(
+            "WEIGHMENT_NOT_OWNED",
+            "This weighment does not belong to the authenticated Farmer.",
+            403,
+        )
+    return session, farmer
+
+
+def _target_code(db: Session, session: WeighmentSession) -> str:
+    if session.target_type == "GOAT":
+        target = db.get(Goat, session.target_id)
+        if target is None:
+            raise AppError("WEIGHMENT_TARGET_NOT_FOUND", "Goat not found.", 404)
+        return target.goat_code
+    target = db.get(Lot, session.target_id)
+    if target is None:
+        raise AppError("WEIGHMENT_TARGET_NOT_FOUND", "Lot not found.", 404)
+    return target.lot_code
+
+
+def _farmer_review_response(
+    db: Session,
+    session: WeighmentSession,
+) -> FarmerWeighmentReviewResponse:
+    locked = db.scalar(
+        select(WeightReading).where(
+            WeightReading.weighment_session_id == session.id,
+            WeightReading.locked.is_(True),
+        )
+    )
+    if locked is None:
+        raise AppError("LOCKED_READING_NOT_FOUND", "Locked reading not found.", 409)
+
+    centre = db.get(MandalCentre, session.centre_id)
+    operator = db.get(OperatorProfile, session.operator_id)
+    scale = db.get(ScaleDevice, session.scale_id)
+    evidence = db.scalar(
+        select(EvidenceAsset).where(
+            EvidenceAsset.owner_type == "WEIGHMENT",
+            EvidenceAsset.owner_id == session.id,
+            EvidenceAsset.evidence_type == "WEIGHMENT_VIDEO",
+        )
+    )
+    return FarmerWeighmentReviewResponse(
+        weighment_id=session.weighment_code,
+        target_type=session.target_type,
+        target_id=_target_code(db, session),
+        centre_code=centre.centre_code,
+        centre_name=centre.name,
+        operator_code=operator.operator_code,
+        scale_code=scale.scale_code,
+        net_kg=locked.net_kg,
+        verification_evidence_present=evidence is not None,
+        status=session.status,
+    )
+
+
 @router.post("/sessions", response_model=WeighmentSessionResponse, status_code=201)
 def create_session(
     payload: WeighmentStartRequest,
@@ -69,6 +150,39 @@ def create_session(
         scale_code=payload.scale_code,
     )
     return _session_response(db, s)
+
+
+@router.get(
+    "/farmer-reviews",
+    response_model=list[FarmerWeighmentReviewResponse],
+)
+def farmer_reviews(
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    farmer = _farmer_for_user(db, user)
+    sessions = db.scalars(
+        select(WeighmentSession)
+        .where(
+            WeighmentSession.farmer_profile_id == farmer.id,
+            WeighmentSession.status == "FARMER_REVIEW",
+        )
+        .order_by(WeighmentSession.created_at.desc())
+    ).all()
+    return [_farmer_review_response(db, session) for session in sessions]
+
+
+@router.get(
+    "/sessions/{weighment_id}/farmer-review",
+    response_model=FarmerWeighmentReviewResponse,
+)
+def farmer_review(
+    weighment_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    session, _ = _farmer_owned_session(db, weighment_id, user)
+    return _farmer_review_response(db, session)
 
 
 @router.post("/sessions/{weighment_id}/readings", response_model=ReadingResponse, status_code=201)
@@ -130,7 +244,7 @@ def post_acknowledge(
     db: Session = Depends(get_db),
     user: User = Depends(current_user),
 ):
-    s = _session_by_code(db, weighment_id)
+    s, _ = _farmer_owned_session(db, weighment_id, user)
     ack = acknowledge_weighment(db, s, payload.acknowledged, payload.method)
     return {"acknowledgement_id": str(ack.id), "status": s.status}
 
@@ -141,7 +255,7 @@ def post_receipt(
     db: Session = Depends(get_db),
     user: User = Depends(current_user),
 ):
-    s = _session_by_code(db, weighment_id)
+    s, _ = _farmer_owned_session(db, weighment_id, user)
     receipt = create_receipt(db, s)
     return ReceiptResponse(
         receipt_id=str(receipt.id),
@@ -162,16 +276,7 @@ def post_reweigh(
     if previous.status not in {"REJECTED_BY_FARMER", "DISPUTED"}:
         raise AppError("REWEIGH_NOT_ALLOWED", "Reweigh is not allowed in the current state.", 409)
 
-    target_code = str(previous.target_id)
-    # Resolve target code from persisted target entity.
-    from app.livestock.models import Goat, Lot
-    if previous.target_type == "GOAT":
-        target = db.get(Goat, previous.target_id)
-        target_code = target.goat_code
-    else:
-        target = db.get(Lot, previous.target_id)
-        target_code = target.lot_code
-
+    target_code = _target_code(db, previous)
     s = start_weighment(
         db,
         operator_user_id=user.id,

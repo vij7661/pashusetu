@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/localization/language_provider.dart';
 import 'auth_controller.dart';
 
 const farmerOtpLength = 4;
@@ -56,25 +57,42 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             const Spacer(),
             if (state.hasError)
-              Text(state.error.toString(), style: const TextStyle(color: Colors.red)),
+              Text(
+                state.error.toString(),
+                style: const TextStyle(color: Colors.red),
+              ),
             FilledButton(
               onPressed: state.isLoading
                   ? null
                   : () async {
-                      final c = ref.read(authControllerProvider.notifier);
+                      final controller = ref.read(authControllerProvider.notifier);
                       if (!otpSent) {
-                        await c.requestLoginOtp(mobile.text.trim());
-                        if (mounted && !ref.read(authControllerProvider).hasError) {
+                        await controller.requestLoginOtp(mobile.text.trim());
+                        if (mounted &&
+                            !ref.read(authControllerProvider).hasError) {
                           setState(() => otpSent = true);
                         }
-                      } else {
-                        if (otp.text.trim().length != farmerOtpLength) return;
-                        await c.verifyLoginOtp(mobile.text.trim(), otp.text.trim());
-                        if (!context.mounted) return;
-                        if (!ref.read(authControllerProvider).hasError) {
-                          context.go('/home');
-                        }
+                        return;
                       }
+
+                      if (otp.text.trim().length != farmerOtpLength) return;
+                      await controller.verifyLoginOtp(
+                        mobile.text.trim(),
+                        otp.text.trim(),
+                      );
+                      if (!context.mounted ||
+                          ref.read(authControllerProvider).hasError) {
+                        return;
+                      }
+
+                      final me = await ref.read(authRepositoryProvider).me();
+                      final preferred = me['preferred_language']?.toString();
+                      if (preferred != null) {
+                        await ref
+                            .read(languageProvider.notifier)
+                            .setLanguage(preferred);
+                      }
+                      if (context.mounted) context.go('/home');
                     },
               child: Text(otpSent ? 'Login & Go to Home' : 'Send OTP'),
             ),

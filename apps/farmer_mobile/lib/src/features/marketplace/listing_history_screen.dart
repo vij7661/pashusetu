@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../shared/money.dart';
 import '../providers.dart';
@@ -17,22 +18,37 @@ class ListingHistoryScreen extends ConsumerWidget {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (snapshot.hasError) return Center(child: Text(snapshot.error.toString()));
+          if (snapshot.hasError) {
+            return Center(child: Text(snapshot.error.toString()));
+          }
           final rows = snapshot.data ?? [];
-          if (rows.isEmpty) return const Center(child: Text('No listings yet.'));
+          if (rows.isEmpty) {
+            return const Center(child: Text('No listings yet.'));
+          }
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: rows.length,
-            itemBuilder: (_, i) {
-              final x = rows[i];
+            itemBuilder: (context, i) {
+              final listing = rows[i];
+              final canOpenOffers = {
+                'PUBLISHED',
+                'OFFER_ACCEPTED',
+              }.contains(listing.status);
               return Card(
                 child: ListTile(
-                  title: Text(x.id),
+                  title: Text(listing.id),
                   subtitle: Text(
-                    '${x.verifiedWeightKg} kg · ${formatPaise(x.pricePerKgPaise)}/kg\n'
-                    'Total ${formatPaise(x.totalValuePaise)}',
+                    '${listing.verifiedWeightKg} kg · '
+                    '${formatPaise(listing.pricePerKgPaise)}/kg\n'
+                    'Total ${formatPaise(listing.totalValuePaise)} · '
+                    '${listing.status}',
                   ),
-                  trailing: Text(x.status),
+                  trailing: canOpenOffers
+                      ? const Icon(Icons.chevron_right)
+                      : null,
+                  onTap: canOpenOffers
+                      ? () => context.go('/listing/${listing.id}/offers')
+                      : null,
                 ),
               );
             },

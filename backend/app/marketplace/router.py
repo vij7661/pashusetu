@@ -11,11 +11,17 @@ from app.identity.models import User
 from app.marketplace.models import Listing, MarketPriceRecommendation
 from app.marketplace.schemas import (
     ListingCreate,
+    ListingEligibilityResponse,
     ListingResponse,
     ListingSearchResult,
     MarketRecommendationResponse,
 )
-from app.marketplace.service import create_listing
+from app.marketplace.service import (
+    create_listing,
+    farmer_listings,
+    listing_eligibility,
+    target_code_for_listing,
+)
 
 router = APIRouter(prefix="/marketplace", tags=["marketplace"])
 
@@ -43,6 +49,50 @@ def recommendations(
         )
         for x in rows
         if x.valid_to is None or x.valid_to > now
+    ]
+
+
+@router.get("/listings/eligibility", response_model=ListingEligibilityResponse)
+def get_listing_eligibility(
+    target_type: str = Query(pattern="^(GOAT|LOT)$"),
+    target_id: str = Query(min_length=1),
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    _, session, verified_weight = listing_eligibility(
+        db,
+        user.id,
+        target_type,
+        target_id,
+    )
+    return ListingEligibilityResponse(
+        target_type=target_type,
+        target_id=target_id,
+        weighment_id=session.weighment_code,
+        verified_weight_kg=verified_weight,
+    )
+
+
+@router.get("/farmers/me/listings", response_model=list[ListingResponse])
+def get_farmer_listings(
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    rows = farmer_listings(db, user.id)
+    return [
+        ListingResponse(
+            listing_id=x.listing_code,
+            target_type=x.target_type,
+            target_id=target_code_for_listing(db, x),
+            verified_weight_kg=x.verified_weight_kg,
+            farmer_price_per_kg_paise=x.farmer_price_per_kg_paise,
+            farmer_total_value_paise=x.farmer_total_value_paise,
+            sale_type=x.sale_type,
+            opens_at=x.opens_at,
+            closes_at=x.closes_at,
+            status=x.status,
+        )
+        for x in rows
     ]
 
 

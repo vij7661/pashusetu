@@ -1,43 +1,40 @@
-# PashuSetu Farmer App — APP-1.1 Completion
+# PashuSetu Farmer App — APP-1.1
 
-This build extends APP-1 from basic API connectivity into the main approved Farmer journey.
+The Farmer app is connected to the approved MVP backend journey: registration/KYC lifecycle, livestock, verified weighment acknowledgement, listing, offers, agreement, transaction tracking, dispute and settlement.
 
-## Added in APP-1.1
-- Operator-created weighment acknowledgement screen
-- explicit "I acknowledge" gating
-- receipt creation after acknowledgement
-- camera image picker + object-storage upload-contract execution
-- listing history
-- agreement creation / farmer confirmation
+## Implemented
+- resumable new-Farmer registration and existing-Farmer login
+- KYC-pending Home with server-side transaction blocking
+- individual Goat and Lot creation
+- Operator-created weighment acknowledgement and receipt flow
+- camera/evidence upload contract
+- authoritative verified-weight listing creation and Farmer acknowledgement gating
+- Farmer-owned listing history and Buyer Offers
+- accepted offer → authoritative transaction
+- Farmer transaction history
+- agreement creation / Farmer confirmation
 - shipment / transaction-state tracking
-- dispute screen
-- settlement screen
+- dispute and settlement screens
 - six-language string scaffold: Telugu, Hindi, English, Marathi, Tamil, Malayalam
-- route coverage for the new Farmer screens
 
-## Important boundaries
-The mobile client still does not pretend to provide:
-- real Aadhaar/KYC verification
-- real bank/UPI payout onboarding
-- real push/SMS/WhatsApp delivery
-- live transporter GPS
-- real Bluetooth scale integration
+## Manual QA
 
-Those require provider/hardware choices and remain behind the backend adapter architecture.
+Use the controlled setup, accounts, OTPs and test cases in:
 
-## Run
+`docs/FARMER_MANUAL_QA.md`
+
+On a fresh checkout, prepare the generated Android host first. The helper enables the Android desugaring required by current plugins and allows local HTTP only in the debug manifest:
+
 ```bash
 flutter pub get
+dart run tool/prepare_android_qa.dart
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1
 ```
 
-Backend:
-```bash
-cd ../../
-cp .env.example .env
-docker compose up --build
-docker compose exec api alembic upgrade head
-docker compose exec api python -m app.db.seed
-```
+For a physical Android phone, replace `10.0.2.2` with the development PC's LAN IP while both devices are on the same network.
 
-Development OTP: `4816`
+Development OTPs are account-specific and deterministic only in explicit local/test environments; there is no universal Farmer OTP.
+
+## Important boundaries
+
+This manual-QA build does not pretend to provide real Aadhaar/KYC verification, real bank/UPI payout onboarding, live push/SMS/WhatsApp delivery, live transporter GPS or real Bluetooth scale integration. Those remain behind provider/hardware boundaries and are required before pilot/production readiness.

@@ -27,3 +27,14 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
+      - name: Prepare Android host for QA artifact
+        run: dart run tool/prepare_android_qa.dart
+      - name: Build emulator QA APK
+        run: >-
+          flutter build apk --debug
+          --dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pashusetu-farmer-manual-qa-emulator-apk
+          path: apps/farmer_mobile/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error

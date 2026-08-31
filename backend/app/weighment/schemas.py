@@ -20,6 +20,19 @@ class WeighmentSessionResponse(BaseModel):
     reweigh_of_id: str | None = None
 
 
+class FarmerWeighmentReviewResponse(BaseModel):
+    weighment_id: str
+    target_type: str
+    target_id: str
+    centre_code: str
+    centre_name: str
+    operator_code: str
+    scale_code: str
+    net_kg: Decimal
+    verification_evidence_present: bool
+    status: str
+
+
 class ReadingCreate(BaseModel):
     gross_kg: Decimal = Field(gt=0, decimal_places=3)
     tare_kg: Decimal = Field(ge=0, decimal_places=3)

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../providers.dart';
 
@@ -17,21 +18,75 @@ class TransactionScreen extends ConsumerWidget {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (snapshot.hasError) return Center(child: Text(snapshot.error.toString()));
+          if (snapshot.hasError) {
+            return Center(child: Text(snapshot.error.toString()));
+          }
           final tx = snapshot.data!;
+          final state = tx['state']?.toString() ?? '-';
+
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
               Card(
                 child: ListTile(
                   title: Text(tx['transaction_id'].toString()),
-                  subtitle: Text('State: ${tx['state']}'),
+                  subtitle: Text(
+                    'Listing ${tx['listing_id']}\nState: $state',
+                  ),
                 ),
               ),
               const Text(
-                'Farmer and Buyer apps render this authoritative backend transaction state. '
-                'They do not maintain independent transaction status.',
+                'This state comes from the authoritative backend. The Farmer app does not maintain an independent transaction status.',
               ),
+              const SizedBox(height: 16),
+              if ({'OFFER_ACCEPTED', 'AGREEMENT_PENDING'}.contains(state))
+                FilledButton.icon(
+                  onPressed: () => context.go(
+                    '/transaction/$transactionId/agreement',
+                  ),
+                  icon: const Icon(Icons.handshake_outlined),
+                  label: const Text('Agreement'),
+                ),
+              if ({
+                'AGREEMENT_LOCKED',
+                'FUNDS_SECURED',
+                'PICKUP_SCHEDULED',
+                'PICKED_UP',
+                'IN_TRANSIT',
+                'DELIVERED',
+                'DELIVERY_VERIFICATION',
+                'TOLERANCE_CHECK',
+              }.contains(state))
+                FilledButton.icon(
+                  onPressed: () => context.go(
+                    '/transaction/$transactionId/shipment',
+                  ),
+                  icon: const Icon(Icons.local_shipping_outlined),
+                  label: const Text('Pickup & Delivery'),
+                ),
+              if (state == 'DISPUTED')
+                FilledButton.icon(
+                  onPressed: () => context.go(
+                    '/transaction/$transactionId/dispute',
+                  ),
+                  icon: const Icon(Icons.report_problem_outlined),
+                  label: const Text('Dispute'),
+                ),
+              if ({'RESOLVED', 'SETTLED'}.contains(state))
+                FilledButton.icon(
+                  onPressed: () => context.go(
+                    '/transaction/$transactionId/settlement',
+                  ),
+                  icon: const Icon(Icons.payments_outlined),
+                  label: const Text('Settlement'),
+                ),
+              if (state == 'CLOSED')
+                const Card(
+                  child: ListTile(
+                    leading: Icon(Icons.check_circle_outline),
+                    title: Text('Transaction closed'),
+                  ),
+                ),
             ],
           );
         },

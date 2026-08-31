@@ -12,6 +12,16 @@ class MarketplaceRepository {
     return rows.cast<Map<String, dynamic>>();
   }
 
+  Future<Map<String, dynamic>> listingEligibility({
+    required String targetType,
+    required String targetId,
+  }) {
+    return _api.get('/marketplace/listings/eligibility', query: {
+      'target_type': targetType,
+      'target_id': targetId,
+    });
+  }
+
   Future<Listing> createListing({
     required String targetType,
     required String targetId,
@@ -33,7 +43,7 @@ class MarketplaceRepository {
   }
 
   Future<List<Listing>> myListings() async {
-    final rows = await _api.getList('/marketplace/listings');
+    final rows = await _api.getList('/marketplace/farmers/me/listings');
     return rows
         .map((e) => Listing.fromJson(e as Map<String, dynamic>))
         .toList();
