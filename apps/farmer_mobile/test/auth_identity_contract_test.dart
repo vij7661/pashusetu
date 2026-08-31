@@ -57,21 +57,18 @@ void main() {
     }
   });
 
-  test('rejects empty auth tokens', () {
-    expect(
-      () => TokenPair.fromJson({
-        'access_token': '',
-        'refresh_token': 'refresh',
-      }),
-      throwsA(isA<FormatException>()),
-    );
-    expect(
-      () => TokenPair.fromJson({
-        'access_token': 'access',
-        'refresh_token': '',
-      }),
-      throwsA(isA<FormatException>()),
-    );
+  test('rejects empty or whitespace auth tokens', () {
+    for (final pair in [
+      {'access_token': '', 'refresh_token': 'refresh'},
+      {'access_token': 'access', 'refresh_token': ''},
+      {'access_token': '   ', 'refresh_token': 'refresh'},
+      {'access_token': 'access', 'refresh_token': '   '},
+    ]) {
+      expect(
+        () => TokenPair.fromJson(pair),
+        throwsA(isA<FormatException>()),
+      );
+    }
   });
 
   test('validates temporary Farmer registration session states', () {
