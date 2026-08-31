@@ -14,6 +14,7 @@ from app.livestock.models import Goat, Lot
 from app.weighment.models import MandalCentre, OperatorProfile, ScaleDevice, WeighmentSession
 from app.weighment.schemas import (
     AcknowledgeRequest,
+    AcknowledgeResponse,
     LockReadingRequest,
     ReadingCreate,
     ReadingResponse,
@@ -155,7 +156,7 @@ def post_verification_video(
     return {"evidence_id": str(evidence.id), "status": session.status}
 
 
-@router.post("/sessions/{weighment_id}/acknowledge")
+@router.post("/sessions/{weighment_id}/acknowledge", response_model=AcknowledgeResponse)
 def post_acknowledge(
     weighment_id: str,
     payload: AcknowledgeRequest,
@@ -165,7 +166,10 @@ def post_acknowledge(
     session = _session_by_code(db, weighment_id)
     _require_farmer_session_owner(db, session, user)
     acknowledgement = acknowledge_weighment(db, session, payload.acknowledged, payload.method)
-    return {"acknowledgement_id": str(acknowledgement.id), "status": session.status}
+    return AcknowledgeResponse(
+        acknowledgement_id=str(acknowledgement.id),
+        status=session.status,
+    )
 
 
 @router.post("/sessions/{weighment_id}/receipt", response_model=ReceiptResponse)
