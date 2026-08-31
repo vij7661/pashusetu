@@ -35,7 +35,7 @@ class AuthRepository {
     });
   }
 
-  Future<Map<String, dynamic>> verifyRegistrationOtp(
+  Future<FarmerRegistrationSession> verifyRegistrationOtp(
     String mobile,
     String otp,
   ) async {
@@ -44,9 +44,9 @@ class AuthRepository {
       'otp': otp,
       'purpose': 'FARMER_REGISTRATION',
     });
-    final registrationToken = json['registration_token'] as String;
-    await _tokenStore.saveRegistrationToken(registrationToken);
-    return json;
+    final session = FarmerRegistrationSession.fromJson(json);
+    await _tokenStore.saveRegistrationToken(session.registrationToken);
+    return session;
   }
 
   Future<Map<String, dynamic>> me() => _api.get('/auth/me');
