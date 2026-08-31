@@ -17,45 +17,43 @@ void main() {
   });
 
   test('rejects malformed or non-Farmer auth identity', () {
-    expect(
-      () => AuthIdentity.fromJson({
+    for (final json in [
+      {
         'user_id': 'user-1',
         'mobile_e164': '+919100000001',
-        'roles': [],
+        'roles': <String>[],
         'preferred_language': 'te',
-      }),
-      throwsA(isA<FormatException>()),
-    );
-
-    expect(
-      () => AuthIdentity.fromJson({
+      },
+      {
         'user_id': 'user-1',
         'mobile_e164': '+919100000001',
         'roles': ['BUYER'],
         'preferred_language': 'te',
-      }),
-      throwsA(isA<FormatException>()),
-    );
-
-    expect(
-      () => AuthIdentity.fromJson({
+      },
+      {
         'user_id': 'user-1',
         'mobile_e164': '+919100000001',
         'roles': ['FARMER', 'UNKNOWN'],
         'preferred_language': 'te',
-      }),
-      throwsA(isA<FormatException>()),
-    );
-
-    expect(
-      () => AuthIdentity.fromJson({
+      },
+      {
+        'user_id': 'user-1',
+        'mobile_e164': '9100000001',
+        'roles': ['FARMER'],
+        'preferred_language': 'te',
+      },
+      {
         'user_id': 'user-1',
         'mobile_e164': '+919100000001',
         'roles': ['FARMER'],
         'preferred_language': 'xx',
-      }),
-      throwsA(isA<FormatException>()),
-    );
+      },
+    ]) {
+      expect(
+        () => AuthIdentity.fromJson(json),
+        throwsA(isA<FormatException>()),
+      );
+    }
   });
 
   test('rejects empty auth tokens', () {
