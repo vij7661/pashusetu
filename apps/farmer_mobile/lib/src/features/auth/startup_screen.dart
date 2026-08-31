@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/api/api_client.dart';
 import '../../core/api/token_store.dart';
+import '../../core/localization/app_strings.dart';
+import '../../core/localization/language_provider.dart';
 import '../../core/providers.dart';
 import '../providers.dart';
 
@@ -14,6 +17,9 @@ class StartupScreen extends ConsumerStatefulWidget {
 }
 
 class _StartupScreenState extends ConsumerState<StartupScreen> {
+  bool resolving = true;
+  bool recoverableFailure = false;
+
   @override
   void initState() {
     super.initState();
@@ -21,6 +27,12 @@ class _StartupScreenState extends ConsumerState<StartupScreen> {
   }
 
   Future<void> _resolveSession() async {
+    if (!mounted) return;
+    setState(() {
+      resolving = true;
+      recoverableFailure = false;
+    });
+
     final tokenStore = ref.read(tokenStoreProvider);
     final token = await tokenStore.accessToken();
     if (!mounted) return;
@@ -55,16 +67,51 @@ class _StartupScreenState extends ConsumerState<StartupScreen> {
         if (mounted) context.go('/register?resume=1');
         return;
       }
-    } catch (_) {
-      await tokenStore.clear();
-      if (mounted) context.go('/');
+    } catch (error) {
+      if (isAuthenticationFailure(error)) {
+        await tokenStore.clear();
+        if (mounted) context.go('/');
+        return;
+      }
+
+      if (mounted) {
+        setState(() {
+          resolving = false;
+          recoverableFailure = true;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
+    final language = ref.watch(languageProvider);
+    String t(String key) => AppStrings.tr(language, key);
+
+    return Scaffold(
+      body: Center(
+        child: resolving
+            ? const CircularProgressIndicator()
+            : recoverableFailure
+                ? Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          t('connection_error'),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton(
+                          onPressed: _resolveSession,
+                          child: Text(t('continue')),
+                        ),
+                      ],
+                    ),
+                  )
+                : const CircularProgressIndicator(),
+      ),
     );
   }
 }
