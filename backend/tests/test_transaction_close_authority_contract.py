@@ -15,9 +15,10 @@ def test_transaction_router_does_not_expose_party_close_endpoint():
 def test_settlement_service_owns_final_close_and_reputation_transition():
     source = (BACKEND_ROOT / "app/payments/settlement_service.py").read_text(encoding="utf-8")
 
-    assert 'transition_transaction(db, tx, "CLOSED")' in source
-    assert 'close_transaction_reputation(db, tx)' in source
-    assert '_finalize_transaction_after_settlement(db, tx)' in source
+    assert 'transition_transaction(db, tx, "CLOSED", commit=False)' in source
+    assert 'close_transaction_reputation(db, tx, commit=False)' in source
+    assert '_finalize_transaction_after_settlement' in source
+    assert 'db.commit()' in source
 
 
 def test_farmer_mobile_cannot_call_transaction_close_mutation():
