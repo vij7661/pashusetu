@@ -27,7 +27,7 @@ class FarmerProfile {
       if (value is! String || value.trim().isEmpty) {
         throw FormatException('Missing or invalid $key');
       }
-      return value;
+      return value.trim();
     }
 
     String? optionalString(String key) {
@@ -38,6 +38,21 @@ class FarmerProfile {
       return trimmed.isEmpty ? null : trimmed;
     }
 
+    final kycStatus = requiredString('kyc_status');
+    if (!const {
+      'KYC_PENDING',
+      'KYC_VERIFIED',
+      'KYC_ACTION_REQUIRED',
+      'KYC_REJECTED',
+    }.contains(kycStatus)) {
+      throw FormatException('Invalid Farmer KYC status: $kycStatus');
+    }
+
+    final preferredLanguage = requiredString('preferred_language');
+    if (!const {'te', 'hi', 'en', 'mr', 'ta', 'ml'}.contains(preferredLanguage)) {
+      throw FormatException('Unsupported Farmer language: $preferredLanguage');
+    }
+
     return FarmerProfile(
       farmerId: requiredString('farmer_id'),
       fullName: requiredString('full_name'),
@@ -45,9 +60,9 @@ class FarmerProfile {
       mandal: optionalString('mandal'),
       district: optionalString('district'),
       state: optionalString('state'),
-      kycStatus: requiredString('kyc_status'),
+      kycStatus: kycStatus,
       payoutStatus: requiredString('payout_status'),
-      preferredLanguage: requiredString('preferred_language'),
+      preferredLanguage: preferredLanguage,
     );
   }
 }
