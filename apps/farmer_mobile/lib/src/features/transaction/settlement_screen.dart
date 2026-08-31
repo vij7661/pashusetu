@@ -79,7 +79,7 @@ class _SettlementScreenState extends ConsumerState<SettlementScreen> {
                       dimension: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Text(t('load_complete_settlement')),
+                  : Text(t('settlement')),
             ),
           ],
         ),
