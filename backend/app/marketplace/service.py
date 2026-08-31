@@ -228,6 +228,12 @@ def create_listing(
         recommendation = db.get(MarketPriceRecommendation, recommendation_id)
         if not recommendation:
             raise AppError("RECOMMENDATION_NOT_FOUND", "Market reference price not found.", 404)
+        if recommendation.market_code != PILOT_MARKET_CODE:
+            raise AppError(
+                "REFERENCE_MARKET_MISMATCH",
+                "Selected reference price does not belong to the listing market.",
+                409,
+            )
         if recommendation.valid_from > acknowledged_at or (
             recommendation.valid_to is not None and recommendation.valid_to <= acknowledged_at
         ):
