@@ -12,7 +12,6 @@ from app.identity.schemas import (
     BuyerProfileResponse,
     FarmerDashboardResponse,
     FarmerKYCSubmit,
-    FarmerProfileCreate,
     FarmerProfileResponse,
     FarmerRegistrationComplete,
     FarmerRegistrationDetails,
@@ -21,7 +20,6 @@ from app.identity.schemas import (
 from app.identity.service import (
     complete_farmer_registration_kyc,
     create_buyer_profile,
-    create_farmer_profile,
     farmer_dashboard,
     save_farmer_registration_details,
 )
@@ -79,26 +77,6 @@ def farmer_registration_kyc(
         access_token=tokens["access_token"],
         refresh_token=tokens["refresh_token"],
         token_type=tokens["token_type"],
-    )
-
-
-@router.post("/farmers", response_model=FarmerProfileResponse, status_code=201)
-def create_farmer(
-    payload: FarmerProfileCreate,
-    db: Session = Depends(get_db),
-    user: User = Depends(current_user),
-):
-    p = create_farmer_profile(db, user, payload)
-    return FarmerProfileResponse(
-        farmer_id=p.farmer_code,
-        full_name=p.full_name,
-        village=p.village,
-        mandal=p.mandal,
-        district=p.district,
-        state=p.state,
-        kyc_status=p.kyc_status,
-        payout_status=p.payout_status,
-        preferred_language=user.preferred_language,
     )
 
 
