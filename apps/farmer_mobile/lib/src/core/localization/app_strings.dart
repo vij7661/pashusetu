@@ -79,7 +79,7 @@ class AppStrings {
       'adjustment': 'Adjustment',
       'platform_fee': 'Platform fee',
       'load_complete_settlement': 'Load / Complete Settlement',
-      'connection_error': 'Unable to connect to PashuSetu. Please check the backend connection and try again.',
+      'connection_error': 'Unable to connect to Setugo. Please check the backend connection and try again.',
     },
     'te': {
       'mobile_verification': 'మొబైల్ ధృవీకరణ',
@@ -158,7 +158,7 @@ class AppStrings {
       'adjustment': 'సర్దుబాటు',
       'platform_fee': 'ప్లాట్‌ఫాం ఫీజు',
       'load_complete_settlement': 'సెటిల్‌మెంట్‌ను లోడ్ / పూర్తి చేయండి',
-      'connection_error': 'PashuSetu సర్వర్‌కు కనెక్ట్ కాలేకపోయాం. బ్యాక్‌ఎండ్ కనెక్షన్‌ను తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.',
+      'connection_error': 'Setugo సర్వర్‌కు కనెక్ట్ కాలేకపోయాం. బ్యాక్‌ఎండ్ కనెక్షన్‌ను తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.',
     },
     'hi': {
       'mobile_verification': 'मोबाइल सत्यापन',
@@ -237,7 +237,7 @@ class AppStrings {
       'adjustment': 'समायोजन',
       'platform_fee': 'प्लेटफॉर्म शुल्क',
       'load_complete_settlement': 'निपटान लोड / पूरा करें',
-      'connection_error': 'PashuSetu से कनेक्ट नहीं हो सका। बैकएंड कनेक्शन जांचें और फिर कोशिश करें।',
+      'connection_error': 'Setugo से कनेक्ट नहीं हो सका। बैकएंड कनेक्शन जांचें और फिर कोशिश करें।',
     },
     'mr': {
       'mobile_verification': 'मोबाइल पडताळणी',
@@ -316,7 +316,7 @@ class AppStrings {
       'adjustment': 'समायोजन',
       'platform_fee': 'प्लॅटफॉर्म शुल्क',
       'load_complete_settlement': 'सेटलमेंट लोड / पूर्ण करा',
-      'connection_error': 'PashuSetu शी कनेक्ट होता आले नाही. बॅकएंड कनेक्शन तपासा आणि पुन्हा प्रयत्न करा.',
+      'connection_error': 'Setugo शी कनेक्ट होता आले नाही. बॅकएंड कनेक्शन तपासा आणि पुन्हा प्रयत्न करा.',
     },
     'ta': {
       'mobile_verification': 'மொபைல் சரிபார்ப்பு',
@@ -395,7 +395,7 @@ class AppStrings {
       'adjustment': 'சரிசெய்தல்',
       'platform_fee': 'தள கட்டணம்',
       'load_complete_settlement': 'தீர்வை ஏற்றவும் / முடிக்கவும்',
-      'connection_error': 'PashuSetu உடன் இணைக்க முடியவில்லை. பின்தள இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.',
+      'connection_error': 'Setugo உடன் இணைக்க முடியவில்லை. பின்தள இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.',
     },
     'ml': {
       'mobile_verification': 'മൊബൈൽ സ്ഥിരീകരണം',
@@ -474,7 +474,7 @@ class AppStrings {
       'adjustment': 'ക്രമീകരണം',
       'platform_fee': 'പ്ലാറ്റ്ഫോം ഫീസ്',
       'load_complete_settlement': 'സെറ്റിൽമെന്റ് ലോഡ് / പൂർത്തിയാക്കുക',
-      'connection_error': 'PashuSetu-യുമായി ബന്ധപ്പെടാനായില്ല. ബാക്ക്എൻഡ് കണക്ഷൻ പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കുക.',
+      'connection_error': 'Setugo-യുമായി ബന്ധപ്പെടാനായില്ല. ബാക്ക്എൻഡ് കണക്ഷൻ പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കുക.',
     },
   };
 
