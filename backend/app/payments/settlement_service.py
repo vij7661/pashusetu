@@ -22,6 +22,18 @@ def _finalize_transaction_after_settlement(
         return False
 
     transition_transaction(db, tx, "CLOSED", commit=False)
+    append_event(
+        db,
+        "TRANSACTION",
+        tx.id,
+        "TRANSACTION_CLOSED",
+        None,
+        payload={
+            "from_state": "SETTLED",
+            "to_state": "CLOSED",
+        },
+        commit=False,
+    )
     close_transaction_reputation(db, tx, commit=False)
     if commit:
         db.commit()
