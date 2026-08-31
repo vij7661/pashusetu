@@ -16,6 +16,8 @@ def create_transaction_from_accepted_bid(
     listing: Listing,
     bid: Bid,
     actor_user_id: UUID | None = None,
+    *,
+    commit: bool = True,
 ) -> Transaction:
     existing = db.scalar(select(Transaction).where(Transaction.listing_id == listing.id))
     if existing:
@@ -44,8 +46,9 @@ def create_transaction_from_accepted_bid(
         },
         commit=False,
     )
-    db.commit()
-    db.refresh(transaction)
+    if commit:
+        db.commit()
+        db.refresh(transaction)
     return transaction
 
 
