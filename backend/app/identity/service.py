@@ -3,13 +3,14 @@ from uuid import uuid4
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.audit.service import append_event
 from app.auth.service import tokens_for
 from app.core.enums import Role
 from app.core.errors import AppError
 from app.disputes.models import Settlement
 from app.identity.models import User, UserRole
 from app.identity.profile_models import BuyerProfile, FarmerProfile, FarmerRegistration
-from app.identity.schemas import BuyerProfileCreate, FarmerProfileCreate, FarmerRegistrationDetails
+from app.identity.schemas import BuyerProfileCreate, FarmerRegistrationDetails
 from app.marketplace.models import Bid, Listing
 from app.transaction.models import Transaction
 
@@ -34,6 +35,14 @@ def save_farmer_registration_details(
     registration.state = payload.state
     registration.preferred_language = payload.preferred_language
     registration.status = "NEW_IN_PROGRESS"
+    append_event(
+        db,
+        "FARMER_REGISTRATION",
+        registration.id,
+        "FARMER_REGISTRATION_DETAILS_SAVED",
+        payload={"registration_status": registration.status},
+        commit=False,
+    )
     db.commit()
     db.refresh(registration)
     return registration
@@ -105,6 +114,20 @@ def complete_farmer_registration_kyc(
     registration.user_id = user.id
     registration.status = "KYC_SUBMITTED"
 
+    append_event(
+        db,
+        "FARMER_PROFILE",
+        profile.id,
+        "FARMER_IDENTITY_CREATED_AT_KYC_SUBMISSION",
+        user.id,
+        payload={
+            "farmer_id": profile.farmer_code,
+            "registration_id": registration.registration_code,
+            "registration_status": registration.status,
+            "kyc_status": profile.kyc_status,
+        },
+        commit=False,
+    )
     db.commit()
     db.refresh(user)
     db.refresh(profile)
@@ -150,32 +173,6 @@ def farmer_dashboard(db: Session, user: User) -> dict:
         "active_offers": int(active_offers),
         "settled_amount_paise": int(settled_amount_paise),
     }
-
-
-def create_farmer_profile(db: Session, user: User, payload: FarmerProfileCreate) -> FarmerProfile:
-    existing = db.scalar(select(FarmerProfile).where(FarmerProfile.user_id == user.id))
-    if existing:
-        raise AppError("FARMER_PROFILE_EXISTS", "Farmer profile already exists.", 409)
-
-    user.preferred_language = payload.preferred_language
-    _ensure_role(db, user, Role.FARMER)
-
-    profile = FarmerProfile(
-        user_id=user.id,
-        farmer_code=f"PS-F-{uuid4().hex[:8].upper()}",
-        full_name=payload.full_name,
-        village=payload.village,
-        mandal=payload.mandal,
-        district=payload.district,
-        state=payload.state,
-        latitude=str(payload.latitude) if payload.latitude is not None else None,
-        longitude=str(payload.longitude) if payload.longitude is not None else None,
-        kyc_status="KYC_PENDING",
-    )
-    db.add(profile)
-    db.commit()
-    db.refresh(profile)
-    return profile
 
 
 def create_buyer_profile(db: Session, user: User, payload: BuyerProfileCreate) -> BuyerProfile:
