@@ -9,6 +9,7 @@ from app.auth.service import (
     request_otp,
     verify_farmer_registration_otp,
 )
+from app.core.config import Settings
 from app.db.session import SessionLocal
 from app.identity.models import OTPChallenge, User, UserRole
 from app.identity.profile_models import FarmerProfile, FarmerRegistration
@@ -30,6 +31,10 @@ def test_otp_contract_is_exactly_four_numeric_digits():
                 otp=invalid,
                 purpose="FARMER_REGISTRATION",
             )
+
+
+def test_otp_environment_default_fails_closed():
+    assert Settings.model_fields["app_env"].default == "production"
 
 
 def test_farmer_positive_v2_fixture_integrity():
