@@ -28,6 +28,50 @@ void main() {
     );
   });
 
+  test('agreement contract requires backend-owned commercial terms', () {
+    final agreement = AgreementView.fromJson({
+      'agreement_id': 'AGR-001',
+      'transaction_id': 'TX-001',
+      'version': 1,
+      'price_basis': 'DELIVERY_ADJUSTED_NET_KG',
+      'pickup_point': 'Verified pickup point',
+      'final_weighing_point': 'Verified final scale',
+      'tolerance_percent': 1.5,
+      'transport_responsibility': 'BUYER',
+      'dispute_rule': 'Controlled reweigh',
+      'farmer_confirmed': true,
+      'buyer_confirmed': false,
+      'locked': false,
+      'status': 'PENDING_CONFIRMATION',
+    });
+
+    expect(agreement.priceBasis, 'DELIVERY_ADJUSTED_NET_KG');
+    expect(agreement.transportResponsibility, 'BUYER');
+    expect(agreement.farmerConfirmed, isTrue);
+    expect(agreement.locked, isFalse);
+  });
+
+  test('agreement contract rejects malformed confirmation state', () {
+    expect(
+      () => AgreementView.fromJson({
+        'agreement_id': 'AGR-001',
+        'transaction_id': 'TX-001',
+        'version': 1,
+        'price_basis': 'DELIVERY_ADJUSTED_NET_KG',
+        'pickup_point': 'Verified pickup point',
+        'final_weighing_point': 'Verified final scale',
+        'tolerance_percent': 1.5,
+        'transport_responsibility': 'BUYER',
+        'dispute_rule': 'Controlled reweigh',
+        'farmer_confirmed': 'true',
+        'buyer_confirmed': false,
+        'locked': false,
+        'status': 'PENDING_CONFIRMATION',
+      }),
+      throwsFormatException,
+    );
+  });
+
   test('settlement contract requires all monetary fields', () {
     final settlement = SettlementView.fromJson({
       'settlement_id': 'STL-001',
