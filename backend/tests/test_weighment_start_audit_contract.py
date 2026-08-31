@@ -1,7 +1,9 @@
+from decimal import Decimal
 from types import SimpleNamespace
 from uuid import uuid4
 
 from app.weighment import service as weighment_service
+from app.weighment.schemas import ReadingCreate
 
 
 class FakeDb:
@@ -9,6 +11,9 @@ class FakeDb:
         self.added = []
         self.commit_count = 0
         self.flush_count = 0
+
+    def scalar(self, _query):
+        return 1
 
     def add(self, value):
         self.added.append(value)
@@ -26,25 +31,8 @@ class FakeDb:
         return None
 
 
-def test_weighment_start_and_audit_share_one_authoritative_commit(monkeypatch):
-    db = FakeDb()
-    operator_user_id = uuid4()
-    operator = SimpleNamespace(id=uuid4(), centre_id=uuid4())
-    target = SimpleNamespace(id=uuid4(), farmer_profile_id=uuid4())
-    scale = SimpleNamespace(id=uuid4())
+def _capture_audit(monkeypatch):
     events = []
-
-    monkeypatch.setattr(weighment_service, "operator_for_user", lambda _db, _user_id: operator)
-    monkeypatch.setattr(
-        weighment_service,
-        "resolve_target",
-        lambda _db, _target_type, _target_code: target,
-    )
-    monkeypatch.setattr(
-        weighment_service,
-        "resolve_scale_for_operator",
-        lambda _db, _operator, _scale_code: scale,
-    )
 
     def fake_append_event(
         event_db,
@@ -72,6 +60,28 @@ def test_weighment_start_and_audit_share_one_authoritative_commit(monkeypatch):
         return SimpleNamespace()
 
     monkeypatch.setattr(weighment_service, "append_event", fake_append_event)
+    return events
+
+
+def test_weighment_start_and_audit_share_one_authoritative_commit(monkeypatch):
+    db = FakeDb()
+    operator_user_id = uuid4()
+    operator = SimpleNamespace(id=uuid4(), centre_id=uuid4())
+    target = SimpleNamespace(id=uuid4(), farmer_profile_id=uuid4())
+    scale = SimpleNamespace(id=uuid4())
+    events = _capture_audit(monkeypatch)
+
+    monkeypatch.setattr(weighment_service, "operator_for_user", lambda _db, _user_id: operator)
+    monkeypatch.setattr(
+        weighment_service,
+        "resolve_target",
+        lambda _db, _target_type, _target_code: target,
+    )
+    monkeypatch.setattr(
+        weighment_service,
+        "resolve_scale_for_operator",
+        lambda _db, _operator, _scale_code: scale,
+    )
 
     session = weighment_service.start_weighment(
         db,
@@ -97,6 +107,48 @@ def test_weighment_start_and_audit_share_one_authoritative_commit(monkeypatch):
                 "centre_id": str(operator.centre_id),
                 "scale_id": str(scale.id),
                 "reweigh_of_id": None,
+            },
+            "commit": False,
+        }
+    ]
+
+
+def test_weighment_reading_and_audit_share_one_authoritative_commit(monkeypatch):
+    db = FakeDb()
+    operator_user_id = uuid4()
+    session = SimpleNamespace(id=uuid4(), status="LIVE")
+    events = _capture_audit(monkeypatch)
+
+    reading = weighment_service.append_reading(
+        db,
+        session,
+        ReadingCreate(
+            gross_kg=Decimal("13.250"),
+            tare_kg=Decimal("0.750"),
+            stable=True,
+        ),
+        actor_user_id=operator_user_id,
+    )
+
+    assert reading.sequence_no == 1
+    assert reading.net_kg == Decimal("12.500")
+    assert db.commit_count == 1
+    assert events == [
+        {
+            "aggregate_type": "WEIGHMENT",
+            "aggregate_id": session.id,
+            "event_type": "WEIGHMENT_READING_RECORDED",
+            "actor_user_id": operator_user_id,
+            "request_id": None,
+            "payload": {
+                "reading_id": str(reading.id),
+                "sequence_no": 1,
+                "gross_kg": "13.250",
+                "tare_kg": "0.750",
+                "net_kg": "12.500",
+                "stable": True,
+                "locked": False,
+                "session_status": "LIVE",
             },
             "commit": False,
         }
