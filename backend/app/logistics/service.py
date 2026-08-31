@@ -24,8 +24,8 @@ def locked_weight(db: Session, session_id):
 
 def calculate_tolerance(origin: Decimal, delivery: Decimal, basis_points: int):
     diff = abs(delivery - origin)
-    percent = (diff / origin) * Decimal("100") if origin else Decimal("100")
-    allowed = Decimal(basis_points) / Decimal("100")
+    percent = (diff / origin) * Decimal(100) if origin else Decimal(100)
+    allowed = Decimal(basis_points) / Decimal(100)
     return diff, percent, allowed, percent <= allowed
 
 
