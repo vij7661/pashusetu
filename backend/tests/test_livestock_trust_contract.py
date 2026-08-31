@@ -1,12 +1,9 @@
-from pathlib import Path
+import inspect
 from types import SimpleNamespace
 from uuid import uuid4
 
 from app.livestock.schemas import GoatCreate
-from app.livestock.service import create_goat
-
-
-BACKEND_ROOT = Path(__file__).resolve().parents[1]
+from app.livestock.service import create_evidence_upload_contract, create_goat, create_lot
 
 
 class _FakeDb:
@@ -57,8 +54,10 @@ def test_goat_registration_and_audit_share_one_commit(monkeypatch):
 
 
 def test_lot_and_evidence_mutations_append_audit_before_commit():
-    source = (BACKEND_ROOT / "app/livestock/service.py").read_text(encoding="utf-8")
+    lot_source = inspect.getsource(create_lot)
+    evidence_source = inspect.getsource(create_evidence_upload_contract)
 
-    assert '"LOT_REGISTERED"' in source
-    assert '"EVIDENCE_UPLOAD_CONTRACT_CREATED"' in source
-    assert source.count("commit=False") >= 3
+    assert '"LOT_REGISTERED"' in lot_source
+    assert "commit=False" in lot_source
+    assert '"EVIDENCE_UPLOAD_CONTRACT_CREATED"' in evidence_source
+    assert "commit=False" in evidence_source
