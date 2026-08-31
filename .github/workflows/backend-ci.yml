@@ -40,5 +40,6 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: alembic upgrade head
       - run: pytest -q
-      - run: ruff check app tests
+      - run: python scripts/seed_farmer_manual_qa.py
+      - run: ruff check app tests scripts
       - run: python scripts/export_openapi.py
