@@ -91,15 +91,41 @@ class FarmerRegistrationSession {
       return value;
     }
 
+    final registrationStatus = requiredString('registration_status');
+    const allowedStatuses = {
+      'OTP_VERIFIED',
+      'DETAILS_SAVED',
+      'KYC_SUBMITTED',
+      'COMPLETED',
+    };
+    if (!allowedStatuses.contains(registrationStatus)) {
+      throw FormatException(
+        'Invalid farmer registration status: $registrationStatus',
+      );
+    }
+
     final nextStep = requiredString('next_step');
     if (!const {'FARMER_DETAILS', 'KYC', 'HOME'}.contains(nextStep)) {
       throw FormatException('Invalid farmer registration next_step: $nextStep');
     }
 
+    final validPair = switch (registrationStatus) {
+      'OTP_VERIFIED' => nextStep == 'FARMER_DETAILS',
+      'DETAILS_SAVED' => nextStep == 'KYC',
+      'KYC_SUBMITTED' || 'COMPLETED' => nextStep == 'HOME',
+      _ => false,
+    };
+    if (!validPair) {
+      throw FormatException(
+        'Inconsistent farmer registration lifecycle: '
+        '$registrationStatus/$nextStep',
+      );
+    }
+
     return FarmerRegistrationSession(
       registrationId: requiredString('registration_id'),
       registrationToken: requiredString('registration_token'),
-      registrationStatus: requiredString('registration_status'),
+      registrationStatus: registrationStatus,
       nextStep: nextStep,
     );
   }
