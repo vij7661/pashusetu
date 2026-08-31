@@ -7,7 +7,9 @@ from app.auth.dependencies import current_user, require_farmer_kyc_verified
 from app.core.errors import AppError
 from app.db.session import get_db
 from app.identity.models import User
+from app.identity.profile_models import FarmerProfile
 from app.marketplace.models import Bid, Listing
+from app.transaction.models import Transaction
 from app.transaction.schemas import TransactionResponse
 from app.transaction.service import (
     create_transaction_from_accepted_bid,
@@ -16,6 +18,26 @@ from app.transaction.service import (
 )
 
 router = APIRouter(prefix="/transaction", tags=["transaction"])
+
+
+def _response(db: Session, tx: Transaction) -> TransactionResponse:
+    listing = db.get(Listing, tx.listing_id)
+    bid = db.get(Bid, tx.accepted_bid_id)
+    if listing is None or bid is None:
+        raise AppError(
+            "TRANSACTION_STATE_INVALID",
+            "Transaction listing or accepted bid is missing.",
+            500,
+        )
+    return TransactionResponse(
+        transaction_id=tx.transaction_code,
+        listing_id=listing.listing_code,
+        accepted_bid_id=bid.bid_code,
+        state=tx.state,
+        active_agreement_id=(
+            str(tx.active_agreement_id) if tx.active_agreement_id else None
+        ),
+    )
 
 
 @router.post("/from-listing/{listing_id}", response_model=TransactionResponse, status_code=201)
@@ -32,13 +54,23 @@ def create_from_listing(
     bid = db.get(Bid, listing.accepted_bid_id)
     tx = create_transaction_from_accepted_bid(db, listing, bid)
     tx = transaction_for_party(db, tx.transaction_code, user.id)
-    return TransactionResponse(
-        transaction_id=tx.transaction_code,
-        listing_id=listing.listing_code,
-        accepted_bid_id=bid.bid_code,
-        state=tx.state,
-        active_agreement_id=str(tx.active_agreement_id) if tx.active_agreement_id else None,
-    )
+    return _response(db, tx)
+
+
+@router.get("/mine", response_model=list[TransactionResponse])
+def get_my_transactions(
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    farmer = db.scalar(select(FarmerProfile).where(FarmerProfile.user_id == user.id))
+    if farmer is None:
+        raise AppError("FARMER_PROFILE_REQUIRED", "Farmer profile is required.", 409)
+    rows = db.scalars(
+        select(Transaction)
+        .where(Transaction.farmer_profile_id == farmer.id)
+        .order_by(Transaction.created_at.desc())
+    ).all()
+    return [_response(db, tx) for tx in rows]
 
 
 @router.get("/{transaction_id}", response_model=TransactionResponse)
@@ -48,15 +80,7 @@ def get_transaction(
     user: User = Depends(current_user),
 ):
     tx = transaction_for_party(db, transaction_id, user.id)
-    listing = db.get(Listing, tx.listing_id)
-    bid = db.get(Bid, tx.accepted_bid_id)
-    return TransactionResponse(
-        transaction_id=tx.transaction_code,
-        listing_id=listing.listing_code,
-        accepted_bid_id=bid.bid_code,
-        state=tx.state,
-        active_agreement_id=str(tx.active_agreement_id) if tx.active_agreement_id else None,
-    )
+    return _response(db, tx)
 
 
 @router.post("/{transaction_id}/close", response_model=TransactionResponse)
@@ -74,12 +98,4 @@ def close_transaction(
         )
     transition_transaction(db, tx, "CLOSED")
     close_transaction_reputation(db, tx)
-    listing = db.get(Listing, tx.listing_id)
-    bid = db.get(Bid, tx.accepted_bid_id)
-    return TransactionResponse(
-        transaction_id=tx.transaction_code,
-        listing_id=listing.listing_code,
-        accepted_bid_id=bid.bid_code,
-        state=tx.state,
-        active_agreement_id=str(tx.active_agreement_id) if tx.active_agreement_id else None,
-    )
+    return _response(db, tx)
