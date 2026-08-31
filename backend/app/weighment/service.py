@@ -146,7 +146,13 @@ def append_reading(
     return reading
 
 
-def lock_reading(db: Session, session: WeighmentSession, reading_id: UUID) -> WeightReading:
+def lock_reading(
+    db: Session,
+    session: WeighmentSession,
+    reading_id: UUID,
+    *,
+    actor_user_id: UUID | None = None,
+) -> WeightReading:
     if session.status not in {"LIVE", "REWEIGH_LIVE"}:
         raise AppError("WEIGHMENT_NOT_LIVE", "Weighment is not live.", 409)
 
@@ -170,8 +176,27 @@ def lock_reading(db: Session, session: WeighmentSession, reading_id: UUID) -> We
     if not reading.stable:
         raise AppError("READING_NOT_STABLE", "Only a stable reading may be locked.", 409)
 
+    previous_status = session.status
     reading.locked = True
     session.status = "WEIGHT_LOCKED"
+    append_event(
+        db,
+        "WEIGHMENT",
+        session.id,
+        "WEIGHMENT_READING_LOCKED",
+        actor_user_id=actor_user_id,
+        payload={
+            "reading_id": str(reading.id),
+            "sequence_no": reading.sequence_no,
+            "gross_kg": str(reading.gross_kg),
+            "tare_kg": str(reading.tare_kg),
+            "net_kg": str(reading.net_kg),
+            "stable": reading.stable,
+            "from_status": previous_status,
+            "to_status": session.status,
+        },
+        commit=False,
+    )
     db.commit()
     db.refresh(reading)
     return reading
