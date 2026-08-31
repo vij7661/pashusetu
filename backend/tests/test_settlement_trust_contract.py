@@ -85,7 +85,21 @@ def test_settlement_state_audit_reputation_and_close_share_one_commit(monkeypatc
     assert reputation_calls == [(tx, None, False)]
     assert db.commit_count == 1
     assert db.flush_count == 1
-    assert len(events) == 1
-    args, kwargs = events[0]
-    assert args[1:5] == ("TRANSACTION", tx.id, "SETTLEMENT_COMPLETED", actor_user_id)
-    assert kwargs["commit"] is False
+    assert len(events) == 2
+
+    settlement_args, settlement_kwargs = events[0]
+    assert settlement_args[1:5] == (
+        "TRANSACTION",
+        tx.id,
+        "SETTLEMENT_COMPLETED",
+        actor_user_id,
+    )
+    assert settlement_kwargs["commit"] is False
+
+    close_args, close_kwargs = events[1]
+    assert close_args[1:5] == ("TRANSACTION", tx.id, "TRANSACTION_CLOSED", None)
+    assert close_kwargs["payload"] == {
+        "from_state": "SETTLED",
+        "to_state": "CLOSED",
+    }
+    assert close_kwargs["commit"] is False
