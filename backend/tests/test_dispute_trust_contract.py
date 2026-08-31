@@ -4,7 +4,14 @@ from uuid import uuid4
 import pytest
 
 from app.core.errors import AppError
-from app.disputes.service import _assert_reweigh_matches_listing, _require_open_dispute
+from app.disputes.service import (
+    _assert_reweigh_matches_listing,
+    _require_open_dispute,
+    add_evidence,
+    attach_reweigh,
+)
+from app.marketplace.models import Listing
+from app.transaction.models import Transaction
 
 
 def _listing_target():
@@ -13,6 +20,33 @@ def _listing_target():
         target_id=uuid4(),
         seller_farmer_profile_id=uuid4(),
     )
+
+
+class _FakeDb:
+    def __init__(self, *, scalar_result=None, transaction=None, listing=None):
+        self.scalar_result = scalar_result
+        self.transaction = transaction
+        self.listing = listing
+
+    def scalar(self, _statement):
+        return self.scalar_result
+
+    def get(self, model, _row_id):
+        if model is Transaction:
+            return self.transaction
+        if model is Listing:
+            return self.listing
+        return None
+
+    def add(self, row):
+        if getattr(row, "id", None) is None:
+            row.id = uuid4()
+
+    def commit(self):
+        pass
+
+    def refresh(self, _row):
+        pass
 
 
 def test_open_dispute_accepts_additional_evidence():
@@ -51,3 +85,74 @@ def test_reweigh_must_match_disputed_listing_target_and_farmer():
     with pytest.raises(AppError) as exc:
         _assert_reweigh_matches_listing(wrong_farmer, listing)
     assert exc.value.code == "REWEIGH_TARGET_MISMATCH"
+
+
+def test_dispute_evidence_addition_is_audited_without_reference(monkeypatch):
+    actor_id = uuid4()
+    transaction_id = uuid4()
+    dispute = SimpleNamespace(
+        id=uuid4(),
+        status="OPEN",
+        transaction_id=transaction_id,
+        dispute_code="DSP-TEST",
+    )
+    calls = []
+
+    def capture_event(*args, **kwargs):
+        calls.append((args, kwargs))
+
+    monkeypatch.setattr("app.disputes.service.append_event", capture_event)
+    add_evidence(_FakeDb(), dispute, actor_id, "PHOTO", "private://evidence/object")
+
+    assert len(calls) == 1
+    args, kwargs = calls[0]
+    assert args[1:5] == (
+        "TRANSACTION",
+        transaction_id,
+        "DISPUTE_EVIDENCE_ADDED",
+        actor_id,
+    )
+    assert kwargs["payload"]["dispute_id"] == "DSP-TEST"
+    assert kwargs["payload"]["evidence_type"] == "PHOTO"
+    assert "evidence_reference" not in kwargs["payload"]
+
+
+def test_dispute_reweigh_attachment_is_audited(monkeypatch):
+    actor_id = uuid4()
+    transaction_id = uuid4()
+    listing = _listing_target()
+    weighment = SimpleNamespace(
+        id=uuid4(),
+        weighment_code="WGT-TEST-001",
+        status="VERIFIED",
+        target_type=listing.target_type,
+        target_id=listing.target_id,
+        farmer_profile_id=listing.seller_farmer_profile_id,
+    )
+    transaction = SimpleNamespace(listing_id=uuid4())
+    dispute = SimpleNamespace(
+        id=uuid4(),
+        status="OPEN",
+        transaction_id=transaction_id,
+        dispute_code="DSP-TEST",
+    )
+    db = _FakeDb(scalar_result=weighment, transaction=transaction, listing=listing)
+    calls = []
+
+    def capture_event(*args, **kwargs):
+        calls.append((args, kwargs))
+
+    monkeypatch.setattr("app.disputes.service.append_event", capture_event)
+    attach_reweigh(db, dispute, actor_id, weighment.weighment_code, "DELIVERY")
+
+    assert len(calls) == 1
+    args, kwargs = calls[0]
+    assert args[1:5] == (
+        "TRANSACTION",
+        transaction_id,
+        "DISPUTE_REWEIGH_ATTACHED",
+        actor_id,
+    )
+    assert kwargs["payload"]["dispute_id"] == "DSP-TEST"
+    assert kwargs["payload"]["weighment_code"] == "WGT-TEST-001"
+    assert kwargs["payload"]["stage"] == "DELIVERY"
