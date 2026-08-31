@@ -1,9 +1,9 @@
-from fastapi.testclient import TestClient
 from app.main import app
 
 
-def test_module_scaffolds_are_exposed():
-    client = TestClient(app)
+def test_required_api_modules_are_exposed():
+    paths = set(app.openapi()["paths"])
+
     for module in [
         "livestock",
         "weighment",
@@ -17,6 +17,7 @@ def test_module_scaffolds_are_exposed():
         "notifications",
         "audit",
     ]:
-        response = client.get(f"/api/v1/{module}/_status")
-        assert response.status_code == 200
-        assert response.json()["status"] == "scaffolded"
+        prefix = f"/api/v1/{module}/"
+        assert any(path.startswith(prefix) for path in paths), (
+            f"Expected at least one API route for module {module!r}"
+        )

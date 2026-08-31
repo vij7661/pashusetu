@@ -7,7 +7,6 @@ from app.core.errors import AppError
 from app.db.session import get_db
 from app.identity.models import User
 from app.marketplace.models import Listing, Bid
-from app.transaction.models import Transaction
 from app.transaction.schemas import TransactionResponse
 from app.transaction.service import create_transaction_from_accepted_bid, transaction_for_party, transition_transaction
 from app.audit.reputation_service import close_transaction_reputation

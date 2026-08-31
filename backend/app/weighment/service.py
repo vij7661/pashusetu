@@ -1,14 +1,11 @@
-from decimal import Decimal
 from uuid import UUID, uuid4
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
-from app.identity.profile_models import FarmerProfile
 from app.livestock.models import EvidenceAsset, Goat, Lot
 from app.weighment.models import (
-    MandalCentre,
     OperatorProfile,
     ScaleDevice,
     WeighmentSession,
