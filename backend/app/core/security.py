@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, timezone
+
 from jose import jwt
+
 from app.core.config import get_settings
 
 ALGORITHM = "HS256"
@@ -35,6 +37,17 @@ def create_refresh_token(subject: str, roles: list[str]) -> str:
         "refresh",
         timedelta(days=settings.refresh_token_days),
         roles,
+    )
+
+
+def create_registration_token(registration_id: str) -> str:
+    # Registration sessions are intentionally temporary. A returning farmer can
+    # request a fresh OTP and resume the same registration record by mobile.
+    return create_token(
+        registration_id,
+        "farmer_registration",
+        timedelta(hours=24),
+        [],
     )
 
 

@@ -7,18 +7,18 @@ class AuthRepository {
   final ApiClient _api;
   final TokenStore _tokenStore;
 
-  Future<void> requestOtp(String mobile) async {
+  Future<void> requestLoginOtp(String mobile) async {
     await _api.post('/auth/otp/request', body: {
       'mobile_e164': mobile,
-      'purpose': 'LOGIN',
+      'purpose': 'FARMER_LOGIN',
     });
   }
 
-  Future<TokenPair> verifyOtp(String mobile, String otp) async {
+  Future<TokenPair> verifyLoginOtp(String mobile, String otp) async {
     final json = await _api.post('/auth/otp/verify', body: {
       'mobile_e164': mobile,
       'otp': otp,
-      'purpose': 'LOGIN',
+      'purpose': 'FARMER_LOGIN',
     });
     final pair = TokenPair.fromJson(json);
     await _tokenStore.save(
@@ -26,6 +26,27 @@ class AuthRepository {
       refreshToken: pair.refreshToken,
     );
     return pair;
+  }
+
+  Future<void> requestRegistrationOtp(String mobile) async {
+    await _api.post('/auth/farmer-registration/otp/request', body: {
+      'mobile_e164': mobile,
+      'purpose': 'FARMER_REGISTRATION',
+    });
+  }
+
+  Future<Map<String, dynamic>> verifyRegistrationOtp(
+    String mobile,
+    String otp,
+  ) async {
+    final json = await _api.post('/auth/farmer-registration/otp/verify', body: {
+      'mobile_e164': mobile,
+      'otp': otp,
+      'purpose': 'FARMER_REGISTRATION',
+    });
+    final registrationToken = json['registration_token'] as String;
+    await _tokenStore.saveRegistrationToken(registrationToken);
+    return json;
   }
 
   Future<Map<String, dynamic>> me() => _api.get('/auth/me');

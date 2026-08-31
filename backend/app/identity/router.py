@@ -2,20 +2,82 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import current_user
+from app.auth.dependencies import current_farmer_registration, current_user
 from app.core.errors import AppError
 from app.db.session import get_db
 from app.identity.models import User
-from app.identity.profile_models import FarmerProfile, BuyerProfile
+from app.identity.profile_models import BuyerProfile, FarmerProfile, FarmerRegistration
 from app.identity.schemas import (
-    FarmerProfileCreate,
-    FarmerProfileResponse,
     BuyerProfileCreate,
     BuyerProfileResponse,
+    FarmerKYCSubmit,
+    FarmerProfileCreate,
+    FarmerProfileResponse,
+    FarmerRegistrationComplete,
+    FarmerRegistrationDetails,
+    FarmerRegistrationStatus,
 )
-from app.identity.service import create_farmer_profile, create_buyer_profile
+from app.identity.service import (
+    complete_farmer_registration_kyc,
+    create_buyer_profile,
+    create_farmer_profile,
+    save_farmer_registration_details,
+)
 
 router = APIRouter(prefix="/identity", tags=["identity"])
+
+
+def _registration_status(registration: FarmerRegistration) -> FarmerRegistrationStatus:
+    next_step = "KYC" if registration.full_name else "FARMER_DETAILS"
+    if registration.user_id is not None:
+        next_step = "HOME"
+    return FarmerRegistrationStatus(
+        registration_id=registration.registration_code,
+        registration_status=registration.status,
+        next_step=next_step,
+        full_name=registration.full_name,
+        village=registration.village,
+        mandal=registration.mandal,
+        district=registration.district,
+        state=registration.state,
+        preferred_language=registration.preferred_language,
+    )
+
+
+@router.get("/farmer-registration/status", response_model=FarmerRegistrationStatus)
+def farmer_registration_status(
+    registration: FarmerRegistration = Depends(current_farmer_registration),
+):
+    return _registration_status(registration)
+
+
+@router.put("/farmer-registration/details", response_model=FarmerRegistrationStatus)
+def farmer_registration_details(
+    payload: FarmerRegistrationDetails,
+    db: Session = Depends(get_db),
+    registration: FarmerRegistration = Depends(current_farmer_registration),
+):
+    registration = save_farmer_registration_details(db, registration, payload)
+    return _registration_status(registration)
+
+
+@router.post("/farmer-registration/kyc", response_model=FarmerRegistrationComplete)
+def farmer_registration_kyc(
+    payload: FarmerKYCSubmit,
+    db: Session = Depends(get_db),
+    registration: FarmerRegistration = Depends(current_farmer_registration),
+):
+    profile, tokens = complete_farmer_registration_kyc(
+        db, registration, payload.aadhaar_number
+    )
+    return FarmerRegistrationComplete(
+        farmer_id=profile.farmer_code,
+        kyc_status=profile.kyc_status,
+        registration_status="KYC_SUBMITTED",
+        access_token=tokens["access_token"],
+        refresh_token=tokens["refresh_token"],
+        token_type=tokens["token_type"],
+    )
 
 
 @router.post("/farmers", response_model=FarmerProfileResponse, status_code=201)

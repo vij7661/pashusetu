@@ -14,16 +14,33 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
   AuthController(this._repo) : super(const AsyncData(null));
   final AuthRepository _repo;
 
-  Future<void> requestOtp(String mobile) async {
+  Future<void> requestLoginOtp(String mobile) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() => _repo.requestOtp(mobile));
+    state = await AsyncValue.guard(() => _repo.requestLoginOtp(mobile));
   }
 
-  Future<void> verifyOtp(String mobile, String otp) async {
+  Future<void> verifyLoginOtp(String mobile, String otp) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      await _repo.verifyOtp(mobile, otp);
+      await _repo.verifyLoginOtp(mobile, otp);
     });
+  }
+
+  Future<void> requestRegistrationOtp(String mobile) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() => _repo.requestRegistrationOtp(mobile));
+  }
+
+  Future<Map<String, dynamic>?> verifyRegistrationOtp(
+    String mobile,
+    String otp,
+  ) async {
+    Map<String, dynamic>? result;
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      result = await _repo.verifyRegistrationOtp(mobile, otp);
+    });
+    return result;
   }
 }
 

@@ -3,9 +3,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agreement.models import Agreement, AgreementConfirmation
-from app.agreement.schemas import AgreementCreate, AgreementConfirmRequest, AgreementResponse
-from app.agreement.service import create_agreement, confirm_agreement
-from app.auth.dependencies import current_user
+from app.agreement.schemas import AgreementConfirmRequest, AgreementCreate, AgreementResponse
+from app.agreement.service import confirm_agreement, create_agreement
+from app.auth.dependencies import current_user, require_farmer_kyc_verified
 from app.core.errors import AppError
 from app.db.session import get_db
 from app.identity.models import User
@@ -43,7 +43,7 @@ def post_agreement(
     transaction_id: str,
     payload: AgreementCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(current_user),
+    user: User = Depends(require_farmer_kyc_verified),
 ):
     tx = transaction_for_party(db, transaction_id, user.id)
     agreement = create_agreement(db, tx, user.id, payload)
@@ -56,7 +56,7 @@ def post_confirm(
     agreement_id: str,
     payload: AgreementConfirmRequest,
     db: Session = Depends(get_db),
-    user: User = Depends(current_user),
+    user: User = Depends(require_farmer_kyc_verified),
 ):
     tx = transaction_for_party(db, transaction_id, user.id)
     agreement = db.scalar(

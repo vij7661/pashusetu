@@ -1,8 +1,43 @@
 from typing import Literal
+
 from pydantic import BaseModel, Field
 
-
 SupportedLanguage = Literal["te", "hi", "en", "mr", "ta", "ml"]
+
+
+class FarmerRegistrationDetails(BaseModel):
+    full_name: str = Field(min_length=2, max_length=120)
+    village: str | None = None
+    mandal: str | None = None
+    district: str | None = None
+    state: str | None = "Telangana"
+    preferred_language: SupportedLanguage = "te"
+
+
+class FarmerRegistrationStatus(BaseModel):
+    registration_id: str
+    registration_status: str
+    next_step: str
+    full_name: str | None = None
+    village: str | None = None
+    mandal: str | None = None
+    district: str | None = None
+    state: str | None = None
+    preferred_language: str
+
+
+class FarmerKYCSubmit(BaseModel):
+    # The raw Aadhaar value is validated for this request only and is not persisted.
+    aadhaar_number: str = Field(pattern=r"^\d{12}$")
+
+
+class FarmerRegistrationComplete(BaseModel):
+    farmer_id: str
+    kyc_status: str
+    registration_status: str
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
 
 
 class FarmerProfileCreate(BaseModel):

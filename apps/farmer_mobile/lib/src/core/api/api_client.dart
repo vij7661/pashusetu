@@ -80,4 +80,17 @@ class ApiClient {
     );
     return response.data ?? {};
   }
+
+  Future<Map<String, dynamic>> put(
+    String path, {
+    Map<String, dynamic>? body,
+    Map<String, dynamic>? headers,
+  }) async {
+    final response = await _dio.put<Map<String, dynamic>>(
+      path,
+      data: body,
+      options: Options(headers: headers),
+    );
+    return response.data ?? {};
+  }
 }

@@ -26,6 +26,7 @@ jobs:
       APP_ENV: test
       DATABASE_URL: postgresql+psycopg://pashusetu:pashusetu@localhost:5432/pashusetu_test
       JWT_SECRET: ci-secret
+      DEVELOPMENT_OTP_SEED: pashusetu-dev-otp-v1
 
     defaults:
       run:

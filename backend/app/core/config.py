@@ -1,9 +1,10 @@
 from functools import lru_cache
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_env: str = "local"
+    app_env: str = "production"
     app_name: str = "PashuSetu API"
     api_v1_prefix: str = "/api/v1"
     database_url: str = "postgresql+psycopg://pashusetu:pashusetu@db:5432/pashusetu"
@@ -12,6 +13,7 @@ class Settings(BaseSettings):
     refresh_token_days: int = 30
     otp_ttl_seconds: int = 300
     otp_max_attempts: int = 5
+    development_otp_seed: str = "pashusetu-dev-otp-v1"
     cors_origins: str = "http://localhost:3000"
 
     model_config = SettingsConfigDict(env_file="../.env", extra="ignore")

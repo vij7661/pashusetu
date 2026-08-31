@@ -2,33 +2,34 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import current_user
-from app.db.session import get_db
-from app.identity.models import User
+from app.auth.dependencies import require_farmer_kyc_verified
 from app.core.errors import AppError
-from app.transaction.service import transaction_for_party
+from app.db.session import get_db
 from app.disputes.models import Dispute
 from app.disputes.schemas import (
     DisputeOpenRequest,
-    EvidenceAddRequest,
-    ReweighAttachRequest,
     DisputeResolveRequest,
     DisputeResponse,
+    EvidenceAddRequest,
+    ReweighAttachRequest,
 )
-from app.disputes.service import open_dispute, add_evidence, attach_reweigh, resolve_dispute
+from app.disputes.service import add_evidence, attach_reweigh, open_dispute, resolve_dispute
+from app.identity.models import User
+from app.transaction.models import Transaction
+from app.transaction.service import transaction_for_party
 
 router = APIRouter(prefix="/disputes", tags=["disputes"])
 
 
-def _response(tx, d):
+def _response(tx: Transaction, dispute: Dispute) -> DisputeResponse:
     return DisputeResponse(
-        dispute_id=d.dispute_code,
+        dispute_id=dispute.dispute_code,
         transaction_id=tx.transaction_code,
-        reason=d.reason,
-        disputed_amount_paise=d.disputed_amount_paise,
-        status=d.status,
-        settlement_adjustment_paise=d.settlement_adjustment_paise,
-        final_decision=d.final_decision,
+        reason=dispute.reason,
+        disputed_amount_paise=dispute.disputed_amount_paise,
+        status=dispute.status,
+        settlement_adjustment_paise=dispute.settlement_adjustment_paise,
+        final_decision=dispute.final_decision,
     )
 
 
@@ -37,11 +38,17 @@ def post_dispute(
     transaction_id: str,
     payload: DisputeOpenRequest,
     db: Session = Depends(get_db),
-    user: User = Depends(current_user),
+    user: User = Depends(require_farmer_kyc_verified),
 ):
     tx = transaction_for_party(db, transaction_id, user.id)
-    d = open_dispute(db, tx, user.id, payload.reason, payload.disputed_amount_paise)
-    return _response(tx, d)
+    dispute = open_dispute(
+        db,
+        tx,
+        user.id,
+        payload.reason,
+        payload.disputed_amount_paise,
+    )
+    return _response(tx, dispute)
 
 
 @router.post("/{dispute_id}/evidence")
@@ -49,12 +56,13 @@ def post_evidence(
     dispute_id: str,
     payload: EvidenceAddRequest,
     db: Session = Depends(get_db),
-    user: User = Depends(current_user),
+    user: User = Depends(require_farmer_kyc_verified),
 ):
-    d = db.scalar(select(Dispute).where(Dispute.dispute_code == dispute_id))
-    if not d:
+    dispute = db.scalar(select(Dispute).where(Dispute.dispute_code == dispute_id))
+    if not dispute:
         raise AppError("DISPUTE_NOT_FOUND", "Dispute not found.", 404)
-    row = add_evidence(db, d, payload.evidence_type, payload.evidence_reference)
+    transaction_for_party(db, str(db.get(Transaction, dispute.transaction_id).transaction_code), user.id)
+    row = add_evidence(db, dispute, payload.evidence_type, payload.evidence_reference)
     return {"evidence_id": str(row.id), "status": "RECORDED"}
 
 
@@ -63,12 +71,13 @@ def post_reweigh(
     dispute_id: str,
     payload: ReweighAttachRequest,
     db: Session = Depends(get_db),
-    user: User = Depends(current_user),
+    user: User = Depends(require_farmer_kyc_verified),
 ):
-    d = db.scalar(select(Dispute).where(Dispute.dispute_code == dispute_id))
-    if not d:
+    dispute = db.scalar(select(Dispute).where(Dispute.dispute_code == dispute_id))
+    if not dispute:
         raise AppError("DISPUTE_NOT_FOUND", "Dispute not found.", 404)
-    row = attach_reweigh(db, d, payload.weighment_id, payload.stage)
+    transaction_for_party(db, str(db.get(Transaction, dispute.transaction_id).transaction_code), user.id)
+    row = attach_reweigh(db, dispute, payload.weighment_id, payload.stage)
     return {"reweigh_id": str(row.id), "stage": row.stage, "status": row.status}
 
 
@@ -77,14 +86,20 @@ def post_resolve(
     dispute_id: str,
     payload: DisputeResolveRequest,
     db: Session = Depends(get_db),
-    user: User = Depends(current_user),
+    user: User = Depends(require_farmer_kyc_verified),
 ):
-    d = db.scalar(select(Dispute).where(Dispute.dispute_code == dispute_id))
-    if not d:
+    dispute = db.scalar(select(Dispute).where(Dispute.dispute_code == dispute_id))
+    if not dispute:
         raise AppError("DISPUTE_NOT_FOUND", "Dispute not found.", 404)
-    tx = db.get(__import__("app.transaction.models", fromlist=["Transaction"]).Transaction, d.transaction_id)
-    d = resolve_dispute(
-        db, tx, d, user.id, payload.final_decision,
-        payload.settlement_adjustment_paise, payload.resolution_rule,
+    tx = db.get(Transaction, dispute.transaction_id)
+    transaction_for_party(db, tx.transaction_code, user.id)
+    dispute = resolve_dispute(
+        db,
+        tx,
+        dispute,
+        user.id,
+        payload.final_decision,
+        payload.settlement_adjustment_paise,
+        payload.resolution_rule,
     )
-    return _response(tx, d)
+    return _response(tx, dispute)

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/localization/app_strings.dart';
 import '../../core/localization/language_provider.dart';
 import '../../shared/app_card.dart';
+import '../providers.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -28,44 +29,78 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Row(
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: ref.read(identityRepositoryProvider).farmerMe(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text(snapshot.error.toString()));
+          }
+
+          final profile = snapshot.data!;
+          final kycStatus = profile['kyc_status']?.toString() ?? 'KYC_PENDING';
+          final kycVerified = kycStatus == 'KYC_VERIFIED';
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
             children: [
-              Expanded(child: _Kpi(value: '0', label: t('live_listings'))),
-              const SizedBox(width: 8),
-              Expanded(child: _Kpi(value: '0', label: t('offers'))),
-              const SizedBox(width: 8),
-              Expanded(child: _Kpi(value: '₹0', label: t('settled'))),
+              if (!kycVerified) ...[
+                const Card(
+                  child: ListTile(
+                    leading: Icon(Icons.verified_user_outlined),
+                    title: Text('KYC verification pending'),
+                    subtitle: Text(
+                      'You can use Home and manage livestock while verification is pending. '
+                      'Creating a market listing is enabled after KYC is verified.',
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              Row(
+                children: [
+                  Expanded(child: _Kpi(value: '0', label: t('live_listings'))),
+                  const SizedBox(width: 8),
+                  Expanded(child: _Kpi(value: '0', label: t('offers'))),
+                  const SizedBox(width: 8),
+                  Expanded(child: _Kpi(value: '₹0', label: t('settled'))),
+                ],
+              ),
+              const SizedBox(height: 16),
+              AppCard(
+                onTap: () => context.go('/livestock/new'),
+                child: ListTile(
+                  leading: const Icon(Icons.add_circle_outline),
+                  title: Text(t('add_goat_lot')),
+                  subtitle: Text(t('add_goat_lot_desc')),
+                ),
+              ),
+              AppCard(
+                onTap: () => context.go('/listings'),
+                child: ListTile(
+                  leading: const Icon(Icons.inventory_2_outlined),
+                  title: Text(t('your_listings')),
+                  subtitle: Text(t('your_listings_desc')),
+                ),
+              ),
+              AppCard(
+                onTap: kycVerified ? () => context.go('/listing/create') : null,
+                child: ListTile(
+                  enabled: kycVerified,
+                  leading: const Icon(Icons.sell_outlined),
+                  title: Text(t('create_verified_listing')),
+                  subtitle: Text(
+                    kycVerified
+                        ? t('create_verified_listing_desc')
+                        : 'Available after KYC verification',
+                  ),
+                ),
+              ),
             ],
-          ),
-          const SizedBox(height: 16),
-          AppCard(
-            onTap: () => context.go('/livestock/new'),
-            child: ListTile(
-              leading: const Icon(Icons.add_circle_outline),
-              title: Text(t('add_goat_lot')),
-              subtitle: Text(t('add_goat_lot_desc')),
-            ),
-          ),
-          AppCard(
-            onTap: () => context.go('/listings'),
-            child: ListTile(
-              leading: const Icon(Icons.inventory_2_outlined),
-              title: Text(t('your_listings')),
-              subtitle: Text(t('your_listings_desc')),
-            ),
-          ),
-          AppCard(
-            onTap: () => context.go('/listing/create'),
-            child: ListTile(
-              leading: const Icon(Icons.sell_outlined),
-              title: Text(t('create_verified_listing')),
-              subtitle: Text(t('create_verified_listing_desc')),
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
