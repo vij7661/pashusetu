@@ -12,8 +12,23 @@ void main() {
     });
 
     expect(transaction.id, 'TX-001');
+    expect(transaction.listingId, 'LST-001');
+    expect(transaction.acceptedBidId, 'BID-001');
     expect(transaction.state, 'AGREEMENT_PENDING');
     expect(transaction.activeAgreementId, isNull);
+  });
+
+  test('transaction creation response rejects malformed authoritative ids', () {
+    expect(
+      () => TransactionView.fromJson({
+        'transaction_id': 'TX-001',
+        'listing_id': 123,
+        'accepted_bid_id': 'BID-001',
+        'state': 'AGREEMENT_PENDING',
+        'active_agreement_id': null,
+      }),
+      throwsFormatException,
+    );
   });
 
   test('transaction contract rejects missing state instead of inventing one', () {
