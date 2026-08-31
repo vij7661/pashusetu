@@ -45,9 +45,16 @@ class AuthIdentity {
     }
 
     final rawRoles = json['roles'];
-    if (rawRoles is! List || rawRoles.isEmpty || rawRoles.any((role) => role is! String || role.isEmpty)) {
+    if (rawRoles is! List ||
+        rawRoles.isEmpty ||
+        rawRoles.any((role) => role is! String || role.isEmpty)) {
       throw const FormatException('Invalid auth identity roles');
     }
+    final roles = rawRoles.cast<String>();
+    if (!roles.contains('FARMER')) {
+      throw const FormatException('Farmer role is required for Farmer app identity');
+    }
+
     final preferredLanguage = requiredString('preferred_language');
     if (!const {'te', 'hi', 'en', 'mr', 'ta', 'ml'}.contains(preferredLanguage)) {
       throw FormatException('Unsupported auth identity language: $preferredLanguage');
@@ -56,7 +63,7 @@ class AuthIdentity {
     return AuthIdentity(
       userId: requiredString('user_id'),
       mobileE164: requiredString('mobile_e164'),
-      roles: rawRoles.cast<String>(),
+      roles: roles,
       preferredLanguage: preferredLanguage,
     );
   }
