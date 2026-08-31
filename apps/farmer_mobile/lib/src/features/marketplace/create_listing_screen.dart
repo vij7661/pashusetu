@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/localization/app_strings.dart';
 import '../../core/localization/language_provider.dart';
+import '../../core/localization/marketplace_strings.dart';
 import '../../shared/money.dart';
 import '../providers.dart';
 
@@ -268,7 +269,10 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
                             recommendationId: selectedRecommendationId,
                           );
                       if (mounted) {
-                        setState(() => result = 'Published ${listing.id}');
+                        setState(
+                          () => result =
+                              '${MarketplaceStrings.tr(language, 'published')} ${listing.id}',
+                        );
                       }
                     } catch (e) {
                       if (mounted) setState(() => result = e.toString());
