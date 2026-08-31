@@ -56,6 +56,11 @@ class AcknowledgeRequest(BaseModel):
     method: Literal["APP_CONFIRMATION", "OPERATOR_ASSISTED"] = "APP_CONFIRMATION"
 
 
+class AcknowledgeResponse(BaseModel):
+    acknowledgement_id: str
+    status: Literal["ACKNOWLEDGED_BY_FARMER", "REJECTED_BY_FARMER"]
+
+
 class ReceiptResponse(BaseModel):
     receipt_id: str
     receipt_code: str
