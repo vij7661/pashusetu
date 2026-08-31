@@ -86,6 +86,14 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               AppCard(
+                onTap: () => context.go('/transactions'),
+                child: const ListTile(
+                  leading: Icon(Icons.receipt_long_outlined),
+                  title: Text('Transactions'),
+                  subtitle: Text('Track accepted offers, agreements, delivery and settlement.'),
+                ),
+              ),
+              AppCard(
                 onTap: kycVerified ? () => context.go('/listing/create') : null,
                 child: ListTile(
                   enabled: kycVerified,
