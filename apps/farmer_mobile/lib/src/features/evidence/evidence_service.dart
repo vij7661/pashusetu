@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/api/api_client.dart';
+import '../livestock/livestock_models.dart';
 
 class EvidenceService {
   EvidenceService(this._api);
@@ -23,7 +24,7 @@ class EvidenceService {
     );
     if (file == null) return null;
 
-    final contract = await _api.post(
+    final json = await _api.post(
       '/livestock/evidence/upload-contract',
       body: {
         'owner_type': ownerType,
@@ -33,18 +34,18 @@ class EvidenceService {
         'mime_type': 'image/jpeg',
       },
     );
+    final contract = EvidenceUploadContract.fromJson(json);
 
-    final uploadUrl = contract['upload_url'] as String;
     final bytes = await File(file.path).readAsBytes();
 
     await _uploadDio.put(
-      uploadUrl,
+      contract.uploadUrl,
       data: Stream.fromIterable([bytes]),
       options: Options(
         headers: {'Content-Type': 'image/jpeg'},
       ),
     );
 
-    return contract['evidence_id'] as String;
+    return contract.evidenceId;
   }
 }
