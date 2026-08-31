@@ -1,4 +1,14 @@
+from typing import Literal
+
 from pydantic import BaseModel
+
+
+class SecureFundsResponse(BaseModel):
+    payment_intent_id: str
+    provider_reference: str
+    amount_paise: int
+    status: Literal["SECURED"]
+    transaction_state: Literal["FUNDS_SECURED"]
 
 
 class SettlementResponse(BaseModel):
