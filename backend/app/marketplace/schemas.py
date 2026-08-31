@@ -1,6 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -13,7 +14,7 @@ class ListingCreate(BaseModel):
     sale_type: Literal["COMPETITIVE_BIDDING", "FIXED_PRICE"] = "COMPETITIVE_BIDDING"
     opens_at: datetime
     closes_at: datetime
-    recommendation_id: str | None = None
+    recommendation_id: UUID | None = None
 
 
 class ListingContextResponse(BaseModel):
