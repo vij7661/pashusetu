@@ -45,7 +45,7 @@ def run_seed():
                 mandal="Chityal",
                 district="Nalgonda",
                 state="Telangana",
-                kyc_status="VERIFIED",
+                kyc_status="KYC_VERIFIED",
                 payout_status="VERIFIED",
             )
         )
