@@ -6,13 +6,14 @@ void main() {
     final identity = AuthIdentity.fromJson({
       'user_id': 'user-1',
       'mobile_e164': '+919100000001',
-      'roles': ['FARMER'],
+      'roles': ['FARMER', 'ADMIN'],
       'preferred_language': 'te',
     });
 
     expect(identity.userId, 'user-1');
     expect(identity.mobileE164, '+919100000001');
     expect(identity.isFarmer, isTrue);
+    expect(identity.roles, ['FARMER', 'ADMIN']);
     expect(identity.preferredLanguage, 'te');
   });
 
