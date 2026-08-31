@@ -51,8 +51,7 @@ def open_dispute(
         status="OPEN",
     )
     db.add(dispute)
-    db.commit()
-    db.refresh(dispute)
+    db.flush()
     append_event(
         db,
         "TRANSACTION",
@@ -64,7 +63,10 @@ def open_dispute(
             "reason": reason,
             "disputed_amount_paise": disputed_amount_paise,
         },
+        commit=False,
     )
+    db.commit()
+    db.refresh(dispute)
     return dispute
 
 
@@ -82,8 +84,7 @@ def add_evidence(
         evidence_reference=evidence_reference,
     )
     db.add(row)
-    db.commit()
-    db.refresh(row)
+    db.flush()
     append_event(
         db,
         "TRANSACTION",
@@ -95,7 +96,10 @@ def add_evidence(
             "evidence_id": str(row.id),
             "evidence_type": evidence_type,
         },
+        commit=False,
     )
+    db.commit()
+    db.refresh(row)
     return row
 
 
@@ -126,8 +130,7 @@ def attach_reweigh(
         status="RECORDED",
     )
     db.add(row)
-    db.commit()
-    db.refresh(row)
+    db.flush()
     append_event(
         db,
         "TRANSACTION",
@@ -140,7 +143,10 @@ def attach_reweigh(
             "weighment_code": ws.weighment_code,
             "stage": stage,
         },
+        commit=False,
     )
+    db.commit()
+    db.refresh(row)
     return row
 
 
@@ -160,9 +166,8 @@ def resolve_dispute(
     dispute.settlement_adjustment_paise = settlement_adjustment_paise
     dispute.resolution_rule = resolution_rule
     dispute.status = "RESOLVED"
-    db.commit()
 
-    transition_transaction(db, tx, "RESOLVED")
+    transition_transaction(db, tx, "RESOLVED", commit=False)
     append_event(
         db,
         "TRANSACTION",
@@ -174,6 +179,9 @@ def resolve_dispute(
             "settlement_adjustment_paise": settlement_adjustment_paise,
             "resolution_rule": resolution_rule,
         },
+        commit=False,
     )
+    db.commit()
+    db.refresh(tx)
     db.refresh(dispute)
     return dispute
