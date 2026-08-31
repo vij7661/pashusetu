@@ -34,4 +34,12 @@ void main() {
       isNot(contains('average')),
     );
   });
+
+  test('Farmer-facing localization uses current Setugo product name', () {
+    for (final language in AppStrings.supportedLanguages) {
+      final connectionError = AppStrings.values[language]!['connection_error']!;
+      expect(connectionError, contains('Setugo'));
+      expect(connectionError, isNot(contains('PashuSetu')));
+    }
+  });
 }
