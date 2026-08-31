@@ -76,8 +76,17 @@ def post_accept_bid(
     db: Session = Depends(get_db),
     user: User = Depends(require_farmer_kyc_verified),
 ):
-    listing, bid = accept_bid(db, user.id, listing_id, bid_id)
-    create_transaction_from_accepted_bid(db, listing, bid)
+    listing, bid = accept_bid(db, user.id, listing_id, bid_id, commit=False)
+    create_transaction_from_accepted_bid(
+        db,
+        listing,
+        bid,
+        user.id,
+        commit=False,
+    )
+    db.commit()
+    db.refresh(listing)
+    db.refresh(bid)
     return BidAcceptanceResponse(
         listing_id=listing.listing_code,
         accepted_bid_id=bid.bid_code,
