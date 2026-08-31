@@ -1,6 +1,6 @@
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
@@ -63,7 +63,7 @@ def submit_bid(
     if not listing:
         raise AppError("LISTING_NOT_FOUND", "Listing not found.", 404)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if listing.status != "PUBLISHED":
         raise AppError("LISTING_NOT_OPEN", "Listing is not open for bidding.", 409)
     if now < listing.opens_at:
