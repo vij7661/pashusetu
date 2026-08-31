@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import require_farmer_kyc_verified
+from app.auth.dependencies import require_farmer_kyc_verified, require_roles
+from app.core.enums import Role
 from app.core.errors import AppError
 from app.db.session import get_db
 from app.disputes.models import Dispute
@@ -19,6 +20,7 @@ from app.transaction.models import Transaction
 from app.transaction.service import transaction_for_party
 
 router = APIRouter(prefix="/disputes", tags=["disputes"])
+platform_resolver_required = require_roles(Role.ADMIN, Role.OPERATOR)
 
 
 def _response(tx: Transaction, dispute: Dispute) -> DisputeResponse:
@@ -61,7 +63,8 @@ def post_evidence(
     dispute = db.scalar(select(Dispute).where(Dispute.dispute_code == dispute_id))
     if not dispute:
         raise AppError("DISPUTE_NOT_FOUND", "Dispute not found.", 404)
-    transaction_for_party(db, str(db.get(Transaction, dispute.transaction_id).transaction_code), user.id)
+    tx = db.get(Transaction, dispute.transaction_id)
+    transaction_for_party(db, tx.transaction_code, user.id)
     row = add_evidence(db, dispute, payload.evidence_type, payload.evidence_reference)
     return {"evidence_id": str(row.id), "status": "RECORDED"}
 
@@ -76,7 +79,8 @@ def post_reweigh(
     dispute = db.scalar(select(Dispute).where(Dispute.dispute_code == dispute_id))
     if not dispute:
         raise AppError("DISPUTE_NOT_FOUND", "Dispute not found.", 404)
-    transaction_for_party(db, str(db.get(Transaction, dispute.transaction_id).transaction_code), user.id)
+    tx = db.get(Transaction, dispute.transaction_id)
+    transaction_for_party(db, tx.transaction_code, user.id)
     row = attach_reweigh(db, dispute, payload.weighment_id, payload.stage)
     return {"reweigh_id": str(row.id), "stage": row.stage, "status": row.status}
 
@@ -86,13 +90,12 @@ def post_resolve(
     dispute_id: str,
     payload: DisputeResolveRequest,
     db: Session = Depends(get_db),
-    user: User = Depends(require_farmer_kyc_verified),
+    user: User = Depends(platform_resolver_required),
 ):
     dispute = db.scalar(select(Dispute).where(Dispute.dispute_code == dispute_id))
     if not dispute:
         raise AppError("DISPUTE_NOT_FOUND", "Dispute not found.", 404)
     tx = db.get(Transaction, dispute.transaction_id)
-    transaction_for_party(db, tx.transaction_code, user.id)
     dispute = resolve_dispute(
         db,
         tx,
