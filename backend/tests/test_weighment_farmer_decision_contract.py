@@ -63,6 +63,40 @@ def _capture_audit(monkeypatch):
     return events
 
 
+def test_farmer_acceptance_is_atomic_audited_domain_outcome(monkeypatch):
+    db = FakeDb()
+    session = SimpleNamespace(
+        id=uuid4(),
+        status="FARMER_REVIEW",
+        farmer_profile_id=uuid4(),
+    )
+    actor_user_id = uuid4()
+    events = _capture_audit(monkeypatch)
+
+    acknowledgement = weighment_service.acknowledge_weighment(
+        db,
+        session,
+        acknowledged=True,
+        method="APP_CONFIRMATION",
+        actor_user_id=actor_user_id,
+    )
+
+    assert acknowledgement is not None
+    assert acknowledgement.acknowledged is True
+    assert session.status == "ACKNOWLEDGED"
+    assert db.commit_count == 1
+    assert events == [
+        {
+            "aggregate_type": "WEIGHMENT",
+            "aggregate_id": session.id,
+            "event_type": "FARMER_WEIGHMENT_ACKNOWLEDGED",
+            "actor_user_id": actor_user_id,
+            "payload": {"method": "APP_CONFIRMATION", "status": "ACKNOWLEDGED"},
+            "commit": False,
+        }
+    ]
+
+
 def test_farmer_rejection_is_atomic_audited_domain_outcome(monkeypatch):
     db = FakeDb()
     session = SimpleNamespace(id=uuid4(), status="FARMER_REVIEW")
