@@ -6,10 +6,10 @@ from sqlalchemy.orm import Session
 
 from app.agreement.models import Agreement, AgreementConfirmation
 from app.agreement.schemas import (
-    AgreementCreate,
     PILOT_DISPUTE_RULE,
     PILOT_PRICE_BASIS,
     PILOT_TRANSPORT_RESPONSIBILITY,
+    AgreementCreate,
 )
 from app.core.errors import AppError
 from app.identity.profile_models import BuyerProfile, FarmerProfile
@@ -60,7 +60,7 @@ def create_agreement(
         price_basis=PILOT_PRICE_BASIS,
         pickup_point=payload.pickup_point,
         final_weighing_point=payload.final_weighing_point,
-        tolerance_basis_points=int(Decimal(str(payload.tolerance_percent)) * Decimal("100")),
+        tolerance_basis_points=int(Decimal(str(payload.tolerance_percent)) * Decimal(100)),
         transport_responsibility=PILOT_TRANSPORT_RESPONSIBILITY,
         dispute_rule=PILOT_DISPUTE_RULE,
         status="PENDING_CONFIRMATION",
