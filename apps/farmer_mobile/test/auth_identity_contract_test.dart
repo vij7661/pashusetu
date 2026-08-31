@@ -16,12 +16,22 @@ void main() {
     expect(identity.preferredLanguage, 'te');
   });
 
-  test('rejects malformed Farmer auth identity', () {
+  test('rejects malformed or non-Farmer auth identity', () {
     expect(
       () => AuthIdentity.fromJson({
         'user_id': 'user-1',
         'mobile_e164': '+919100000001',
         'roles': [],
+        'preferred_language': 'te',
+      }),
+      throwsA(isA<FormatException>()),
+    );
+
+    expect(
+      () => AuthIdentity.fromJson({
+        'user_id': 'user-1',
+        'mobile_e164': '+919100000001',
+        'roles': ['BUYER'],
         'preferred_language': 'te',
       }),
       throwsA(isA<FormatException>()),
