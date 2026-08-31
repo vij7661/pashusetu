@@ -11,6 +11,8 @@ The Farmer app must also never prefill fabricated operational facts such as a ma
 
 Transaction creation from an accepted listing is authorized before any transaction mutation occurs: the authenticated verified Farmer must own the listing. Transaction creation and its audit event are committed atomically, so an unauthorized request cannot create another Farmer's transaction and a successful transaction creation cannot exist without its corresponding audit record.
 
+Farmer bid acceptance is part of the trust boundary. The deterministic accepted-bid state change, its audit event and creation of the corresponding transaction are composed into one database commit. A failure before that commit must not leave an accepted bid without its transaction or leave the transaction without the acceptance audit trail.
+
 Settlement display is read-only in the Farmer app. Viewing or refreshing settlement details must call the settlement GET endpoint and must never create a settlement as a side effect. Settlement creation remains a distinct backend mutation with transaction-state enforcement.
 
 Final transaction closure is backend/system-owned after settlement finality. The Farmer app has no close mutation and cannot trigger reputation processing by client action.
