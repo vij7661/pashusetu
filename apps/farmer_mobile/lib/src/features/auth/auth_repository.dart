@@ -49,7 +49,10 @@ class AuthRepository {
     return session;
   }
 
-  Future<Map<String, dynamic>> me() => _api.get('/auth/me');
+  Future<AuthIdentity> me() async {
+    final json = await _api.get('/auth/me');
+    return AuthIdentity.fromJson(json);
+  }
 
   Future<void> logout() => _tokenStore.clear();
 }
