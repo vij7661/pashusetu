@@ -11,6 +11,7 @@ from app.agreement.schemas import (
     PILOT_TRANSPORT_RESPONSIBILITY,
     AgreementCreate,
 )
+from app.audit.service import append_event
 from app.core.errors import AppError
 from app.identity.profile_models import BuyerProfile, FarmerProfile
 from app.marketplace.models import Bid
@@ -70,10 +71,21 @@ def create_agreement(
     db.flush()
 
     if tx.state == "OFFER_ACCEPTED":
-        transition_transaction(db, tx, "AGREEMENT_PENDING")
-    else:
-        db.commit()
+        transition_transaction(db, tx, "AGREEMENT_PENDING", commit=False)
 
+    append_event(
+        db,
+        "TRANSACTION",
+        tx.id,
+        "AGREEMENT_CREATED",
+        user_id,
+        payload={
+            "agreement_id": agreement.agreement_code,
+            "version": agreement.version,
+        },
+        commit=False,
+    )
+    db.commit()
     db.refresh(agreement)
     return agreement
 
