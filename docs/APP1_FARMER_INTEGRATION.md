@@ -17,7 +17,7 @@ Farmer bid acceptance is part of the trust boundary. The deterministic accepted-
 
 Farmer logistics mutations are also trust events. Transport assignment, pickup and delivery state changes are committed atomically with their domain record and audit event. Delivery tolerance cannot be evaluated from an unrelated verified weighment: the delivery weighment must match the exact goat/lot target and Farmer identity of the transaction listing. Delivery validation runs before transaction state changes so a failed verification cannot leave a partially advanced shipment state.
 
-Settlement display is read-only in the Farmer app. Viewing or refreshing settlement details must call the settlement GET endpoint and must never create a settlement as a side effect. Settlement creation remains a distinct backend mutation with transaction-state enforcement.
+Settlement display is read-only in the Farmer app. Viewing or refreshing settlement details must call the settlement GET endpoint and must never create a settlement as a side effect. Settlement creation remains a distinct backend mutation with transaction-state enforcement. When the backend settlement service is invoked, settlement persistence, settlement audit evidence, required `RESOLVED → SETTLED → CLOSED` transitions and reputation updates are committed atomically. This hardening does not decide the still-unresolved external/provider authority that is ultimately allowed to trigger settlement.
 
 Final transaction closure is backend/system-owned after settlement finality. The Farmer app has no close mutation and cannot trigger reputation processing by client action.
 
