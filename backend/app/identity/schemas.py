@@ -1,10 +1,16 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.identity.constants import PILOT_FARMER_STATE
 
 SupportedLanguage = Literal["te", "hi", "en", "mr", "ta", "ml"]
+FarmerKYCStatus = Literal[
+    "KYC_PENDING",
+    "KYC_VERIFIED",
+    "KYC_ACTION_REQUIRED",
+    "KYC_REJECTED",
+]
 
 
 class FarmerRegistrationDetails(BaseModel):
@@ -25,7 +31,7 @@ class FarmerRegistrationStatus(BaseModel):
     mandal: str | None = None
     district: str | None = None
     state: str | None = None
-    preferred_language: str
+    preferred_language: SupportedLanguage
 
 
 class FarmerKYCSubmit(BaseModel):
@@ -35,11 +41,11 @@ class FarmerKYCSubmit(BaseModel):
 
 class FarmerRegistrationComplete(BaseModel):
     farmer_id: str
-    kyc_status: str
-    registration_status: str
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
+    kyc_status: Literal["KYC_PENDING"]
+    registration_status: Literal["KYC_SUBMITTED"]
+    access_token: str = Field(min_length=1)
+    refresh_token: str = Field(min_length=1)
+    token_type: Literal["bearer"] = "bearer"
 
 
 class FarmerProfileCreate(BaseModel):
@@ -60,18 +66,24 @@ class FarmerProfileResponse(BaseModel):
     mandal: str | None
     district: str | None
     state: str | None
-    kyc_status: str
+    kyc_status: FarmerKYCStatus
     payout_status: str
-    preferred_language: str
+    preferred_language: SupportedLanguage
 
 
 class FarmerDashboardResponse(BaseModel):
     farmer_id: str
-    kyc_status: str
+    kyc_status: FarmerKYCStatus
     transaction_enabled: bool
-    live_listings: int
-    active_offers: int
-    settled_amount_paise: int
+    live_listings: int = Field(ge=0)
+    active_offers: int = Field(ge=0)
+    settled_amount_paise: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def validate_transaction_boundary(self):
+        if self.transaction_enabled != (self.kyc_status == "KYC_VERIFIED"):
+            raise ValueError("transaction_enabled must match Farmer KYC verification state")
+        return self
 
 
 class BuyerProfileCreate(BaseModel):
