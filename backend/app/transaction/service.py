@@ -45,9 +45,18 @@ def transaction_for_party(db: Session, transaction_code: str, user_id: UUID) -> 
     raise AppError("FORBIDDEN", "User is not a party to this transaction.", 403)
 
 
-def transition_transaction(db: Session, tx: Transaction, target_state: str) -> Transaction:
+def transition_transaction(
+    db: Session,
+    tx: Transaction,
+    target_state: str,
+    *,
+    commit: bool = True,
+) -> Transaction:
     assert_transition(tx.state, target_state)
     tx.state = target_state
-    db.commit()
-    db.refresh(tx)
+    if commit:
+        db.commit()
+        db.refresh(tx)
+    else:
+        db.flush()
     return tx
