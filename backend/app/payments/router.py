@@ -80,8 +80,8 @@ def secure(
         payment_intent_id=str(row.id),
         provider_reference=payment.provider_reference,
         amount_paise=row.amount_paise,
-        status=row.status,
-        transaction_state=tx.state,
+        status="SECURED",
+        transaction_state="FUNDS_SECURED",
     )
 
 
