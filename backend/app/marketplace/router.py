@@ -161,7 +161,7 @@ def post_listing(
         payload.sale_type,
         payload.opens_at,
         payload.closes_at,
-        UUID(payload.recommendation_id) if payload.recommendation_id else None,
+        payload.recommendation_id,
     )
     return ListingResponse(
         listing_id=listing.listing_code,
