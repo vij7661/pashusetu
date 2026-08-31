@@ -61,6 +61,7 @@ jobs:
           app/auth
           app/identity
           app/audit/service.py
+          app/audit/reputation_service.py
           app/bidding/router.py
           app/bidding/service.py
           app/marketplace/router.py
@@ -75,6 +76,7 @@ jobs:
           app/agreement/service.py
           app/payments/router.py
           app/payments/schemas.py
+          app/payments/settlement_service.py
           app/disputes/router.py
           app/disputes/service.py
           app/logistics/router.py
@@ -90,5 +92,6 @@ jobs:
           tests/test_transaction_trust_contract.py
           tests/test_bidding_trust_contract.py
           tests/test_logistics_trust_contract.py
+          tests/test_settlement_trust_contract.py
           tests/fixtures/farmer_positive_v2.py
       - run: python scripts/export_openapi.py
