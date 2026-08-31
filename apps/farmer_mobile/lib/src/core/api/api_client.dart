@@ -58,14 +58,46 @@ class ApiClient {
   final Dio _dio;
   final TokenStore _tokenStore;
 
-  Future<Map<String, dynamic>> get(String path, {Map<String, dynamic>? query}) async {
-    final response = await _dio.get<Map<String, dynamic>>(path, queryParameters: query);
-    return response.data ?? {};
+  Never _rethrow(DioException error) {
+    final cause = error.error;
+    if (cause is ApiException) {
+      throw cause;
+    }
+    throw ApiException(
+      'CONNECTION_ERROR',
+      'Unable to connect to PashuSetu. Check the backend connection and try again.',
+      statusCode: error.response?.statusCode,
+    );
   }
 
-  Future<List<dynamic>> getList(String path, {Map<String, dynamic>? query}) async {
-    final response = await _dio.get<List<dynamic>>(path, queryParameters: query);
-    return response.data ?? const [];
+  Future<Map<String, dynamic>> get(
+    String path, {
+    Map<String, dynamic>? query,
+  }) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        path,
+        queryParameters: query,
+      );
+      return response.data ?? {};
+    } on DioException catch (error) {
+      _rethrow(error);
+    }
+  }
+
+  Future<List<dynamic>> getList(
+    String path, {
+    Map<String, dynamic>? query,
+  }) async {
+    try {
+      final response = await _dio.get<List<dynamic>>(
+        path,
+        queryParameters: query,
+      );
+      return response.data ?? const [];
+    } on DioException catch (error) {
+      _rethrow(error);
+    }
   }
 
   Future<Map<String, dynamic>> post(
@@ -73,12 +105,16 @@ class ApiClient {
     Map<String, dynamic>? body,
     Map<String, dynamic>? headers,
   }) async {
-    final response = await _dio.post<Map<String, dynamic>>(
-      path,
-      data: body,
-      options: Options(headers: headers),
-    );
-    return response.data ?? {};
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        path,
+        data: body,
+        options: Options(headers: headers),
+      );
+      return response.data ?? {};
+    } on DioException catch (error) {
+      _rethrow(error);
+    }
   }
 
   Future<Map<String, dynamic>> put(
@@ -86,11 +122,15 @@ class ApiClient {
     Map<String, dynamic>? body,
     Map<String, dynamic>? headers,
   }) async {
-    final response = await _dio.put<Map<String, dynamic>>(
-      path,
-      data: body,
-      options: Options(headers: headers),
-    );
-    return response.data ?? {};
+    try {
+      final response = await _dio.put<Map<String, dynamic>>(
+        path,
+        data: body,
+        options: Options(headers: headers),
+      );
+      return response.data ?? {};
+    } on DioException catch (error) {
+      _rethrow(error);
+    }
   }
 }
