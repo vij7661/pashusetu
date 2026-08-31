@@ -53,6 +53,14 @@ def test_secure_funds_response_is_strictly_typed():
             status="PENDING",
             transaction_state="FUNDS_SECURED",
         )
+    with pytest.raises(ValidationError):
+        SecureFundsResponse(
+            payment_intent_id=str(uuid4()),
+            provider_reference="SIM-ABC123",
+            amount_paise=0,
+            status="SECURED",
+            transaction_state="FUNDS_SECURED",
+        )
 
 
 def test_secure_funds_rejects_invalid_transaction_state(monkeypatch):
