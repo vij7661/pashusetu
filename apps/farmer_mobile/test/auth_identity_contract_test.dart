@@ -57,4 +57,32 @@ void main() {
       throwsA(isA<FormatException>()),
     );
   });
+
+  test('validates temporary Farmer registration session states', () {
+    final details = FarmerRegistrationSession.fromJson({
+      'registration_id': 'REG-1',
+      'registration_token': 'token',
+      'registration_status': 'NEW_IN_PROGRESS',
+      'next_step': 'FARMER_DETAILS',
+    });
+    final kyc = FarmerRegistrationSession.fromJson({
+      'registration_id': 'REG-1',
+      'registration_token': 'token',
+      'registration_status': 'NEW_IN_PROGRESS',
+      'next_step': 'KYC',
+    });
+
+    expect(details.nextStep, 'FARMER_DETAILS');
+    expect(kyc.nextStep, 'KYC');
+
+    expect(
+      () => FarmerRegistrationSession.fromJson({
+        'registration_id': 'REG-1',
+        'registration_token': 'token',
+        'registration_status': 'COMPLETED',
+        'next_step': 'HOME',
+      }),
+      throwsA(isA<FormatException>()),
+    );
+  });
 }
