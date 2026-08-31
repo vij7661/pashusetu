@@ -1,7 +1,7 @@
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -26,7 +26,7 @@ class Listing(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     seller_farmer_profile_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("farmer_profiles.id", ondelete="RESTRICT"), nullable=False
     )
-    target_type: Mapped[str] = mapped_column(String(10), nullable=False)  # GOAT / LOT
+    target_type: Mapped[str] = mapped_column(String(10), nullable=False)
     target_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False, index=True)
     weighment_session_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("weighment_sessions.id", ondelete="RESTRICT"), nullable=False
