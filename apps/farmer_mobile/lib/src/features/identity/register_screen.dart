@@ -58,15 +58,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Future<void> _restoreRegistration() async {
     try {
       final status = await ref.read(identityRepositoryProvider).registrationStatus();
-      name.text = status['full_name']?.toString() ?? '';
-      village.text = status['village']?.toString() ?? '';
-      mandal.text = status['mandal']?.toString() ?? '';
-      district.text = status['district']?.toString() ?? '';
-      language = status['preferred_language']?.toString() ?? language;
+      name.text = status.fullName ?? '';
+      village.text = status.village ?? '';
+      mandal.text = status.mandal ?? '';
+      district.text = status.district ?? '';
+      language = status.preferredLanguage;
       await ref.read(languageProvider.notifier).setLanguage(language);
       if (!mounted) return;
       setState(() {
-        step = status['next_step'] == 'KYC' ? 4 : 3;
+        step = status.nextStep == 'KYC' ? 4 : 3;
       });
     } catch (e) {
       if (!mounted) return;
