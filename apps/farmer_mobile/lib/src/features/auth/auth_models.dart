@@ -51,6 +51,10 @@ class AuthIdentity {
       throw const FormatException('Invalid auth identity roles');
     }
     final roles = rawRoles.cast<String>();
+    const allowedRoles = {'FARMER', 'BUYER', 'OPERATOR', 'ADMIN'};
+    if (roles.any((role) => !allowedRoles.contains(role))) {
+      throw const FormatException('Unsupported auth identity role');
+    }
     if (!roles.contains('FARMER')) {
       throw const FormatException('Farmer role is required for Farmer app identity');
     }
