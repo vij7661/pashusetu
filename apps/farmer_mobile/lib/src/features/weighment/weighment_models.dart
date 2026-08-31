@@ -25,26 +25,35 @@ class WeighmentView {
       );
 }
 
-class WeighmentAcknowledgement {
-  const WeighmentAcknowledgement({
-    required this.acknowledgementId,
+class WeighmentDecision {
+  const WeighmentDecision({
     required this.status,
+    this.acknowledgementId,
   });
 
-  final String acknowledgementId;
+  final String? acknowledgementId;
   final String status;
 
-  factory WeighmentAcknowledgement.fromJson(Map<String, dynamic> json) {
-    final id = json['acknowledgement_id'];
+  bool get accepted => status == 'ACKNOWLEDGED';
+  bool get rejected => status == 'REJECTED_BY_FARMER';
+
+  factory WeighmentDecision.fromJson(Map<String, dynamic> json) {
     final status = json['status'];
-    if (id is! String || id.isEmpty) {
+    if (status != 'ACKNOWLEDGED' && status != 'REJECTED_BY_FARMER') {
+      throw const FormatException('Invalid weighment decision status');
+    }
+    final rawId = json['acknowledgement_id'];
+    if (rawId != null && (rawId is! String || rawId.isEmpty)) {
       throw const FormatException('Invalid weighment acknowledgement id');
     }
-    if (status != 'ACKNOWLEDGED_BY_FARMER' && status != 'REJECTED_BY_FARMER') {
-      throw const FormatException('Invalid weighment acknowledgement status');
+    if (status == 'ACKNOWLEDGED' && rawId == null) {
+      throw const FormatException('Acknowledged weighment requires acknowledgement id');
     }
-    return WeighmentAcknowledgement(
-      acknowledgementId: id,
+    if (status == 'REJECTED_BY_FARMER' && rawId != null) {
+      throw const FormatException('Rejected weighment must not have acknowledgement id');
+    }
+    return WeighmentDecision(
+      acknowledgementId: rawId as String?,
       status: status as String,
     );
   }
