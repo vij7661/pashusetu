@@ -19,9 +19,10 @@ If `make` is not available on Windows, run:
 ```bat
 docker compose exec api python scripts/seed_farmer_manual_qa.py
 docker compose exec api python scripts/seed_farmer_manual_qa_states.py
+docker compose exec api python scripts/seed_farmer_weighment_review_qa.py
 ```
 
-The QA seed refuses to run outside `local`, `test`, or `development`. It never persists raw Aadhaar.
+The QA seeds refuse to run outside `local`, `test`, or `development`. They never persist raw Aadhaar.
 
 Backend API: `http://localhost:8000/api/v1`
 
@@ -68,6 +69,7 @@ These OTPs are deterministic only because local development explicitly opts into
 
 For `+919100000033`:
 
+- `WG-QA-ACK-001` / `GOAT-QA-ACK` — pending Farmer weighment review, authoritative net weight `47.250 kg`, with QA verification-video evidence.
 - `GOAT-QA-CREATE` — verified/acknowledged weight `50.000 kg`, reserved for Create Listing.
 - `PS-LST-QA-OFFER` — Farmer-owned published listing for `GOAT-QA-OFFER`, weight `48.500 kg`.
 - `BID-QA-001` — active ₹420/kg offer, total ₹20,370.
@@ -152,15 +154,21 @@ Open `TX-QA-SETTLED` → Settlement.
 
 Expected: gross, adjustment, platform fee and final amount come from backend; repeated settlement load is idempotent; development UI makes no real escrow/payment claim.
 
-### FQA-13 — Weighment acknowledgement
+### FQA-13 — Weighment acknowledgement and rejection
 
-Use an Operator-created weighment in Farmer review state through the approved test setup.
+Use Existing Farmer Login with `+919100000033` / `0588`. Home shows the pending review `WG-QA-ACK-001` for `GOAT-QA-ACK`.
 
-Expected: Farmer acknowledgement is explicit; reject routes domain state to reweigh; accept permits receipt; listing still requires `VERIFIED` weighment.
+Open it and confirm the app displays the authoritative `47.250 kg` net weight, target, Mandal Centre, Scale ID, Operator ID and verification-evidence status before allowing a decision.
+
+**Accept path:** check the acknowledgement box and accept. Expected: the Farmer decision is recorded, a receipt is created, and the weighment becomes `VERIFIED`.
+
+**Reject path:** reset/reseed the QA database first, reopen `WG-QA-ACK-001`, then choose Reject & request reweigh. Expected: the Farmer rejection is recorded as a valid decision and state becomes `REJECTED_BY_FARMER`; no receipt is created; the Operator must start a fresh reweigh linked to the original session.
+
+Expected security boundary: another Farmer cannot read, acknowledge, reject or create a receipt for this Farmer-owned weighment.
 
 ## 6. Negative/resilience checks
 
-Validate: invalid mobile; invalid/wrong OTP; existing-login on unregistered mobile; duplicate registration; KYC before Farmer Details; KYC-pending transaction block; invalid/non-owned Goat/Lot; target without verified weighment; Publish without acknowledgement; invalid price/window; backend unavailable; and all six language layouts (Telugu, Hindi, English, Marathi, Tamil, Malayalam).
+Validate: invalid mobile; invalid/wrong OTP; existing-login on unregistered mobile; duplicate registration; KYC before Farmer Details; KYC-pending transaction block; invalid/non-owned Goat/Lot; non-owned weighment review/decision; target without verified weighment; Publish without acknowledgement; invalid price/window; backend unavailable; and all six language layouts (Telugu, Hindi, English, Marathi, Tamil, Malayalam).
 
 ## 7. Defect evidence
 
