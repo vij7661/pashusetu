@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/localization/language_provider.dart';
 import '../providers.dart';
 import 'transaction_models.dart';
+import 'transaction_state_strings.dart';
 import 'transaction_strings.dart';
 
 class TransactionScreen extends ConsumerWidget {
@@ -31,7 +32,9 @@ class TransactionScreen extends ConsumerWidget {
               Card(
                 child: ListTile(
                   title: Text(tx.id),
-                  subtitle: Text('${t('state')}: ${tx.state}'),
+                  subtitle: Text(
+                    '${t('state')}: ${TransactionStateStrings.label(language, tx.state)}',
+                  ),
                 ),
               ),
               Text(t('transaction_truth_note')),
