@@ -68,6 +68,7 @@ jobs:
           app/weighment/router.py
           app/weighment/schemas.py
           app/transaction/router.py
+          app/transaction/service.py
           app/agreement/router.py
           app/agreement/schemas.py
           app/agreement/service.py
