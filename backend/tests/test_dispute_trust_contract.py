@@ -27,6 +27,8 @@ class _FakeDb:
         self.scalar_result = scalar_result
         self.transaction = transaction
         self.listing = listing
+        self.commit_count = 0
+        self.flush_count = 0
 
     def scalar(self, _statement):
         return self.scalar_result
@@ -42,8 +44,11 @@ class _FakeDb:
         if getattr(row, "id", None) is None:
             row.id = uuid4()
 
+    def flush(self):
+        self.flush_count += 1
+
     def commit(self):
-        pass
+        self.commit_count += 1
 
     def refresh(self, _row):
         pass
@@ -87,7 +92,7 @@ def test_reweigh_must_match_disputed_listing_target_and_farmer():
     assert exc.value.code == "REWEIGH_TARGET_MISMATCH"
 
 
-def test_dispute_evidence_addition_is_audited_without_reference(monkeypatch):
+def test_dispute_evidence_addition_is_audited_atomically_without_reference(monkeypatch):
     actor_id = uuid4()
     transaction_id = uuid4()
     dispute = SimpleNamespace(
@@ -97,12 +102,13 @@ def test_dispute_evidence_addition_is_audited_without_reference(monkeypatch):
         dispute_code="DSP-TEST",
     )
     calls = []
+    db = _FakeDb()
 
     def capture_event(*args, **kwargs):
         calls.append((args, kwargs))
 
     monkeypatch.setattr("app.disputes.service.append_event", capture_event)
-    add_evidence(_FakeDb(), dispute, actor_id, "PHOTO", "private://evidence/object")
+    add_evidence(db, dispute, actor_id, "PHOTO", "private://evidence/object")
 
     assert len(calls) == 1
     args, kwargs = calls[0]
@@ -115,9 +121,12 @@ def test_dispute_evidence_addition_is_audited_without_reference(monkeypatch):
     assert kwargs["payload"]["dispute_id"] == "DSP-TEST"
     assert kwargs["payload"]["evidence_type"] == "PHOTO"
     assert "evidence_reference" not in kwargs["payload"]
+    assert kwargs["commit"] is False
+    assert db.flush_count == 1
+    assert db.commit_count == 1
 
 
-def test_dispute_reweigh_attachment_is_audited(monkeypatch):
+def test_dispute_reweigh_attachment_is_audited_atomically(monkeypatch):
     actor_id = uuid4()
     transaction_id = uuid4()
     listing = _listing_target()
@@ -156,3 +165,6 @@ def test_dispute_reweigh_attachment_is_audited(monkeypatch):
     assert kwargs["payload"]["dispute_id"] == "DSP-TEST"
     assert kwargs["payload"]["weighment_code"] == "WGT-TEST-001"
     assert kwargs["payload"]["stage"] == "DELIVERY"
+    assert kwargs["commit"] is False
+    assert db.flush_count == 1
+    assert db.commit_count == 1
