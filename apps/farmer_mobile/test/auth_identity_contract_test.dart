@@ -66,6 +66,13 @@ void main() {
       }),
       throwsA(isA<FormatException>()),
     );
+    expect(
+      () => TokenPair.fromJson({
+        'access_token': 'access',
+        'refresh_token': '',
+      }),
+      throwsA(isA<FormatException>()),
+    );
   });
 
   test('validates temporary Farmer registration session states', () {
