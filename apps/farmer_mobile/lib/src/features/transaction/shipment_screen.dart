@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/localization/language_provider.dart';
 import '../providers.dart';
 import 'transaction_models.dart';
+import 'transaction_state_strings.dart';
 import 'transaction_strings.dart';
 
 class ShipmentScreen extends ConsumerWidget {
@@ -33,7 +34,9 @@ class ShipmentScreen extends ConsumerWidget {
                 child: ListTile(
                   leading: const Icon(Icons.local_shipping_outlined),
                   title: Text(t('authoritative_state')),
-                  subtitle: Text(transaction.state),
+                  subtitle: Text(
+                    TransactionStateStrings.label(language, transaction.state),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
