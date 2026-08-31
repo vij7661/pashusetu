@@ -50,3 +50,53 @@ class Lot {
         breedSummary: json['breed_summary'] as String?,
       );
 }
+
+class EvidenceUploadContract {
+  const EvidenceUploadContract({
+    required this.evidenceId,
+    required this.storageKey,
+    required this.uploadMethod,
+    required this.uploadUrl,
+    required this.expiresInSeconds,
+  });
+
+  final String evidenceId;
+  final String storageKey;
+  final String uploadMethod;
+  final String uploadUrl;
+  final int expiresInSeconds;
+
+  factory EvidenceUploadContract.fromJson(Map<String, dynamic> json) {
+    String requiredString(String key) {
+      final value = json[key];
+      if (value is! String || value.isEmpty) {
+        throw FormatException('Invalid evidence upload contract field: $key');
+      }
+      return value;
+    }
+
+    final method = requiredString('upload_method');
+    if (method != 'PUT') {
+      throw FormatException('Unsupported evidence upload method: $method');
+    }
+
+    final expires = json['expires_in_seconds'];
+    if (expires is! int || expires <= 0) {
+      throw const FormatException('Invalid evidence upload expiry.');
+    }
+
+    final url = requiredString('upload_url');
+    final parsed = Uri.tryParse(url);
+    if (parsed == null || !parsed.hasScheme) {
+      throw const FormatException('Invalid evidence upload URL.');
+    }
+
+    return EvidenceUploadContract(
+      evidenceId: requiredString('evidence_id'),
+      storageKey: requiredString('storage_key'),
+      uploadMethod: method,
+      uploadUrl: url,
+      expiresInSeconds: expires,
+    );
+  }
+}
