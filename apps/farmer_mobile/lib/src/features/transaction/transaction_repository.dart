@@ -18,27 +18,29 @@ class TransactionRepository {
     return SettlementView.fromJson(json);
   }
 
-  Future<Map<String, dynamic>> createAgreement({
+  Future<AgreementView> createAgreement({
     required String transactionId,
     required String pickupPoint,
     required String finalWeighingPoint,
     required double tolerancePercent,
-  }) {
-    return _api.post('/agreement/transactions/$transactionId', body: {
+  }) async {
+    final json = await _api.post('/agreement/transactions/$transactionId', body: {
       'pickup_point': pickupPoint,
       'final_weighing_point': finalWeighingPoint,
       'tolerance_percent': tolerancePercent,
     });
+    return AgreementView.fromJson(json);
   }
 
-  Future<Map<String, dynamic>> confirmAgreement(
+  Future<AgreementView> confirmAgreement(
     String transactionId,
     String agreementId,
-  ) {
-    return _api.post(
+  ) async {
+    final json = await _api.post(
       '/agreement/transactions/$transactionId/$agreementId/confirm',
       body: {'confirm': true},
     );
+    return AgreementView.fromJson(json);
   }
 
   Future<Map<String, dynamic>> close(String transactionId) =>
