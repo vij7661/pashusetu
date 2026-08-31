@@ -65,7 +65,13 @@ def post_evidence(
         raise AppError("DISPUTE_NOT_FOUND", "Dispute not found.", 404)
     tx = db.get(Transaction, dispute.transaction_id)
     transaction_for_party(db, tx.transaction_code, user.id)
-    row = add_evidence(db, dispute, payload.evidence_type, payload.evidence_reference)
+    row = add_evidence(
+        db,
+        dispute,
+        user.id,
+        payload.evidence_type,
+        payload.evidence_reference,
+    )
     return {"evidence_id": str(row.id), "status": "RECORDED"}
 
 
@@ -81,7 +87,7 @@ def post_reweigh(
         raise AppError("DISPUTE_NOT_FOUND", "Dispute not found.", 404)
     tx = db.get(Transaction, dispute.transaction_id)
     transaction_for_party(db, tx.transaction_code, user.id)
-    row = attach_reweigh(db, dispute, payload.weighment_id, payload.stage)
+    row = attach_reweigh(db, dispute, user.id, payload.weighment_id, payload.stage)
     return {"reweigh_id": str(row.id), "stage": row.stage, "status": row.status}
 
 
