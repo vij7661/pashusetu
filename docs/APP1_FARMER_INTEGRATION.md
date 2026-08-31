@@ -11,6 +11,10 @@ The Farmer app must also never prefill fabricated operational facts such as a ma
 
 Settlement display is read-only in the Farmer app. Viewing or refreshing settlement details must call the settlement GET endpoint and must never create a settlement as a side effect. Settlement creation remains a distinct backend mutation with transaction-state enforcement.
 
+Final transaction closure is backend/system-owned after settlement finality. The Farmer app has no close mutation and cannot trigger reputation processing by client action.
+
+Dispute parties may open a dispute and submit evidence, but they do not own the final resolution. Final decision, resolution rule and settlement adjustment are platform-controlled and require an authorized Admin or Operator resolver in the pilot. Reweigh evidence must be verified and must match the exact goat/lot and Farmer identity from the disputed listing; an unrelated verified weighment cannot be attached to the case. Additional evidence or reweighs are rejected after the dispute is resolved.
+
 Shipment UI must not infer that pickup, transit, delivery, weighment or evidence milestones happened merely because those steps exist in the workflow. Until verified event data is returned by the backend, the Farmer app shows only the authoritative transaction state.
 
 ## Implemented connection map
@@ -30,7 +34,10 @@ Shipment UI must not infer that pickup, transit, delivery, weighment or evidence
 | Transaction | `GET /transaction/{id}` |
 | Agreement | `/agreement/transactions/*` |
 | Settlement status | `GET /payments/transactions/{id}/settlement` |
-| Dispute | `/disputes/transactions/*` |
+| Open dispute | `POST /disputes/transactions/{id}` |
+| Dispute evidence/reweigh | `POST /disputes/{id}/evidence`, `POST /disputes/{id}/reweigh` |
+
+There is intentionally no Farmer-facing transaction-close or dispute-resolution endpoint.
 
 ## Remaining provider-dependent UI
 - Aadhaar/KYC verification
