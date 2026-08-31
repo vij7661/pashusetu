@@ -132,7 +132,12 @@ def post_lock(
     user: User = Depends(operator_required),
 ):
     session = _session_by_code(db, weighment_id)
-    reading = lock_reading(db, session, UUID(payload.reading_id))
+    reading = lock_reading(
+        db,
+        session,
+        UUID(payload.reading_id),
+        actor_user_id=user.id,
+    )
     return ReadingResponse(
         reading_id=str(reading.id),
         sequence_no=reading.sequence_no,
