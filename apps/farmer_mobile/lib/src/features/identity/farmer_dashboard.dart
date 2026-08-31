@@ -21,12 +21,12 @@ class FarmerDashboard {
       if (value is! String || value.trim().isEmpty) {
         throw FormatException('Missing or invalid $key');
       }
-      return value;
+      return value.trim();
     }
 
-    int requiredInt(String key) {
+    int requiredNonNegativeInt(String key) {
       final value = json[key];
-      if (value is! int) {
+      if (value is! int || value < 0) {
         throw FormatException('Missing or invalid $key');
       }
       return value;
@@ -37,13 +37,30 @@ class FarmerDashboard {
       throw const FormatException('Missing or invalid transaction_enabled');
     }
 
+    final kycStatus = requiredString('kyc_status');
+    if (!const {
+      'KYC_PENDING',
+      'KYC_VERIFIED',
+      'KYC_ACTION_REQUIRED',
+      'KYC_REJECTED',
+    }.contains(kycStatus)) {
+      throw FormatException('Invalid Farmer KYC status: $kycStatus');
+    }
+
+    final shouldEnableTransactions = kycStatus == 'KYC_VERIFIED';
+    if (enabled != shouldEnableTransactions) {
+      throw FormatException(
+        'Inconsistent Farmer KYC transaction boundary: $kycStatus/$enabled',
+      );
+    }
+
     return FarmerDashboard(
       farmerId: requiredString('farmer_id'),
-      kycStatus: requiredString('kyc_status'),
+      kycStatus: kycStatus,
       transactionEnabled: enabled,
-      liveListings: requiredInt('live_listings'),
-      activeOffers: requiredInt('active_offers'),
-      settledAmountPaise: requiredInt('settled_amount_paise'),
+      liveListings: requiredNonNegativeInt('live_listings'),
+      activeOffers: requiredNonNegativeInt('active_offers'),
+      settledAmountPaise: requiredNonNegativeInt('settled_amount_paise'),
     );
   }
 }
