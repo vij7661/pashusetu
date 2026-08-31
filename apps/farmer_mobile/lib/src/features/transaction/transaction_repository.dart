@@ -5,8 +5,10 @@ class TransactionRepository {
   TransactionRepository(this._api);
   final ApiClient _api;
 
-  Future<Map<String, dynamic>> createFromListing(String listingId) =>
-      _api.post('/transaction/from-listing/$listingId');
+  Future<TransactionView> createFromListing(String listingId) async {
+    final json = await _api.post('/transaction/from-listing/$listingId');
+    return TransactionView.fromJson(json);
+  }
 
   Future<TransactionView> transaction(String id) async {
     final json = await _api.get('/transaction/$id');
