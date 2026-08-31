@@ -38,7 +38,7 @@ def create_from_listing(
     bid = db.get(Bid, listing.accepted_bid_id)
     if bid is None:
         raise AppError("BID_NOT_FOUND", "Accepted bid not found.", 404)
-    tx = create_transaction_from_accepted_bid(db, listing, bid)
+    tx = create_transaction_from_accepted_bid(db, listing, bid, user.id)
     tx = transaction_for_party(db, tx.transaction_code, user.id)
     return TransactionResponse(
         transaction_id=tx.transaction_code,
