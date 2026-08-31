@@ -59,6 +59,11 @@ class AuthIdentity {
       throw const FormatException('Farmer role is required for Farmer app identity');
     }
 
+    final mobileE164 = requiredString('mobile_e164');
+    if (!RegExp(r'^\+[1-9]\d{7,14}$').hasMatch(mobileE164)) {
+      throw FormatException('Invalid auth identity mobile: $mobileE164');
+    }
+
     final preferredLanguage = requiredString('preferred_language');
     if (!const {'te', 'hi', 'en', 'mr', 'ta', 'ml'}.contains(preferredLanguage)) {
       throw FormatException('Unsupported auth identity language: $preferredLanguage');
@@ -66,7 +71,7 @@ class AuthIdentity {
 
     return AuthIdentity(
       userId: requiredString('user_id'),
-      mobileE164: requiredString('mobile_e164'),
+      mobileE164: mobileE164,
       roles: roles,
       preferredLanguage: preferredLanguage,
     );
