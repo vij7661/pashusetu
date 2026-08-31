@@ -12,10 +12,20 @@ from app.transaction.models import Transaction
 from app.transaction.service import transition_transaction
 
 
-def _finalize_transaction_after_settlement(db: Session, tx: Transaction) -> None:
-    if tx.state == "SETTLED":
-        transition_transaction(db, tx, "CLOSED")
-        close_transaction_reputation(db, tx)
+def _finalize_transaction_after_settlement(
+    db: Session,
+    tx: Transaction,
+    *,
+    commit: bool = True,
+) -> bool:
+    if tx.state != "SETTLED":
+        return False
+
+    transition_transaction(db, tx, "CLOSED", commit=False)
+    close_transaction_reputation(db, tx, commit=False)
+    if commit:
+        db.commit()
+    return True
 
 
 def create_settlement(
@@ -26,7 +36,9 @@ def create_settlement(
 ) -> Settlement:
     existing = db.scalar(select(Settlement).where(Settlement.transaction_id == tx.id))
     if existing:
-        _finalize_transaction_after_settlement(db, tx)
+        finalized = _finalize_transaction_after_settlement(db, tx, commit=False)
+        if finalized:
+            db.commit()
         return existing
 
     if tx.state not in {"SETTLED", "RESOLVED"}:
@@ -51,11 +63,10 @@ def create_settlement(
         status="COMPLETED",
     )
     db.add(settlement)
-    db.commit()
-    db.refresh(settlement)
+    db.flush()
 
     if tx.state == "RESOLVED":
-        transition_transaction(db, tx, "SETTLED")
+        transition_transaction(db, tx, "SETTLED", commit=False)
 
     append_event(
         db,
@@ -70,6 +81,9 @@ def create_settlement(
             "platform_fee_paise": fee,
             "final_amount_paise": final,
         },
+        commit=False,
     )
-    _finalize_transaction_after_settlement(db, tx)
+    _finalize_transaction_after_settlement(db, tx, commit=False)
+    db.commit()
+    db.refresh(settlement)
     return settlement
