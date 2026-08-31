@@ -12,13 +12,12 @@ from app.disputes.router import (
 from app.logistics.router import assign_transport, delivery, pickup
 from app.marketplace.router import post_listing
 from app.payments.router import secure, settle_transaction
-from app.transaction.router import close_transaction, create_from_listing
+from app.transaction.router import create_from_listing, router as transaction_router
 
 TRANSACTIONAL_FARMER_MUTATIONS = (
     post_listing,
     post_accept_bid,
     create_from_listing,
-    close_transaction,
     post_agreement,
     post_confirm,
     secure,
@@ -38,3 +37,13 @@ def test_all_farmer_transactional_mutations_require_verified_kyc():
         user_parameter = inspect.signature(endpoint).parameters["user"]
         dependency = user_parameter.default.dependency
         assert dependency is require_farmer_kyc_verified, endpoint.__name__
+
+
+def test_transaction_close_is_not_a_party_facing_mutation():
+    party_close_routes = [
+        route
+        for route in transaction_router.routes
+        if route.path == "/transaction/{transaction_id}/close"
+        and "POST" in route.methods
+    ]
+    assert party_close_routes == []
