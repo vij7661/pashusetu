@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/localization/language_provider.dart';
 import '../providers.dart';
 import 'transaction_models.dart';
+import 'transaction_strings.dart';
 
 class TransactionScreen extends ConsumerWidget {
   const TransactionScreen({super.key, required this.transactionId});
@@ -10,8 +12,11 @@ class TransactionScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final language = ref.watch(languageProvider);
+    String t(String key) => TransactionStrings.tr(language, key);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Transaction')),
+      appBar: AppBar(title: Text(t('transaction'))),
       body: FutureBuilder<TransactionView>(
         future: ref.read(transactionRepositoryProvider).transaction(transactionId),
         builder: (context, snapshot) {
@@ -26,13 +31,10 @@ class TransactionScreen extends ConsumerWidget {
               Card(
                 child: ListTile(
                   title: Text(tx.id),
-                  subtitle: Text('State: ${tx.state}'),
+                  subtitle: Text('${t('state')}: ${tx.state}'),
                 ),
               ),
-              const Text(
-                'This screen renders the authoritative backend transaction state. '
-                'The app does not maintain an independent transaction status.',
-              ),
+              Text(t('transaction_truth_note')),
             ],
           );
         },
