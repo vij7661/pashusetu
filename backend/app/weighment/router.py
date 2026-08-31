@@ -165,7 +165,13 @@ def post_acknowledge(
 ):
     session = _session_by_code(db, weighment_id)
     _require_farmer_session_owner(db, session, user)
-    acknowledgement = acknowledge_weighment(db, session, payload.acknowledged, payload.method)
+    acknowledgement = acknowledge_weighment(
+        db,
+        session,
+        payload.acknowledged,
+        payload.method,
+        actor_user_id=user.id,
+    )
     return AcknowledgeResponse(
         acknowledgement_id=str(acknowledgement.id) if acknowledgement else None,
         status=session.status,
@@ -180,7 +186,7 @@ def post_receipt(
 ):
     session = _session_by_code(db, weighment_id)
     target = _require_farmer_session_owner(db, session, user)
-    receipt = create_receipt(db, session)
+    receipt = create_receipt(db, session, actor_user_id=user.id)
     return ReceiptResponse(
         receipt_id=str(receipt.id),
         receipt_code=receipt.receipt_code,
