@@ -23,8 +23,10 @@ seed:
 
 farmer-qa-seed:
 	docker compose exec api python scripts/seed_farmer_manual_qa.py
+	docker compose exec api python scripts/seed_farmer_lifecycle_qa.py
 	docker compose exec api python scripts/seed_farmer_manual_qa_states.py
 	docker compose exec api python scripts/seed_farmer_weighment_review_qa.py
+	docker compose exec api python scripts/verify_farmer_lifecycle_qa.py
 
 openapi:
 	docker compose exec api python scripts/export_openapi.py
