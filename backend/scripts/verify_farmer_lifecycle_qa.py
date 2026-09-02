@@ -1,5 +1,8 @@
 """Headless verification of Farmer lifecycle QA data and routing preconditions."""
 
+from pathlib import Path
+from runpy import run_path
+
 from sqlalchemy import delete, select
 
 from app.auth.service import (
@@ -13,7 +16,14 @@ from app.auth.service import (
 from app.db.session import SessionLocal
 from app.identity.models import OTPChallenge, User
 from app.identity.profile_models import FarmerProfile, FarmerRegistration
-from tests.fixtures.farmer_lifecycle_v3 import FARMER_LIFECYCLE_QA
+
+_FIXTURE_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "tests"
+    / "fixtures"
+    / "farmer_lifecycle_v3.py"
+)
+FARMER_LIFECYCLE_QA = run_path(str(_FIXTURE_PATH))["FARMER_LIFECYCLE_QA"]
 
 
 def _row(state: str) -> dict:
